@@ -65,12 +65,8 @@
 	</ItemGroup>
 
 	<ItemGroup>
-		<EmbeddedResource Include="src\Presentation\Web\assets\**" />
-		<EmbeddedResource Include="src\Presentation\LeanUI\assets\**" />
-	</ItemGroup>
-
-	<ItemGroup>
-		<Folder Include="src\Presentation\LeanUI\" />
+		<EmbeddedResource Include="Presentation\Web\assets\**" />
+		<EmbeddedResource Include="Presentation\LeanUI\assets\**" />
 	</ItemGroup>
 
 </Project>
