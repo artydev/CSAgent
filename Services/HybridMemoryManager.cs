@@ -1,5 +1,7 @@
-﻿using CsAgentUI.Services;
+﻿using CsAgent.Core.Llm;
+using CsAgentUI.Services;
 using System.Text;
+using System.Text.Json.Nodes;
 
 namespace CsAgent.Services
 {
@@ -83,7 +85,45 @@ namespace CsAgent.Services
         { await Task.WhenAll(_semantic.SaveAsync(sem), _exact.SaveAsync(ex)); }
 
         public async Task LoadAsync(string sem, string ex)
-        { await Task.WhenAll(_semantic.LoadAsync(sem), _exact.LoadAsync(ex)); }
+        {
+            await Task.WhenAll(_semantic.LoadAsync(sem), _exact.LoadAsync(ex));
+            _previousSummary = await _summary.LoadAsync(SummaryPath(sem));
+        }
+
+        // ── Session distillation ─────────────────────────────────────────────
+        private readonly SummaryMemory _summary = new();
+        private SessionSummary? _previousSummary;
+
+        private static string SummaryPath(string sem) => sem + ".summary.json";
+
+        /// <summary>Context block for the start of a run; empty when no summary exists.</summary>
+        public string GetSessionContextBlock() =>
+            _previousSummary is { IsEmpty: false } s ? _summary.ToContextBlock(s) : "";
+
+        /// <summary>
+        /// Saves both memory layers, then asks the LLM to distill the conversation.
+        /// A distillation failure never throws and never overwrites the previous summary.
+        /// </summary>
+        public async Task DistillAndSaveAsync(
+            JsonArray messages, LlmClient client, string sem, string ex, CancellationToken ct)
+        {
+            await SaveAsync(sem, ex);
+
+            // Nothing worth summarising (system prompt + at most one exchange).
+            if (messages.Count < 4) return;
+
+            try
+            {
+                var summary = await _summary.DistillAsync(messages, client, _previousSummary, ct);
+                if (summary.IsEmpty) return;
+                await _summary.SaveAsync(summary, SummaryPath(sem));
+                _previousSummary = summary;
+            }
+            catch (Exception)
+            {
+                // Keep the previous summary; distillation is best-effort.
+            }
+        }
 
         // Helpers
         private static string Classify(string e) => e.ToLower() switch
