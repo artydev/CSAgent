@@ -3,7 +3,9 @@ using CsAgent.Core.Llm;
 using CsAgent.Core.Memory;
 using CsAgent.Core.Tasks;
 using CsAgent.Infrastructure.Clipboard;
+using CsAgent.Services;
 using CsAgent.Shared;
+using CsAgentUI.Services;
 
 namespace CsAgent.Presentation.Tui;
 
@@ -33,6 +35,11 @@ public static class TuiHost
         if (!string.IsNullOrWhiteSpace(args.TaskSlug))
             Console.WriteLine($"  Task: {args.TaskSlug}");
         Console.WriteLine();
+
+        // Created once — accumulates patterns across all turns in this session
+        var memory = new HybridMemoryManager(
+            new SemanticMemory(),
+            new ExactMemory());
 
         while (true)
         {
@@ -70,7 +77,8 @@ public static class TuiHost
                     Retry: new RetryPolicy(args.MaxRetries, args.RetryDelayMs),
                     Tracker: tracker),
                 new ConsoleObserver(),
-                args.McpUrl);
+                args.McpUrl,
+                memory);
 
             await agent.RunAsync(messages, args.MemoryFile);
         }

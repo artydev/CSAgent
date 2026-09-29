@@ -1,10 +1,12 @@
-using System.Security.Principal;
-using System.Text.Json.Nodes;
 using CsAgent.Core.Abstractions;
 using CsAgent.Core.Llm;
 using CsAgent.Core.Memory;
 using CsAgent.Core.Tasks;
+using CsAgent.Services;
 using CsAgent.Shared;
+using System.Security.Principal;
+using System.Text;
+using System.Text.Json.Nodes;
 
 namespace CsAgent.Core.Agent;
 
@@ -16,6 +18,7 @@ public sealed class CodingAgent : IDisposable
     private readonly McpClient? _mcp;
     private JsonArray? _toolDefinitions;
     private CancellationTokenSource? _cts;
+    private HybridMemoryManager? _memory;
     private TaskTracker? _tracker;
 
     public CodingAgent(
@@ -24,19 +27,20 @@ public sealed class CodingAgent : IDisposable
         string model,
         AgentOptions opts,
         IAgentObserver observer,
-        string? mcpUrl = null)
+        string? mcpUrl = null,              // ← 6th: matches TuiHost positional arg
+        HybridMemoryManager? memory = null) // ← 7th: new, always named or last
     {
         _opts = opts;
         _observer = observer;
         _client = new LlmClient(apiKey, endpoint, model, opts.Retry);
         _tracker = opts.Tracker;
+        _memory = memory;                 // ← add this line
 
         if (!string.IsNullOrWhiteSpace(mcpUrl))
             _mcp = new McpClient(mcpUrl);
 
         if (_tracker is null && !string.IsNullOrWhiteSpace(_opts.ResumeTaskId))
             _tracker = TaskTracker.Load(_opts.ResumeTaskId);
-
     }
 
     // ── Main loop ────────────────────────────────────────────────────────────
@@ -44,6 +48,14 @@ public sealed class CodingAgent : IDisposable
     public async Task RunAsync(JsonArray messages, string memoryFile)
     {
         _cts = new CancellationTokenSource();
+
+
+        if (_memory != null)
+
+            await _memory.LoadAsync($"{memoryFile}.semantic.json",
+
+                                     $"{memoryFile}.exact.json");
+
         var isWindows = OperatingSystem.IsWindows();
 
         if (!string.IsNullOrWhiteSpace(_opts.ResumeTaskId))
@@ -77,99 +89,166 @@ public sealed class CodingAgent : IDisposable
             return $"OK: model switched to '{model}'.";
         };
 
-        for (int step = 1; step <= _opts.MaxSteps; step++)
+        try
         {
-            _cts.Token.ThrowIfCancellationRequested();
-            await _observer.OnStep(step, _opts.MaxSteps);
+            for (int step = 1; step <= _opts.MaxSteps; step++)
 
-            JsonNode response;
-            try
+
+
             {
-                response = await _client.CompleteChatAsync(messages, _toolDefinitions, _cts.Token);
-            }
-            catch (OperationCanceledException) { throw; }
-            catch (Exception ex)
-            {
-                await _observer.OnError($"API error: {ex.Message}");
-                return;
-            }
+                _cts.Token.ThrowIfCancellationRequested();
+                await _observer.OnStep(step, _opts.MaxSteps);
 
-            var choice = response["choices"]?[0];
-            var message = choice?["message"];
-            if (message is null)
-            {
-                await _observer.OnError("Empty response from API.");
-                return;
-            }
 
-            var text = message["content"]?.GetValue<string>();
-            if (!string.IsNullOrWhiteSpace(text))
-                await _observer.OnThought(text);
+                if (_memory != null && step > 3)
 
-            messages.Add(message.DeepClone());
-
-            var finishReason = choice?["finish_reason"]?.GetValue<string>();
-            var toolCalls = message["tool_calls"]?.AsArray();
-
-            if (toolCalls is null || toolCalls.Count == 0)
-            {
-                if (finishReason == "stop")
                 {
-                    _tracker?.Finalize("complete", "Task completed.");
-                    await _observer.OnDone("Task complete.");
-                    await MemoryStore.SaveAsync(memoryFile, messages);
+
+                    var lastThought = messages
+
+                        .Where(m => m?["role"]?.GetValue<string>() == "assistant")
+
+                        .LastOrDefault()?["content"]?.GetValue<string>() ?? "";
+
+                    var insight = _memory.GetContext(lastThought);
+
+                    var memText = _memory.ToPromptText(insight);
+
+                    if (!string.IsNullOrWhiteSpace(memText))
+
+                        messages.Add(new JsonObject
+                        {
+
+                            ["role"] = "user",
+
+                            ["content"] = "[MEMORY]\n" + memText
+
+                        });
+
+                }
+
+                JsonNode response;
+                try
+                {
+                    response = await _client.CompleteChatAsync(messages, _toolDefinitions, _cts.Token);
+                }
+                catch (OperationCanceledException) { throw; }
+                catch (Exception ex)
+                {
+                    await _observer.OnError($"API error: {ex.Message}");
                     return;
                 }
-                await _observer.OnDone("Assistant finished.");
-                return;
+
+                var choice = response["choices"]?[0];
+                var message = choice?["message"];
+                if (message is null)
+                {
+                    await _observer.OnError("Empty response from API.");
+                    return;
+                }
+
+                var text = message["content"]?.GetValue<string>();
+                if (!string.IsNullOrWhiteSpace(text))
+                    await _observer.OnThought(text);
+
+                messages.Add(message.DeepClone());
+
+                var finishReason = choice?["finish_reason"]?.GetValue<string>();
+                var toolCalls = message["tool_calls"]?.AsArray();
+
+                if (toolCalls is null || toolCalls.Count == 0)
+                {
+                    if (finishReason == "stop")
+                    {
+                        _tracker?.Finalize("complete", "Task completed.");
+                        await _observer.OnDone("Task complete.");
+                        await MemoryStore.SaveAsync(memoryFile, messages);
+                        return;
+                    }
+                    await _observer.OnDone("Assistant finished.");
+                    return;
+                }
+
+                foreach (var tc in toolCalls)
+                {
+                    if (tc is null) continue;
+                    _cts.Token.ThrowIfCancellationRequested();
+
+                    var callId = tc["id"]?.GetValue<string>() ?? Guid.NewGuid().ToString();
+                    var funcName = tc["function"]?["name"]?.GetValue<string>() ?? "unknown";
+                    var argsRaw = tc["function"]?["arguments"]?.GetValue<string>() ?? "{}";
+
+                    await _observer.OnToolCall(funcName, JsonHelpers.PrettyJson(argsRaw));
+
+
+
+                    string result;
+                    if (_opts.DryRun)
+                    {
+                        result = "[dry-run] Tool not executed.";
+                    }
+                    else if (_mcp is not null && _mcp.Contains(funcName))
+                    {
+                        result = await _mcp.CallToolAsync(funcName, argsRaw, _cts.Token);
+                    }
+                    else if (_opts.Confirm && ToolDispatcher.IsDestructive(funcName))
+                    {
+                        var allowed = await _observer.OnConfirm(funcName);
+                        result = allowed
+                            ? await ToolDispatcher.DispatchAsync(funcName, argsRaw, isWindows, switchModel)
+                            : "Tool call declined by user.";
+                    }
+                    else
+                    {
+                        result = await ToolDispatcher.DispatchAsync(funcName, argsRaw, isWindows, switchModel);
+                    }
+
+                    var isError = result.StartsWith("Error:", StringComparison.OrdinalIgnoreCase)
+                               || result.StartsWith("Shell error:", StringComparison.OrdinalIgnoreCase);
+
+
+
+                    if (_memory != null)
+
+                    {
+
+                        if (isError) _memory.RecordError(step, funcName, result);
+
+                        else _memory.RecordSuccess(step, funcName, result);
+
+                    }
+
+
+                    await _observer.OnToolResult(result, isError);
+                    messages.Add(JsonHelpers.ToolResult(callId, result));
+
+                    _tracker?.LogStep(isError ? "failed" : "done", $"{funcName}: {Truncate(result)}");
+                }
+
+                await MemoryStore.SaveAsync(memoryFile, messages);
+
+                if (_memory != null)
+
+                    await _memory.SaveAsync($"{memoryFile}.semantic.json",
+
+                                            $"{memoryFile}.exact.json");
+
+
+
+                JsonHelpers.TrimHistory(messages);
             }
-
-            foreach (var tc in toolCalls)
-            {
-                if (tc is null) continue;
-                _cts.Token.ThrowIfCancellationRequested();
-
-                var callId = tc["id"]?.GetValue<string>() ?? Guid.NewGuid().ToString();
-                var funcName = tc["function"]?["name"]?.GetValue<string>() ?? "unknown";
-                var argsRaw = tc["function"]?["arguments"]?.GetValue<string>() ?? "{}";
-
-                await _observer.OnToolCall(funcName, JsonHelpers.PrettyJson(argsRaw));
-
-       
-
-                string result;
-                if (_opts.DryRun)
-                {
-                    result = "[dry-run] Tool not executed.";
-                }
-                else if (_mcp is not null && _mcp.Contains(funcName))
-                {
-                    result = await _mcp.CallToolAsync(funcName, argsRaw, _cts.Token);
-                }
-                else if (_opts.Confirm && ToolDispatcher.IsDestructive(funcName))
-                {
-                    var allowed = await _observer.OnConfirm(funcName);
-                    result = allowed
-                        ? await ToolDispatcher.DispatchAsync(funcName, argsRaw, isWindows, switchModel)
-                        : "Tool call declined by user.";
-                }
-                else
-                {
-                    result = await ToolDispatcher.DispatchAsync(funcName, argsRaw, isWindows, switchModel);
-                }
-
-                var isError = result.StartsWith("Error:", StringComparison.OrdinalIgnoreCase)
-                           || result.StartsWith("Shell error:", StringComparison.OrdinalIgnoreCase);
-
-                await _observer.OnToolResult(result, isError);
-                messages.Add(JsonHelpers.ToolResult(callId, result));
-
-                _tracker?.LogStep(isError ? "failed" : "done", $"{funcName}: {Truncate(result)}");
-            }
-
-            await MemoryStore.SaveAsync(memoryFile, messages);
-            JsonHelpers.TrimHistory(messages);
         }
+        finally
+        {
+            // Runs on EVERY exit: return, exception, max steps, cancelled
+            if (_memory != null)
+                await _memory.SaveAsync($"{memoryFile}.semantic.json",
+                                        $"{memoryFile}.exact.json");
+        }
+
+
+
+
 
         _tracker?.Finalize("incomplete", $"Reached maximum of {_opts.MaxSteps} steps without completing.");
         await _observer.OnError($"Reached maximum of {_opts.MaxSteps} steps without completing.");
@@ -212,7 +291,7 @@ public sealed class CodingAgent : IDisposable
     public static JsonObject SystemMessage(bool isWindows)
     {
         var obj = new JsonObject();
-        var  platform = isWindows ? "Windows" : "Unix-like";
+        var platform = isWindows ? "Windows" : "Unix-like";
         obj.Add("role", JsonValue.Create("system"));
         obj.Add("content", JsonValue.Create($$"""
             ## 0. Conversational Awareness

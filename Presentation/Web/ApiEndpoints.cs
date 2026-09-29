@@ -3,7 +3,9 @@ using CsAgent.Core.Llm;
 using CsAgent.Core.Memory;
 using CsAgent.Core.Tasks;
 using CsAgent.Infrastructure.Clipboard;
+using CsAgent.Services;                    // ← ADD
 using CsAgent.Shared;
+using CsAgentUI.Services;
 
 namespace CsAgent.Presentation.Web;
 
@@ -22,10 +24,15 @@ public static class ApiEndpoints
     {
         var broker = new ConfirmationBroker();
 
+        // Created once — shared across all requests in this server session
+        var memory = new HybridMemoryManager(   // ← ADD
+            new SemanticMemory(),
+            new ExactMemory());
+
         app.MapPost("/api/confirm", async (HttpContext ctx) =>
         {
             using var sr = new StreamReader(ctx.Request.Body);
-            var body  = await sr.ReadToEndAsync();
+            var body = await sr.ReadToEndAsync();
             var allow = body.Trim().Equals("true", StringComparison.OrdinalIgnoreCase);
             var resolved = broker.Resolve(allow);
             ctx.Response.StatusCode = resolved ? 200 : 409;
@@ -38,7 +45,7 @@ public static class ApiEndpoints
             if (string.IsNullOrWhiteSpace(slug)) slug = taskSlug;
 
             await RunChatAsync(ctx, prompt, null, null,
-                               memoryFile, modelOverride, mcpUrl, retry, broker, slug);
+                               memoryFile, modelOverride, mcpUrl, retry, broker, slug, memory); // ← ADD memory
         });
 
         app.MapPost("/api/chat", async (HttpContext ctx) =>
@@ -76,17 +83,16 @@ public static class ApiEndpoints
             }
             else
             {
-                // No explicit upload — check if a screenshot is waiting on the clipboard.
                 var clipped = clipboard?.ConsumeLatest();
                 if (clipped is not null)
                 {
                     imageBase64 = Convert.ToBase64String(clipped.PngBytes);
-                    imageMime   = "image/png";
+                    imageMime = "image/png";
                 }
             }
 
             await RunChatAsync(ctx, prompt, imageBase64, imageMime,
-                               memoryFile, modelOverride, mcpUrl, retry, broker, slug);
+                               memoryFile, modelOverride, mcpUrl, retry, broker, slug, memory); // ← ADD memory
         });
 
         return app;
@@ -102,9 +108,10 @@ public static class ApiEndpoints
         string? mcpUrl,
         RetryPolicy? retry,
         ConfirmationBroker broker,
-        string? taskSlug)
+        string? taskSlug,
+        HybridMemoryManager memory)           // ← ADD parameter
     {
-        ctx.Response.Headers.ContentType  = "text/event-stream";
+        ctx.Response.Headers.ContentType = "text/event-stream";
         ctx.Response.Headers.CacheControl = "no-cache";
 
         var observer = new SseObserver(ctx.Response, broker);
@@ -132,7 +139,9 @@ public static class ApiEndpoints
         using var agent = new CodingAgent(
             apiKey, LlmSettings.Endpoint, model,
             new AgentOptions(Retry: retry, Tracker: tracker),
-            observer, mcpUrl);
+            observer,
+            mcpUrl,
+            memory);                          // ← ADD
 
         await agent.RunAsync(msgs, memoryFile);
     }
@@ -143,9 +152,9 @@ public static class ApiEndpoints
         return ext switch
         {
             ".jpg" or ".jpeg" => "image/jpeg",
-            ".png"            => "image/png",
-            ".gif"            => "image/gif",
-            ".webp"           => "image/webp",
+            ".png" => "image/png",
+            ".gif" => "image/gif",
+            ".webp" => "image/webp",
             _ => string.IsNullOrWhiteSpace(browserContentType)
                     ? "application/octet-stream"
                     : browserContentType
