@@ -20,6 +20,10 @@ It ships with three presentation modes — a terminal UI (TUI), a web UI, and a 
 - [Safety Features](#safety-features)
 - [Available Tools](#available-tools)
 - [Memory & Conversation Persistence](#memory--conversation-persistence)
+  - [Hybrid Memory (anti-amnesia)](#hybrid-memory-anti-amnesia)
+  - [Session Distillation (across sessions)](#session-distillation-across-sessions)
+  - [Memory files](#memory-files)
+  - [Code layout](#code-layout)
 - [Building from Source](#building-from-source)
 - [AOT Publishing](#aot-publishing)
 - [Troubleshooting](#troubleshooting)
@@ -305,6 +309,54 @@ CSAgent saves the conversation history to a JSON file (default: `agent_memory.js
 - Old messages are trimmed when the total content exceeds ~96 KB to keep context manageable
 - You can specify a custom memory file with `--mem <file>` or as a positional argument
 
+### Hybrid Memory (anti-amnesia)
+
+Trimming old messages has a side effect: the agent forgets what it already tried and can repeat the same mistakes. To prevent this, CSAgent adds a **hybrid memory** on top of the conversation file. It is coordinated by `HybridMemoryManager` and uses only the .NET base class library (no NuGet package, no database).
+
+| Layer | What it stores | Purpose |
+|---|---|---|
+| **ExactMemory** | The last 50 steps (thoughts, tool calls, errors, successes), verbatim | Shows the agent exactly what it just tried |
+| **SemanticMemory** | Error / solution patterns, tagged (e.g. `permission`, `not-found`, `timeout`, `syntax`) | Explains *why* something failed and what worked instead |
+
+Example: writing `/opt/config.json` fails with *permission denied*, then `/home/config.json` succeeds. Both facts are recorded, so the next time a similar write is attempted the agent is reminded to use the location that worked.
+
+From step 4 onward, relevant entries are injected as a `[MEMORY]` message just before each LLM call, so they stay visible even after `TrimHistory()` has removed older messages.
+
+### Session Distillation (across sessions)
+
+When a run ends, the LLM condenses the conversation into a compact summary: **decisions**, **constraints**, **pending work** and **failed approaches**. On the next run this summary is injected at the start of the conversation, so the agent resumes with the reasoning of the previous session and not just the raw history.
+
+Saving happens in a `finally` block around the agent loop, so memory is written however the run ends (task complete, text-only reply, error, cancellation, or maximum steps reached).
+
+### Memory files
+
+All files are derived from the memory file name (`--mem`, default `agent_memory.json`):
+
+| File | Content |
+|---|---|
+| `agent_memory.json` | Full conversation history (sent to the LLM, source for distillation) |
+| `agent_memory.json.exact.json` | ExactMemory (last 50 steps) |
+| `agent_memory.json.semantic.json` | SemanticMemory (error / solution patterns) |
+| `agent_memory.json.semantic.json.summary.json` | Distilled session summary |
+
+To start a **new, unrelated task**, use a different `--mem` file (or delete these files). To **continue** a task, keep the same memory file.
+
+### Code layout
+
+```
+src/
+├── Core/Agent/CodingAgent.cs       # Agent loop; receives HybridMemoryManager (7th ctor param)
+├── Services/
+│   ├── ExactMemory.cs
+│   ├── SemanticMemory.cs
+│   ├── HybridMemoryManager.cs
+│   ├── SessionSummary.cs
+│   └── SummaryMemory.cs
+└── Presentation/
+    ├── Tui/TuiHost.cs              # Creates and passes the memory manager
+    └── Web/ApiEndpoints.cs         # Same, for the Web / Lean UI
+```
+
 ---
 
 ## Building from Source
@@ -346,6 +398,8 @@ dotnet publish -c Release -r osx-x64   # macOS
 
 The AOT build produces a self-contained executable with no runtime dependencies.
 
+Because reflection-based JSON serialization is disabled under AOT, do **not** use `JsonSerializer.Serialize<T>()` / `Deserialize<T>()`. All JSON (including the hybrid memory files) is built and parsed with `JsonNode`, `JsonObject`, `JsonArray` and `JsonValue`.
+
 ---
 
 ## Troubleshooting
@@ -377,6 +431,12 @@ Navigate manually to **http://localhost:5050** in your browser (or the port you 
 
 ### "Unsupported image type" / image won't attach
 Only **PNG, JPEG, GIF, and WebP** images are supported, and the file must be **10 MB or smaller**. If you're attaching a different format (e.g. BMP, TIFF, SVG), convert it to a supported format first.
+
+### Hybrid memory files (`.exact.json`, `.semantic.json`) are not created
+Check that a `HybridMemoryManager` is created in `TuiHost.cs` / `ApiEndpoints.cs` and passed to the `CodingAgent` constructor (otherwise memory is `null` and silently skipped). Saving is done in a `finally` block, so it happens on every exit path.
+
+### "Reflection-based serialization has been disabled"
+A `JsonSerializer.Serialize<T>()` / `Deserialize<T>()` call slipped into an AOT build. Replace it with manual `JsonNode` / `JsonObject` / `JsonArray` construction.
 
 ### "Expected multipart/form-data"
 This error appears when the `/api/chat` endpoint is called with a `POST` that isn't `multipart/form-data`. The Web UI and Lean UI send the correct content type automatically; this usually only happens with a hand-written client.
