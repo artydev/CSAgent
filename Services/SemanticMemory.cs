@@ -1,4 +1,5 @@
-﻿using System.Text.Json;
+﻿using CsAgent.Shared;
+using System.Text.Json;
 using System.Text.Json.Nodes;
 
 namespace CsAgent.Services;
@@ -199,20 +200,26 @@ public class SemanticMemory
         foreach (var p in _patterns)
             array.Add(ToJson(p));
 
-        await File.WriteAllTextAsync(path,
+        await AtomicFile.TryWriteAllTextAsync(path,
             array.ToJsonString(new JsonSerializerOptions { WriteIndented = true }));
     }
 
+    // Tolerant: a corrupt file is quarantined (see AtomicFile) and memory starts empty;
+    // a single malformed entry is skipped, the others are kept.
     public async Task LoadAsync(string path)
     {
-        if (!File.Exists(path)) return;
-
-        var array = JsonNode.Parse(await File.ReadAllTextAsync(path))?.AsArray();
+        var array = await AtomicFile.ReadJsonArrayAsync(path);
         if (array is null) return;
 
         _patterns.Clear();
         foreach (var item in array)
-            _patterns.Add(FromJson(item));
+        {
+            try { _patterns.Add(FromJson(item)); }
+            catch (Exception ex) when (ex is InvalidOperationException or FormatException)
+            {
+                // malformed entry: skip it
+            }
+        }
 
         Compact();   // old files: merge duplicates, enforce the cap
     }

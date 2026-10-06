@@ -1,3 +1,4 @@
+using CsAgent.Shared;
 using System.Text;
 using System.Text.Json;
 using System.Text.Json.Nodes;
@@ -10,17 +11,8 @@ public static class MemoryStore
 
     public static async Task<JsonArray> LoadAsync(string path)
     {
-        if (!File.Exists(path)) return [];
-        try
-        {
-            var json = await File.ReadAllTextAsync(path, Encoding.UTF8);
-            return JsonNode.Parse(json)?.AsArray() ?? [];
-        }
-        catch (Exception ex)
-        {
-            Console.Error.WriteLine($"[MemoryStore] {ex.Message}");
-            return [];
-        }
+        // corrupt file -> quarantined as "<path>.bad" (never silently overwritten)
+        return await AtomicFile.ReadJsonArrayAsync(path) ?? [];
     }
 
     public static async Task SaveAsync(string path, JsonArray messages)
@@ -38,7 +30,7 @@ public static class MemoryStore
         // AOT-safe: pure JsonNode traversal, no reflection.
         var stripped = StripImages(messages);
         var json = stripped.ToJsonString(Pretty);
-        await File.WriteAllTextAsync(path, json, Encoding.UTF8);
+        await AtomicFile.WriteAllTextAsync(path, json, Encoding.UTF8);
     }
 
     /// <summary>
