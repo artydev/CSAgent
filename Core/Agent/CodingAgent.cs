@@ -105,6 +105,13 @@ public sealed class CodingAgent : IDisposable
                     // 1.3 — keep a single [MEMORY] block: drop the one from the previous step
                     RemoveMemoryMessages(messages);
 
+                    // Session summary: re-inserted every step because TrimHistory evicts
+                    // the oldest messages first (right after the system message).
+                    RemoveSessionContext(messages);
+                    var sessionContext = _memory.GetSessionContextBlock();
+                    if (!string.IsNullOrWhiteSpace(sessionContext))
+                        messages.Insert(Math.Min(1, messages.Count), JsonHelpers.Message("user", sessionContext));
+
                     if (step > 3)
                     {
                         // 1.2 — query = last assistant text + last tool call(s) + user request
@@ -235,8 +242,18 @@ public sealed class CodingAgent : IDisposable
         {
             // Runs on EVERY exit: return, exception, max steps, cancelled
             if (_memory != null)
-                await _memory.SaveAsync($"{memoryFile}.semantic.json",
-                                        $"{memoryFile}.exact.json");
+            {
+                RemoveSessionContext(messages);   // do not summarise the summary
+
+                // Bounded so a slow or unreachable API cannot hang shutdown.
+                // Not _cts.Token: it may already be cancelled.
+                using var distillCts = new CancellationTokenSource(TimeSpan.FromSeconds(60));
+                await _memory.DistillAndSaveAsync(
+                    messages, _client,
+                    $"{memoryFile}.semantic.json",
+                    $"{memoryFile}.exact.json",
+                    distillCts.Token);
+            }
         }
 
 
@@ -380,7 +397,7 @@ public sealed class CodingAgent : IDisposable
 
             **Cross-session resumption:** if .csagent/tasks/ contains a folder whose
             PROGRESS.md does not end with 'complete' or 'incomplete', offer to resume.
-            ```
+
 
             **Cross-session resumption:** Ignore `.csagent/tasks/` entirely unless the user explicitly asks to resume a previous task or mentions a specific task name/ID. **Never** ask the user for a "task ID" or prompt them about old task folders uninvited.
 
@@ -546,6 +563,13 @@ public sealed class CodingAgent : IDisposable
                 messages.RemoveAt(i);
     }
 
+    private static void RemoveSessionContext(JsonArray messages)
+    {
+        for (int i = messages.Count - 1; i >= 0; i--)
+            if (TextOf(messages[i]?["content"]).StartsWith(SummaryMemory.ContextMarker, StringComparison.Ordinal))
+                messages.RemoveAt(i);
+    }
+
     /// <summary>
     /// Text used to search the semantic memory. Assistant tool-call turns have no text
     /// (content is null), so the tool name and its arguments (paths, commands) are the
@@ -575,7 +599,8 @@ public sealed class CodingAgent : IDisposable
             if (TextOf(m?["role"]) != "user") continue;
 
             var text = TextOf(m?["content"]);
-            if (text.StartsWith(MemoryMarker, StringComparison.Ordinal)) continue;
+            if (text.StartsWith(MemoryMarker, StringComparison.Ordinal)
+                || text.StartsWith(SummaryMemory.ContextMarker, StringComparison.Ordinal)) continue;
 
             sb.AppendLine(Clip(text, 200));
             break;

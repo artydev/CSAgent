@@ -1,5 +1,7 @@
-﻿using CsAgent.Services;
+﻿using CsAgent.Core.Llm;
+using CsAgent.Services;
 using System.Text;
+using System.Text.Json.Nodes;
 
 namespace CsAgent.Services
 {
@@ -10,7 +12,6 @@ namespace CsAgent.Services
 
         public HybridMemoryManager(SemanticMemory semantic, ExactMemory exact)
             => (_semantic, _exact) = (semantic, exact);
-
 
         public void RecordError(int step, string tool, string error)
         {
@@ -50,7 +51,6 @@ namespace CsAgent.Services
             return oneLine.Length <= max ? oneLine : oneLine[..max] + "…";
         }
 
-
         public record MemoryInsight(
             List<SemanticMemory.SemanticEntry> Patterns,
             List<ExactMemory.ExactEntry> RecentSteps,
@@ -63,7 +63,6 @@ namespace CsAgent.Services
             RecentSteps: _exact.GetRecent(5),                           // context
             RecentErrors: _exact.GetRecentErrors(2),                    // warnings
             RecentSuccesses: _exact.GetRecentSuccesses(2)                  // what worked
-
         );
 
         public string ToPromptText(MemoryInsight i)
@@ -100,7 +99,58 @@ namespace CsAgent.Services
         { await Task.WhenAll(_semantic.SaveAsync(sem), _exact.SaveAsync(ex)); }
 
         public async Task LoadAsync(string sem, string ex)
-        { await Task.WhenAll(_semantic.LoadAsync(sem), _exact.LoadAsync(ex)); }
+        {
+            await Task.WhenAll(_semantic.LoadAsync(sem), _exact.LoadAsync(ex));
+            var summary = await _summary.LoadAsync(SummaryPath(sem));
+            lock (_summaryGate) _previousSummary = summary;   // null when none: no stale summary from another file
+        }
+
+        // ── Session distillation ─────────────────────────────────────────────
+        private readonly SummaryMemory _summary = new();
+        private readonly object _summaryGate = new();
+        private SessionSummary? _previousSummary;
+
+        private static string SummaryPath(string sem) => sem + ".summary.json";
+
+        /// <summary>Context block for the next LLM call; empty when no summary exists.</summary>
+        public string GetSessionContextBlock()
+        {
+            SessionSummary? s;
+            lock (_summaryGate) s = _previousSummary;
+            return s is { IsEmpty: false } ? _summary.ToContextBlock(s) : "";
+        }
+
+        /// <summary>
+        /// Saves both memory layers, then asks the LLM to distill the conversation.
+        /// Best effort: a failure (API down, timeout, unparsable answer) never throws and
+        /// never overwrites the previous summary.
+        /// </summary>
+        public async Task DistillAndSaveAsync(
+            JsonArray messages, LlmClient client, string sem, string ex, CancellationToken ct)
+        {
+            await SaveAsync(sem, ex);
+
+            // Nothing worth summarising (system prompt + at most one exchange).
+            if (messages.Count < 4) return;
+
+            try
+            {
+                SessionSummary? previous;
+                lock (_summaryGate) previous = _previousSummary;
+
+                var summary = await _summary.DistillAsync(messages, client, previous, ct);
+                if (summary.IsEmpty) return;
+
+                if (await _summary.SaveAsync(summary, SummaryPath(sem)))
+                    lock (_summaryGate) _previousSummary = summary;
+            }
+            catch (Exception e) when (e is OperationCanceledException or HttpRequestException
+                                         or FormatException or System.Text.Json.JsonException
+                                         or InvalidDataException or InvalidOperationException)
+            {
+                Console.Error.WriteLine($"[Memory] session distillation skipped: {e.Message}");
+            }
+        }
 
         // Helpers
 

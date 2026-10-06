@@ -78,6 +78,35 @@ public static class AtomicFile
         }
     }
 
+    /// <summary>
+    /// Like <see cref="ReadJsonArrayAsync"/> for a file whose top-level value is a JSON object.
+    /// Returns null when missing, unreadable or corrupt (a corrupt file is renamed to ".bad").
+    /// </summary>
+    public static async Task<JsonObject?> ReadJsonObjectAsync(string path)
+    {
+        if (!File.Exists(path)) return null;
+
+        string text;
+        try { text = await File.ReadAllTextAsync(path); }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+        {
+            Console.Error.WriteLine($"[Memory] cannot read '{path}': {ex.Message}");
+            return null;
+        }
+
+        try
+        {
+            return JsonNode.Parse(text) as JsonObject
+                   ?? throw new JsonException("top-level value is not an object");
+        }
+        catch (JsonException ex)
+        {
+            Quarantine(path);
+            Console.Error.WriteLine($"[Memory] '{path}' is corrupt ({ex.Message}); moved to '{path}.bad', starting empty.");
+            return null;
+        }
+    }
+
     /// <summary>Renames <paramref name="path"/> to "&lt;path&gt;.bad", replacing an older one.</summary>
     public static void Quarantine(string path)
     {
