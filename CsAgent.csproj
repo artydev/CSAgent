@@ -44,6 +44,11 @@
 	<ItemGroup>
 		<!-- Standalone tool projects and build output must not be compiled into the app. -->
 		<Compile Remove="tools/**/*.cs" />
+		<!-- The test project lives in Tests/ and has its own entry point. -->
+		<Compile Remove="Tests/**" />
+		<Content Remove="Tests/**" />
+		<EmbeddedResource Remove="Tests/**" />
+		<None Remove="Tests/**" />
 		<Compile Remove="obj/**/*.cs" />
 		<Compile Remove="bin/**/*.cs" />
 		<Compile Remove="wwwroot\**" />

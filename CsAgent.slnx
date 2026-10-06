@@ -6,4 +6,5 @@
   <Project Path="CsAgent.csproj">
     <Platform Solution="*|x64" Project="x64" />
   </Project>
+  <Project Path="Tests/CsAgent.Tests.csproj" />
 </Solution>

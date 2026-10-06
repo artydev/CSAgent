@@ -25,6 +25,7 @@ It ships with three presentation modes — a terminal UI (TUI), a web UI, and a 
   - [Memory files](#memory-files)
   - [Code layout](#code-layout)
 - [Building from Source](#building-from-source)
+- [Tests](#tests)
 - [AOT Publishing](#aot-publishing)
 - [Troubleshooting](#troubleshooting)
 
@@ -393,9 +394,10 @@ src/
 │   ├── TextTokenizer.cs            # Keyword extraction (EN + FR)
 │   ├── SessionSummary.cs           # The four lists of a distilled session
 │   └── SummaryMemory.cs            # Distils, saves and loads the session summary
-└── Presentation/
-    ├── Tui/TuiHost.cs              # Creates and passes the memory manager
-    └── Web/ApiEndpoints.cs         # Same, for the Web / Lean UI
+├── Presentation/
+│   ├── Tui/TuiHost.cs              # Creates and passes the memory manager
+│   └── Web/ApiEndpoints.cs         # Same, for the Web / Lean UI
+└── Tests/                          # Test project (see Tests)
 ```
 
 ---
@@ -423,6 +425,31 @@ csagent
 set ALBERT_API_KEY=your-key
 csagent --ui
 ```
+
+---
+
+## Tests
+
+The `Tests/` folder holds a test project for the memory system (hybrid memory, session distillation, atomic saves, `--no-distill`) and the agent loop. It uses **no NuGet package and no test framework**: tests are plain code, and a mock OpenAI-compatible server stands in for the LLM, so no API key and no network are needed.
+
+```bash
+dotnet run --project Tests -c Release
+```
+
+The output ends with a summary line (`TOTAL 54 | PASS 54 | FAIL 0 | FINDINGS 0`), the process exit code is `0` when everything passes and `1` otherwise, and a full report is written to `results.txt` next to the test binary.
+
+The project compiles the app's `Core/`, `Services/` and `Shared/` sources directly (the app itself is a Web / NativeAOT project) with reflection-based JSON disabled, which reproduces the AOT constraint: a stray `JsonSerializer.Serialize<T>()` fails the tests, as it would fail the published binary.
+
+| File | Covers |
+|---|---|
+| `MemoryLayerTests.cs` | ExactMemory, SemanticMemory and HybridMemoryManager basics |
+| `SemanticTests.cs` | Keyword search (EN + FR), de-duplication, 200-entry cap, solutions only after an error |
+| `PersistenceTests.cs` | Atomic saves, tolerant loading, `.bad` quarantine, conversation file |
+| `ConcurrencyTests.cs` | One shared memory manager used by many parallel requests |
+| `DistillationTests.cs` | Session summary: saving, failure modes, sanitising, injection at every step |
+| `NoDistillTests.cs` | `--no-distill` parsing and behaviour |
+| `AgentEndToEndTests.cs` | Whole `CodingAgent` runs against the mock LLM |
+| `MockServices.cs`, `TestKit.cs`, `Report.cs` | Mock server, observer, tiny test runner, report |
 
 ---
 
