@@ -29,7 +29,19 @@ public static class MemoryStore
         //
         // AOT-safe: pure JsonNode traversal, no reflection.
         var stripped = StripImages(messages);
-        var json = stripped.ToJsonString(Pretty);
+
+        // Injected context ([MEMORY], [SESSION CONTEXT]) is rebuilt at every step:
+        // it must not be saved into the conversation file.
+        var persisted = new JsonArray();
+        foreach (var m in stripped)
+        {
+            var text = m?["content"] is JsonValue v && v.TryGetValue<string>(out var t) ? t : "";
+            if (text.StartsWith("[MEMORY]", StringComparison.Ordinal)
+                || text.StartsWith("[SESSION CONTEXT]", StringComparison.Ordinal)) continue;
+            persisted.Add(m?.DeepClone());
+        }
+
+        var json = persisted.ToJsonString(Pretty);
         await AtomicFile.WriteAllTextAsync(path, json, Encoding.UTF8);
     }
 

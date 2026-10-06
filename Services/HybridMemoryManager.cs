@@ -112,6 +112,18 @@ namespace CsAgent.Services
 
         private static string SummaryPath(string sem) => sem + ".summary.json";
 
+        /// <summary>Number of notes of the loaded summary (0 when there is none).</summary>
+        public int SessionNoteCount
+        {
+            get
+            {
+                lock (_summaryGate)
+                    return _previousSummary is { } s
+                        ? s.Decisions.Length + s.Constraints.Length + s.Pending.Length + s.FailedApproaches.Length
+                        : 0;
+            }
+        }
+
         /// <summary>Context block for the next LLM call; empty when no summary exists.</summary>
         public string GetSessionContextBlock()
         {
@@ -124,14 +136,15 @@ namespace CsAgent.Services
         /// Saves both memory layers, then asks the LLM to distill the conversation.
         /// Best effort: a failure (API down, timeout, unparsable answer) never throws and
         /// never overwrites the previous summary.
+        /// Returns a one-line status for the user, or null when there was nothing to do.
         /// </summary>
-        public async Task DistillAndSaveAsync(
+        public async Task<string?> DistillAndSaveAsync(
             JsonArray messages, LlmClient client, string sem, string ex, CancellationToken ct)
         {
             await SaveAsync(sem, ex);
 
             // Nothing worth summarising (system prompt + at most one exchange).
-            if (messages.Count < 4) return;
+            if (messages.Count < 4) return null;
 
             try
             {
@@ -139,16 +152,21 @@ namespace CsAgent.Services
                 lock (_summaryGate) previous = _previousSummary;
 
                 var summary = await _summary.DistillAsync(messages, client, previous, ct);
-                if (summary.IsEmpty) return;
+                if (summary.IsEmpty) return "Session summary unchanged (the model returned nothing to keep).";
 
-                if (await _summary.SaveAsync(summary, SummaryPath(sem)))
-                    lock (_summaryGate) _previousSummary = summary;
+                if (!await _summary.SaveAsync(summary, SummaryPath(sem)))
+                    return "Session summary could not be saved (see message above).";
+
+                lock (_summaryGate) _previousSummary = summary;
+                return $"Session summary updated: {SessionNoteCount} note(s) saved to {Path.GetFileName(SummaryPath(sem))}.";
             }
             catch (Exception e) when (e is OperationCanceledException or HttpRequestException
                                          or FormatException or System.Text.Json.JsonException
                                          or InvalidDataException or InvalidOperationException)
             {
-                Console.Error.WriteLine($"[Memory] session distillation skipped: {e.Message}");
+                var why = e is OperationCanceledException ? "timed out" : e.Message;
+                Console.Error.WriteLine($"[Memory] session distillation skipped: {why}");
+                return $"Session summary not updated ({why}); the previous one is kept.";
             }
         }
 

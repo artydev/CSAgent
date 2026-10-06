@@ -56,6 +56,10 @@ public sealed class CodingAgent : IDisposable
 
                                      $"{memoryFile}.exact.json");
 
+        if (_memory is { SessionNoteCount: > 0 })
+            await _observer.OnWarning(
+                $"Session summary loaded: {_memory.SessionNoteCount} note(s) from previous sessions (sent to the model as [SESSION CONTEXT]).");
+
         var isWindows = OperatingSystem.IsWindows();
 
         if (!string.IsNullOrWhiteSpace(_opts.ResumeTaskId))
@@ -248,11 +252,13 @@ public sealed class CodingAgent : IDisposable
                 // Bounded so a slow or unreachable API cannot hang shutdown.
                 // Not _cts.Token: it may already be cancelled.
                 using var distillCts = new CancellationTokenSource(TimeSpan.FromSeconds(60));
-                await _memory.DistillAndSaveAsync(
+                var status = await _memory.DistillAndSaveAsync(
                     messages, _client,
                     $"{memoryFile}.semantic.json",
                     $"{memoryFile}.exact.json",
                     distillCts.Token);
+                if (status != null)
+                    await _observer.OnWarning(status);
             }
         }
 
