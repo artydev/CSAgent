@@ -89,23 +89,6 @@ public sealed class CodingAgent : IDisposable
             return $"OK: model switched to '{model}'.";
         };
 
-        // Inject the distilled summary of previous sessions (replacing any older copy
-        // that was persisted in the conversation file).
-        if (_memory != null)
-        {
-            for (int i = messages.Count - 1; i >= 0; i--)
-            {
-                var c = messages[i]?["content"];
-                if (c is JsonValue v && v.TryGetValue<string>(out var s)
-                    && s.StartsWith(SummaryMemory.ContextMarker))
-                    messages.RemoveAt(i);
-            }
-
-            var sessionContext = _memory.GetSessionContextBlock();
-            if (!string.IsNullOrWhiteSpace(sessionContext))
-                messages.Insert(Math.Min(1, messages.Count), JsonHelpers.Message("user", sessionContext));
-        }
-
         try
         {
             for (int step = 1; step <= _opts.MaxSteps; step++)
@@ -259,16 +242,8 @@ public sealed class CodingAgent : IDisposable
         {
             // Runs on EVERY exit: return, exception, max steps, cancelled
             if (_memory != null)
-            {
-                // Bounded so a slow/unreachable API cannot hang shutdown.
-                // Not _cts.Token: it may already be cancelled.
-                using var distillCts = new CancellationTokenSource(TimeSpan.FromSeconds(60));
-                await _memory.DistillAndSaveAsync(
-                    messages, _client,
-                    $"{memoryFile}.semantic.json",
-                    $"{memoryFile}.exact.json",
-                    distillCts.Token);
-            }
+                await _memory.SaveAsync($"{memoryFile}.semantic.json",
+                                        $"{memoryFile}.exact.json");
         }
 
 

@@ -11,6 +11,6 @@
     "type": "success",
     "content": "OK (exit 0):\n## dev...origin/dev\n M agent_memory.json.exact.json\n M agent_memory.json.semantic.json\n?? session-distillation.patch",
     "toolName": "git_status",
-    "ts": "2026-09-29T13:25:10.1642064Z"
+    "ts": null
   }
 ]

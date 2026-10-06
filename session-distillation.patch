@@ -50,9 +50,9 @@ index f5ccf19..5f977bc 100644
 --- a/Services/HybridMemoryManager.cs
 +++ b/Services/HybridMemoryManager.cs
 @@ -1,5 +1,7 @@
--﻿using CsAgentUI.Services;
+-﻿using CsAgent.Services;
 +﻿using CsAgent.Core.Llm;
-+using CsAgentUI.Services;
++using CsAgent.Services;
  using System.Text;
 +using System.Text.Json.Nodes;
  

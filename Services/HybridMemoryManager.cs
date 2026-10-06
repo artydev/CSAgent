@@ -1,7 +1,5 @@
-﻿using CsAgent.Core.Llm;
-using CsAgentUI.Services;
+﻿using CsAgent.Services;
 using System.Text;
-using System.Text.Json.Nodes;
 
 namespace CsAgent.Services
 {
@@ -85,55 +83,23 @@ namespace CsAgent.Services
         { await Task.WhenAll(_semantic.SaveAsync(sem), _exact.SaveAsync(ex)); }
 
         public async Task LoadAsync(string sem, string ex)
-        {
-            await Task.WhenAll(_semantic.LoadAsync(sem), _exact.LoadAsync(ex));
-            _previousSummary = await _summary.LoadAsync(SummaryPath(sem));
-        }
-
-        // ── Session distillation ─────────────────────────────────────────────
-        private readonly SummaryMemory _summary = new();
-        private SessionSummary? _previousSummary;
-
-        private static string SummaryPath(string sem) => sem + ".summary.json";
-
-        /// <summary>Context block for the start of a run; empty when no summary exists.</summary>
-        public string GetSessionContextBlock() =>
-            _previousSummary is { IsEmpty: false } s ? _summary.ToContextBlock(s) : "";
-
-        /// <summary>
-        /// Saves both memory layers, then asks the LLM to distill the conversation.
-        /// A distillation failure never throws and never overwrites the previous summary.
-        /// </summary>
-        public async Task DistillAndSaveAsync(
-            JsonArray messages, LlmClient client, string sem, string ex, CancellationToken ct)
-        {
-            await SaveAsync(sem, ex);
-
-            // Nothing worth summarising (system prompt + at most one exchange).
-            if (messages.Count < 4) return;
-
-            try
-            {
-                var summary = await _summary.DistillAsync(messages, client, _previousSummary, ct);
-                if (summary.IsEmpty) return;
-                await _summary.SaveAsync(summary, SummaryPath(sem));
-                _previousSummary = summary;
-            }
-            catch (Exception)
-            {
-                // Keep the previous summary; distillation is best-effort.
-            }
-        }
+        { await Task.WhenAll(_semantic.LoadAsync(sem), _exact.LoadAsync(ex)); }
 
         // Helpers
-        private static string Classify(string e) => e.ToLower() switch
+
+        // English + French messages (cmd.exe / PowerShell on a French Windows answer in French).
+        private static string Classify(string e)
         {
-            var s when s.Contains("permission") => "permission",
-            var s when s.Contains("not found") => "not-found",
-            var s when s.Contains("timeout") => "timeout",
-            var s when s.Contains("syntax") => "syntax",
-            _ => "other"
-        };
+            var s = TextTokenizer.Fold(e);
+            if (s.Contains("permission") || s.Contains("access is denied") || s.Contains("acces refuse")
+                || s.Contains("acces interdit") || s.Contains("non autorise")) return "permission";
+            if (s.Contains("not found") || s.Contains("no such file") || s.Contains("cannot find")
+                || s.Contains("introuvable") || s.Contains("n'existe pas") || s.Contains("inexistant")) return "not-found";
+            if (s.Contains("timeout") || s.Contains("timed out") || s.Contains("delai")
+                || s.Contains("expire")) return "timeout";
+            if (s.Contains("syntax") || s.Contains("syntaxe")) return "syntax";
+            return "other";
+        }
 
         private static string Domain(string tool) => tool switch
         {

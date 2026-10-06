@@ -4,9 +4,9 @@ namespace CsAgent.Presentation.LeanUI;
 
 public static class LeanStaticAssets
 {
-    public static string HtmlUI => LoadEmbeddedResource("CsAgent.src.Presentation.LeanUI.assets.index.html");
-    public static string JsUI => LoadEmbeddedResource("CsAgent.src.Presentation.LeanUI.assets.app.js");
-    public static string CssUI => LoadEmbeddedResource("CsAgent.src.Presentation.LeanUI.assets.styles.css");
+    public static string HtmlUI => LoadEmbeddedResource("CsAgent.Presentation.LeanUI.assets.index.html");
+    public static string JsUI => LoadEmbeddedResource("CsAgent.Presentation.LeanUI.assets.app.js");
+    public static string CssUI => LoadEmbeddedResource("CsAgent.Presentation.LeanUI.assets.styles.css");
 
     private static string LoadEmbeddedResource(string resourceName)
     {

@@ -4,9 +4,9 @@ namespace CsAgent.Presentation.Web;
 
 public static class StaticAssets
 {
-    public static string HtmlUI => LoadEmbeddedResource("CsAgent.src.Presentation.Web.assets.index.html");
-    public static string JsUI => LoadEmbeddedResource("CsAgent.src.Presentation.Web.assets.app.js");
-    public static string CssUI => LoadEmbeddedResource("CsAgent.src.Presentation.Web.assets.styles.css");
+    public static string HtmlUI => LoadEmbeddedResource("CsAgent.Presentation.Web.assets.index.html");
+    public static string JsUI => LoadEmbeddedResource("CsAgent.Presentation.Web.assets.app.js");
+    public static string CssUI => LoadEmbeddedResource("CsAgent.Presentation.Web.assets.styles.css");
 
     // The README is embedded from the project root (README.md)
     public static string ReadmeMd => LoadEmbeddedResource("CsAgent.README.md");

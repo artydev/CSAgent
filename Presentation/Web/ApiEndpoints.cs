@@ -5,7 +5,7 @@ using CsAgent.Core.Tasks;
 using CsAgent.Infrastructure.Clipboard;
 using CsAgent.Services;                    // ← ADD
 using CsAgent.Shared;
-using CsAgentUI.Services;
+using CsAgent.Services;
 
 namespace CsAgent.Presentation.Web;
 
