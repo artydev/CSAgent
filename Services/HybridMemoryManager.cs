@@ -18,19 +18,36 @@ namespace CsAgent.Services
             var domain = Domain(tool);
             _exact.Add(step, "error", error, tool);
             _semantic.AddPattern("error_pattern",
-                summary: $"[{tool}] {error}",
+                summary: $"[{tool}] {Compact(error, 300)}",
                 tags: new[] { "error", errType, domain },
                 context: new() { { "tool", tool }, { "step", step.ToString() } });
         }
 
-        // Called when a tool returns a success result.
-        public void RecordSuccess(int step, string tool, string result)
+        // A success is always kept in ExactMemory (bounded ring buffer).
+        // It becomes a semantic "solution" only when the same tool failed shortly before:
+        // that is the lesson ("/opt failed, /home worked"). Only the arguments are stored,
+        // never the result, so file contents do not leak into the long-term store.
+        private const int SolutionWindow = 5;
+
+        public void RecordSuccess(int step, string tool, string result, string? args = null)
         {
             _exact.Add(step, "success", result, tool);
+
+            var failure = _exact.GetRecentErrors(10)
+                .LastOrDefault(e => e.ToolName == tool && step - e.Step is >= 0 and <= SolutionWindow);
+            if (failure is null) return;
+
+            var errType = Classify(failure.Content);
             _semantic.AddPattern("solution",
-                summary: $"[{tool}] succeeded: {result[..Math.Min(80, result.Length)]}",
-                tags: new[] { "solution", Domain(tool) },
+                summary: $"[{tool}] succeeded after {errType} error with: {Compact(args ?? "(no arguments)", 160)}",
+                tags: new[] { "solution", errType, Domain(tool) },
                 context: new() { { "tool", tool }, { "step", step.ToString() } });
+        }
+
+        private static string Compact(string text, int max)
+        {
+            var oneLine = string.Join(' ', text.Split((char[]?)null, StringSplitOptions.RemoveEmptyEntries));
+            return oneLine.Length <= max ? oneLine : oneLine[..max] + "…";
         }
 
 
@@ -72,7 +89,7 @@ namespace CsAgent.Services
             {
                 sb.AppendLine("\n📚 LEARNED PATTERNS:");
                 foreach (var p in i.Patterns)
-                    sb.AppendLine($"  [{p.Type}] {p.Summary}");
+                    sb.AppendLine($"  [{p.Type}] {p.Summary}{(p.Count > 1 ? $" (seen {p.Count}x)" : "")}");
             }
 
             return sb.ToString();
