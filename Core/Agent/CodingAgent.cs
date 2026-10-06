@@ -207,7 +207,7 @@ public sealed class CodingAgent : IDisposable
 
                         if (isError) _memory.RecordError(step, funcName, result);
 
-                        else _memory.RecordSuccess(step, funcName, result);
+                        else _memory.RecordSuccess(step, funcName, result, argsRaw);
 
                     }
 
