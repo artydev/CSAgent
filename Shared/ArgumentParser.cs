@@ -21,7 +21,8 @@ public sealed record AgentArguments(
     int MaxRetries = 6,
     int RetryDelayMs = 1000,
     bool UsePropMem = true,
-    string PropositionFile = "agent_propositions.json");
+    string PropositionFile = "agent_propositions.json",
+    bool Distill = true);
 
 /// <summary>
 /// Pure argument parsing — no side effects, no console output.
@@ -47,10 +48,11 @@ public static class ArgumentParser
         var retryDelayMs = GetInt(args, "--retry-delay", RetryPolicy.Default.BaseDelayMs);
         var usePropMem = !args.Contains("--no-propmem");
         var propositionFile = GetValue(args, "--prop") ?? "agent_propositions.json";
+        var distill = !args.Contains("--no-distill");
 
         return new AgentArguments(memFile, modelOverride, mcpUrl, taskSlug,
             port, isUiMode, isLeanUiMode, isNativeMode, isDryRun,
-            showHelp, showVersion, showDoc, maxRetries, retryDelayMs, usePropMem, propositionFile);
+            showHelp, showVersion, showDoc, maxRetries, retryDelayMs, usePropMem, propositionFile, distill);
     }
 
     private static string GetMemoryFile(string[] args)

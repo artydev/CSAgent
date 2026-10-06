@@ -74,6 +74,7 @@ public static class TuiHost
                 new AgentOptions(
                     Confirm: true,
                     DryRun: args.IsDryRun,
+                    Distill: args.Distill,
                     Retry: new RetryPolicy(args.MaxRetries, args.RetryDelayMs),
                     Tracker: tracker),
                 new ConsoleObserver(),

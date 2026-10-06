@@ -19,12 +19,12 @@ public static class HelpDisplay
             if (useColor && color is not null)
                 Console.ForegroundColor = color switch
                 {
-                    "cyan"    => ConsoleColor.Cyan,
-                    "green"   => ConsoleColor.Green,
-                    "yellow"  => ConsoleColor.Yellow,
+                    "cyan" => ConsoleColor.Cyan,
+                    "green" => ConsoleColor.Green,
+                    "yellow" => ConsoleColor.Yellow,
                     "magenta" => ConsoleColor.Magenta,
-                    "dark"    => ConsoleColor.DarkGray,
-                    _         => ConsoleColor.Gray
+                    "dark" => ConsoleColor.DarkGray,
+                    _ => ConsoleColor.Gray
                 };
             else
                 Console.ResetColor();
@@ -73,6 +73,8 @@ public static class HelpDisplay
         Console.WriteLine($"                       (default: {RetryPolicy.Default.MaxAttempts})");
         Console.WriteLine("    --retry-delay <ms> Base backoff delay in ms for 429 retries");
         Console.WriteLine($"                       (default: {RetryPolicy.Default.BaseDelayMs})");
+        Console.WriteLine("    --no-distill      Do not summarise the session at the end of a run");
+        Console.WriteLine("                       (saves one LLM call; an existing summary is still used)");
         Console.WriteLine();
 
         C("green");

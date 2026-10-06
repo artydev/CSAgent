@@ -11,4 +11,5 @@ public sealed record AgentOptions(
     string? ResumeTaskId = null,
     TaskTracker? Tracker = null,
     bool UsePropMem = true,
-    string PropositionFile = "agent_propositions.json");
+    string PropositionFile = "agent_propositions.json",
+    bool Distill = true);

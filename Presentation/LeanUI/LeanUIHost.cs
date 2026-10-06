@@ -15,14 +15,14 @@ public static class LeanUIHost
 
         var app = builder.Build();
 
-        app.MapGet("/", ()           => Results.Content(LeanStaticAssets.HtmlUI, "text/html"));
-        app.MapGet("/app.js", ()     => Results.Content(LeanStaticAssets.JsUI,   "application/javascript"));
-        app.MapGet("/styles.css", () => Results.Content(LeanStaticAssets.CssUI,  "text/css"));
+        app.MapGet("/", () => Results.Content(LeanStaticAssets.HtmlUI, "text/html"));
+        app.MapGet("/app.js", () => Results.Content(LeanStaticAssets.JsUI, "application/javascript"));
+        app.MapGet("/styles.css", () => Results.Content(LeanStaticAssets.CssUI, "text/css"));
 
         app.MapEndpoints(
             args.MemoryFile, args.ModelOverride, args.McpUrl,
             new RetryPolicy(args.MaxRetries, args.RetryDelayMs),
-            args.TaskSlug, clipboard);
+            args.TaskSlug, clipboard, distill: args.Distill);
 
         var url = $"http://localhost:{args.Port}";
 

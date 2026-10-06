@@ -249,16 +249,25 @@ public sealed class CodingAgent : IDisposable
             {
                 RemoveSessionContext(messages);   // do not summarise the summary
 
-                // Bounded so a slow or unreachable API cannot hang shutdown.
-                // Not _cts.Token: it may already be cancelled.
-                using var distillCts = new CancellationTokenSource(TimeSpan.FromSeconds(60));
-                var status = await _memory.DistillAndSaveAsync(
-                    messages, _client,
-                    $"{memoryFile}.semantic.json",
-                    $"{memoryFile}.exact.json",
-                    distillCts.Token);
-                if (status != null)
-                    await _observer.OnWarning(status);
+                if (_opts.Distill)
+                {
+                    // Bounded so a slow or unreachable API cannot hang shutdown.
+                    // Not _cts.Token: it may already be cancelled.
+                    using var distillCts = new CancellationTokenSource(TimeSpan.FromSeconds(60));
+                    var status = await _memory.DistillAndSaveAsync(
+                        messages, _client,
+                        $"{memoryFile}.semantic.json",
+                        $"{memoryFile}.exact.json",
+                        distillCts.Token);
+                    if (status != null)
+                        await _observer.OnWarning(status);
+                }
+                else
+                {
+                    // --no-distill: keep saving the two memory layers, skip the LLM call.
+                    await _memory.SaveAsync($"{memoryFile}.semantic.json",
+                                            $"{memoryFile}.exact.json");
+                }
             }
         }
 

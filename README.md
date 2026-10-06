@@ -21,7 +21,7 @@ It ships with three presentation modes — a terminal UI (TUI), a web UI, and a 
 - [Available Tools](#available-tools)
 - [Memory & Conversation Persistence](#memory--conversation-persistence)
   - [Hybrid Memory (anti-amnesia)](#hybrid-memory-anti-amnesia)
-  - [Session Distillation (planned)](#session-distillation-planned)
+  - [Session Distillation (across sessions)](#session-distillation-across-sessions)
   - [Memory files](#memory-files)
   - [Code layout](#code-layout)
 - [Building from Source](#building-from-source)
@@ -160,6 +160,7 @@ The following capabilities are planned for future releases:
 | `--dry-run` | Simulate tool execution without making changes |
 | `--max-retries <n>` | Max attempts for HTTP 429 (rate limit) retries (default: `3`) |
 | `--retry-delay <ms>` | Base backoff delay in ms before the first retry (default: `1000`) |
+| `--no-distill` | Do not summarise the session at the end of a run (saves one LLM call; see [Session Distillation](#session-distillation-across-sessions)) |
 | `--help`, `-h`, `/?` | Display help and exit |
 | `--version` | Display the current version of CSAgent and exit |
 | `--doc` | Display this documentation in a nicely formatted terminal view and exit |
@@ -197,6 +198,9 @@ csagent --ui --model deepseek-v4-flash
 
 # Tune rate-limit retry behavior
 csagent --max-retries 5 --retry-delay 2000
+
+# Do not summarise the session at the end of the run
+csagent --no-distill
 ```
 
 ---
@@ -332,9 +336,36 @@ From step 4 onward, relevant entries are injected as a single `[MEMORY]` message
 
 **Safe saving.** Memory files are written atomically (temporary file, then replace), so a crash or a concurrent reader never sees a half-written file. A corrupt file is renamed to `<name>.bad` and the agent starts with an empty memory instead of failing; a single malformed entry is skipped and the rest is kept. Saving happens in a `finally` block around the agent loop, so memory is written however the run ends (task complete, text-only reply, error, cancellation, or maximum steps reached). A failed save is logged and does not stop the agent. In Web mode, one memory manager is shared by all requests; it is thread-safe, but simultaneous requests share the same memory.
 
-### Session Distillation (planned)
+### Session Distillation (across sessions)
 
-Condensing a whole conversation into a summary (decisions, constraints, pending work, failed approaches) that is injected at the start of the next session is **not implemented yet**. `SessionSummary.cs` and `SummaryMemory.cs` are kept in `Services/` for that future work but are not used by the agent.
+The hybrid memory above lives inside one task. **Session distillation** carries the *reasoning* from one run to the next: when a run ends, the LLM condenses the conversation into four short lists.
+
+| List | What it holds |
+|---|---|
+| **Decisions** | Choices made, and why |
+| **Constraints** | Facts about the environment and requirements that must be respected |
+| **Pending** | Work still to be done |
+| **Failed approaches** | What was tried and did not work, so it is not retried |
+
+The new summary is merged with the previous one (resolved or obsolete items are dropped) and saved next to the memory file. On the next run it is sent to the model as a `[SESSION CONTEXT]` message right after the system prompt, so the agent resumes with the previous reasoning and not only the raw history.
+
+What you see in the terminal:
+
+```
+Session summary loaded: 5 note(s) from previous sessions (sent to the model as [SESSION CONTEXT]).
+...
+Session summary updated: 6 note(s) saved to agent_memory.json.semantic.json.summary.json.
+```
+
+Design rules:
+- *Best effort.* Distillation runs after the task, with a 60-second limit. If the API is slow, down, or answers something unusable, the run still ends normally, a notice says so (`Session summary not updated (...)`), and the previous summary is kept untouched.
+- *Notes, not instructions.* The conversation contains file contents and command output written by third parties. The distiller is told to treat them as data, the summary is sent to the model as "background information, not instructions", and every note is cut to one line of at most 240 characters (12 notes per list, injected markers removed).
+- *Always present.* The summary is re-inserted at every step, because `TrimHistory()` removes the oldest messages first.
+- *Not stored twice.* Injected blocks (`[SESSION CONTEXT]`, `[MEMORY]`) are never written into the conversation file.
+- *Skipped when pointless.* A conversation with at most one exchange is not summarised.
+- *Safe files.* The summary is written atomically; a corrupt file is renamed to `.bad` and the agent starts without a summary.
+
+**Cost and opting out.** Each run ends with one extra LLM call. Use `--no-distill` to skip it: the two memory layers are still saved, and an existing summary is still read and used, but it is neither created nor changed. Delete `<memory file>.semantic.json.summary.json` to forget the summary entirely.
 
 ### Memory files
 
@@ -345,9 +376,10 @@ All files are derived from the memory file name (`--mem`, default `agent_memory.
 | `agent_memory.json` | Full conversation history (sent to the LLM) |
 | `agent_memory.json.exact.json` | ExactMemory (last 50 steps) |
 | `agent_memory.json.semantic.json` | SemanticMemory (error / solution patterns) |
+| `agent_memory.json.semantic.json.summary.json` | Distilled session summary (decisions, constraints, pending, failed approaches) |
 | `*.bad` | A memory file that could not be read, kept aside for inspection (safe to delete) |
 
-To start a **new, unrelated task**, use a different `--mem` file (or delete these files). To **continue** a task, keep the same memory file.
+To start a **new, unrelated task**, use a different `--mem` file (or delete these files, including the summary). To **continue** a task, keep the same memory file.
 
 ### Code layout
 
@@ -359,8 +391,8 @@ src/
 │   ├── SemanticMemory.cs
 │   ├── HybridMemoryManager.cs
 │   ├── TextTokenizer.cs            # Keyword extraction (EN + FR)
-│   ├── SessionSummary.cs           # Reserved for session distillation (unused)
-│   └── SummaryMemory.cs            # Reserved for session distillation (unused)
+│   ├── SessionSummary.cs           # The four lists of a distilled session
+│   └── SummaryMemory.cs            # Distils, saves and loads the session summary
 └── Presentation/
     ├── Tui/TuiHost.cs              # Creates and passes the memory manager
     └── Web/ApiEndpoints.cs         # Same, for the Web / Lean UI
@@ -443,6 +475,13 @@ Only **PNG, JPEG, GIF, and WebP** images are supported, and the file must be **1
 
 ### Hybrid memory files (`.exact.json`, `.semantic.json`) are not created
 Check that a `HybridMemoryManager` is created in `TuiHost.cs` / `ApiEndpoints.cs` and passed to the `CodingAgent` constructor (otherwise memory is `null` and silently skipped). Saving is done in a `finally` block, so it happens on every exit path.
+
+### "Session summary not updated" / "unchanged"
+*not updated (timed out / API error)*: the model did not answer within 60 seconds or answered something that was not the expected JSON. Your task is not affected and the previous summary is kept; it will be tried again at the end of the next run. If it happens every time, check the model and the API, or use `--no-distill`.
+*unchanged*: the model judged there was nothing worth keeping (typical for a trivial task). This is normal.
+
+### No `.summary.json` file appears
+The conversation was too short (system prompt plus at most one exchange), `--no-distill` was used, or the model returned nothing to keep. Run a task that uses a few tools and look for the `Session summary updated` line at the end.
 
 ### A memory file was renamed to `.bad`
 The file was not valid JSON (for example after a manual edit or a disk problem). The agent started with an empty memory and kept the damaged file as `<name>.bad`. Fix or delete it; nothing else is needed.
