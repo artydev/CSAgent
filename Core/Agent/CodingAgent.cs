@@ -100,31 +100,24 @@ public sealed class CodingAgent : IDisposable
                 await _observer.OnStep(step, _opts.MaxSteps);
 
 
-                if (_memory != null && step > 3)
-
+                if (_memory != null)
                 {
+                    // 1.3 — keep a single [MEMORY] block: drop the one from the previous step
+                    RemoveMemoryMessages(messages);
 
-                    var lastThought = messages
+                    if (step > 3)
+                    {
+                        // 1.2 — query = last assistant text + last tool call(s) + user request
+                        var insight = _memory.GetContext(BuildMemoryQuery(messages));
+                        var memText = _memory.ToPromptText(insight);
 
-                        .Where(m => m?["role"]?.GetValue<string>() == "assistant")
-
-                        .LastOrDefault()?["content"]?.GetValue<string>() ?? "";
-
-                    var insight = _memory.GetContext(lastThought);
-
-                    var memText = _memory.ToPromptText(insight);
-
-                    if (!string.IsNullOrWhiteSpace(memText))
-
-                        messages.Add(new JsonObject
-                        {
-
-                            ["role"] = "user",
-
-                            ["content"] = "[MEMORY]\n" + memText
-
-                        });
-
+                        if (!string.IsNullOrWhiteSpace(memText))
+                            messages.Add(new JsonObject
+                            {
+                                ["role"] = "user",
+                                ["content"] = MemoryMarker + "\n" + memText
+                            });
+                    }
                 }
 
                 JsonNode response;
@@ -533,5 +526,61 @@ public sealed class CodingAgent : IDisposable
             
             """));
         return obj;
+    }
+
+
+    // ── Hybrid-memory helpers ────────────────────────────────────────────────
+
+    private const string MemoryMarker = "[MEMORY]";
+
+    private static string TextOf(JsonNode? node) =>
+        node is JsonValue v && v.TryGetValue<string>(out var s) ? s : "";
+
+    private static string Clip(string s, int max) => s.Length <= max ? s : s[..max];
+
+    /// <summary>Removes the [MEMORY] message(s) injected at earlier steps.</summary>
+    private static void RemoveMemoryMessages(JsonArray messages)
+    {
+        for (int i = messages.Count - 1; i >= 0; i--)
+            if (TextOf(messages[i]?["content"]).StartsWith(MemoryMarker, StringComparison.Ordinal))
+                messages.RemoveAt(i);
+    }
+
+    /// <summary>
+    /// Text used to search the semantic memory. Assistant tool-call turns have no text
+    /// (content is null), so the tool name and its arguments (paths, commands) are the
+    /// real signal; the user's request is added for context.
+    /// </summary>
+    private static string BuildMemoryQuery(JsonArray messages)
+    {
+        var sb = new StringBuilder();
+
+        // last assistant message: text + tool calls
+        for (int i = messages.Count - 1; i >= 0; i--)
+        {
+            var m = messages[i];
+            if (TextOf(m?["role"]) != "assistant") continue;
+
+            sb.AppendLine(Clip(TextOf(m?["content"]), 500));
+            if (m?["tool_calls"] is JsonArray calls)
+                foreach (var c in calls)
+                    sb.AppendLine($"{TextOf(c?["function"]?["name"])} {Clip(TextOf(c?["function"]?["arguments"]), 300)}");
+            break;
+        }
+
+        // last real user message (not an injected [MEMORY] block)
+        for (int i = messages.Count - 1; i >= 0; i--)
+        {
+            var m = messages[i];
+            if (TextOf(m?["role"]) != "user") continue;
+
+            var text = TextOf(m?["content"]);
+            if (text.StartsWith(MemoryMarker, StringComparison.Ordinal)) continue;
+
+            sb.AppendLine(Clip(text, 200));
+            break;
+        }
+
+        return sb.ToString();
     }
 }
