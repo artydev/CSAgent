@@ -21,7 +21,7 @@ It ships with three presentation modes — a terminal UI (TUI), a web UI, and a 
 - [Available Tools](#available-tools)
 - [Memory & Conversation Persistence](#memory--conversation-persistence)
   - [Hybrid Memory (anti-amnesia)](#hybrid-memory-anti-amnesia)
-  - [Session Distillation (across sessions)](#session-distillation-across-sessions)
+  - [Session Distillation (planned)](#session-distillation-planned)
   - [Memory files](#memory-files)
   - [Code layout](#code-layout)
 - [Building from Source](#building-from-source)
@@ -320,13 +320,21 @@ Trimming old messages has a side effect: the agent forgets what it already tried
 
 Example: writing `/opt/config.json` fails with *permission denied*, then `/home/config.json` succeeds. Both facts are recorded, so the next time a similar write is attempted the agent is reminded to use the location that worked.
 
-From step 4 onward, relevant entries are injected as a `[MEMORY]` message just before each LLM call, so they stay visible even after `TrimHistory()` has removed older messages.
+From step 4 onward, relevant entries are injected as a single `[MEMORY]` message just before each LLM call (the previous one is replaced, never stacked), so they stay visible even after `TrimHistory()` has removed older messages.
 
-### Session Distillation (across sessions)
+**How lessons are found.** The query is built from the agent's latest text, the tool call it is about to make (name and arguments) and the last user message. It is reduced to keywords (English and French stop words removed, accents folded, plurals folded, paths split on `/`), and each stored lesson scores one point per keyword it contains. The three best lessons are injected, best score first, then most recent, then most frequent.
 
-When a run ends, the LLM condenses the conversation into a compact summary: **decisions**, **constraints**, **pending work** and **failed approaches**. On the next run this summary is injected at the start of the conversation, so the agent resumes with the reasoning of the previous session and not just the raw history.
+**How the store stays small and useful.**
+- *De-duplication*: the same lesson (ignoring case, accents, extra spaces and numbers such as line numbers) is stored once; a counter and a last-seen date are updated, and the prompt shows `(seen 3x)`.
+- *Cap*: at most 200 lessons are kept; the least seen and oldest are evicted first.
+- *Solutions only after an error*: a success becomes a lesson only if the same tool failed within the previous 5 steps. Only the arguments are stored, never the result, so file contents do not end up in long-term memory.
+- *Error messages* are clipped to 300 characters.
 
-Saving happens in a `finally` block around the agent loop, so memory is written however the run ends (task complete, text-only reply, error, cancellation, or maximum steps reached).
+**Safe saving.** Memory files are written atomically (temporary file, then replace), so a crash or a concurrent reader never sees a half-written file. A corrupt file is renamed to `<name>.bad` and the agent starts with an empty memory instead of failing; a single malformed entry is skipped and the rest is kept. Saving happens in a `finally` block around the agent loop, so memory is written however the run ends (task complete, text-only reply, error, cancellation, or maximum steps reached). A failed save is logged and does not stop the agent. In Web mode, one memory manager is shared by all requests; it is thread-safe, but simultaneous requests share the same memory.
+
+### Session Distillation (planned)
+
+Condensing a whole conversation into a summary (decisions, constraints, pending work, failed approaches) that is injected at the start of the next session is **not implemented yet**. `SessionSummary.cs` and `SummaryMemory.cs` are kept in `Services/` for that future work but are not used by the agent.
 
 ### Memory files
 
@@ -334,10 +342,10 @@ All files are derived from the memory file name (`--mem`, default `agent_memory.
 
 | File | Content |
 |---|---|
-| `agent_memory.json` | Full conversation history (sent to the LLM, source for distillation) |
+| `agent_memory.json` | Full conversation history (sent to the LLM) |
 | `agent_memory.json.exact.json` | ExactMemory (last 50 steps) |
 | `agent_memory.json.semantic.json` | SemanticMemory (error / solution patterns) |
-| `agent_memory.json.semantic.json.summary.json` | Distilled session summary |
+| `*.bad` | A memory file that could not be read, kept aside for inspection (safe to delete) |
 
 To start a **new, unrelated task**, use a different `--mem` file (or delete these files). To **continue** a task, keep the same memory file.
 
@@ -350,8 +358,9 @@ src/
 │   ├── ExactMemory.cs
 │   ├── SemanticMemory.cs
 │   ├── HybridMemoryManager.cs
-│   ├── SessionSummary.cs
-│   └── SummaryMemory.cs
+│   ├── TextTokenizer.cs            # Keyword extraction (EN + FR)
+│   ├── SessionSummary.cs           # Reserved for session distillation (unused)
+│   └── SummaryMemory.cs            # Reserved for session distillation (unused)
 └── Presentation/
     ├── Tui/TuiHost.cs              # Creates and passes the memory manager
     └── Web/ApiEndpoints.cs         # Same, for the Web / Lean UI
@@ -434,6 +443,9 @@ Only **PNG, JPEG, GIF, and WebP** images are supported, and the file must be **1
 
 ### Hybrid memory files (`.exact.json`, `.semantic.json`) are not created
 Check that a `HybridMemoryManager` is created in `TuiHost.cs` / `ApiEndpoints.cs` and passed to the `CodingAgent` constructor (otherwise memory is `null` and silently skipped). Saving is done in a `finally` block, so it happens on every exit path.
+
+### A memory file was renamed to `.bad`
+The file was not valid JSON (for example after a manual edit or a disk problem). The agent started with an empty memory and kept the damaged file as `<name>.bad`. Fix or delete it; nothing else is needed.
 
 ### "Reflection-based serialization has been disabled"
 A `JsonSerializer.Serialize<T>()` / `Deserialize<T>()` call slipped into an AOT build. Replace it with manual `JsonNode` / `JsonObject` / `JsonArray` construction.
