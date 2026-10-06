@@ -28,8 +28,9 @@ public class SemanticMemory
     public const int MaxPatterns = 200;
 
     private readonly List<SemanticEntry> _patterns = new();
+    private readonly object _gate = new();   // web mode shares one instance across requests
 
-    public int Count => _patterns.Count;
+    public int Count { get { lock (_gate) return _patterns.Count; } }
 
     // ── Write ────────────────────────────────────────────────────────────────────
 
@@ -47,30 +48,33 @@ public class SemanticMemory
         var now = DateTime.UtcNow;
         var key = KeyOf(type, summary);
 
-        var i = _patterns.FindIndex(p => KeyOf(p.Type, p.Summary) == key);
-        if (i >= 0)
+        lock (_gate)
         {
-            var known = _patterns[i];
-            _patterns[i] = known with
+            var i = _patterns.FindIndex(p => KeyOf(p.Type, p.Summary) == key);
+            if (i >= 0)
             {
-                Count = known.Count + 1,
-                LastSeen = now,
-                Context = context ?? known.Context
-            };
-            return;
+                var known = _patterns[i];
+                _patterns[i] = known with
+                {
+                    Count = known.Count + 1,
+                    LastSeen = now,
+                    Context = context ?? known.Context
+                };
+                return;
+            }
+
+            _patterns.Add(new SemanticEntry(
+                Id: Guid.NewGuid().ToString(),
+                Type: type,
+                Summary: summary,
+                Tags: tags,
+                CreatedAt: now,
+                Context: context,
+                Count: 1,
+                LastSeen: now));
+
+            EvictOverflow(protectedIndex: _patterns.Count - 1);
         }
-
-        _patterns.Add(new SemanticEntry(
-            Id: Guid.NewGuid().ToString(),
-            Type: type,
-            Summary: summary,
-            Tags: tags,
-            CreatedAt: now,
-            Context: context,
-            Count: 1,
-            LastSeen: now));
-
-        EvictOverflow(protectedIndex: _patterns.Count - 1);
     }
 
     // Identity of a lesson: type + summary, lower-cased, accent-folded, digit runs
@@ -172,7 +176,10 @@ public class SemanticMemory
         if (wanted.Count == 0 || limit <= 0)
             return new List<SemanticEntry>();
 
-        return _patterns
+        SemanticEntry[] snapshot;
+        lock (_gate) snapshot = _patterns.ToArray();
+
+        return snapshot
             .Select(p => (Entry: p, Score: Score(p, wanted)))
             .Where(x => x.Score >= 1)
             .OrderByDescending(x => x.Score)
@@ -196,8 +203,11 @@ public class SemanticMemory
 
     public async Task SaveAsync(string path)
     {
+        SemanticEntry[] snapshot;
+        lock (_gate) snapshot = _patterns.ToArray();
+
         var array = new JsonArray();
-        foreach (var p in _patterns)
+        foreach (var p in snapshot)
             array.Add(ToJson(p));
 
         await AtomicFile.TryWriteAllTextAsync(path,
@@ -211,17 +221,22 @@ public class SemanticMemory
         var array = await AtomicFile.ReadJsonArrayAsync(path);
         if (array is null) return;
 
-        _patterns.Clear();
+        var loaded = new List<SemanticEntry>();
         foreach (var item in array)
         {
-            try { _patterns.Add(FromJson(item)); }
+            try { loaded.Add(FromJson(item)); }
             catch (Exception ex) when (ex is InvalidOperationException or FormatException)
             {
                 // malformed entry: skip it
             }
         }
 
-        Compact();   // old files: merge duplicates, enforce the cap
+        lock (_gate)
+        {
+            _patterns.Clear();
+            _patterns.AddRange(loaded);
+            Compact();   // old files: merge duplicates, enforce the cap
+        }
     }
 
     private static JsonObject ToJson(SemanticEntry p)
