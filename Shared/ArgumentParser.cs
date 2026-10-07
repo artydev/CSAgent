@@ -1,4 +1,5 @@
 using CsAgent.Core.Llm;
+using CsAgent.Core.Memory;
 
 namespace CsAgent.Shared;
 
@@ -81,7 +82,7 @@ public static class ArgumentParser
                 && args[i] != "--dry-run" && !args[i].StartsWith("-"))
                 return args[i];
         }
-        return "agent_memory.json";
+        return MemoryPaths.DefaultName;
     }
 
     private static string? GetModelOverride(string[] args) => GetValue(args, "--model");

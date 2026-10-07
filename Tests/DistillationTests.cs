@@ -145,7 +145,8 @@ static partial class Tests
         await T("agent run: summary injected at index 1 on EVERY request, survives trimming, never summarised itself", async () =>
         {
             var d = Tmp(); var memFile = Path.Combine(d, "agent_memory.json");
-            File.WriteAllText(memFile + ".semantic.json.summary.json", "{\"decisions\":[\"PRIOR-DECISION\"],\"constraints\":[],\"pending\":[],\"failed_approaches\":[\"PRIOR-FAIL\"],\"created_at\":\"2026-01-01T00:00:00.0000000Z\"}");
+            var mp = MemoryPaths.Resolve(memFile); Directory.CreateDirectory(mp.Directory);
+            File.WriteAllText(mp.Summary, "{\"decisions\":[\"PRIOR-DECISION\"],\"constraints\":[],\"pending\":[],\"failed_approaches\":[\"PRIOR-FAIL\"],\"created_at\":\"2026-01-01T00:00:00.0000000Z\"}");
             var big = new string('b', 40_000);
             File.WriteAllText(Path.Combine(d, "big.txt"), big);
             var prev = Directory.GetCurrentDirectory(); Directory.SetCurrentDirectory(d);
@@ -170,7 +171,7 @@ static partial class Tests
 
                 Assert(obs.Warnings.Any(w => w.StartsWith("Session summary loaded: 2 note(s)")), "no 'loaded' notice: " + string.Join(" | ", obs.Warnings));
                 Assert(obs.Warnings.Any(w => w.StartsWith("Session summary updated: 4 note(s)")), "no 'updated' notice: " + string.Join(" | ", obs.Warnings));
-                var persisted = File.ReadAllText(memFile);
+                var persisted = File.ReadAllText(mp.Conversation);
                 Assert(!persisted.Contains("[SESSION CONTEXT]") && !persisted.Contains("[MEMORY]"), "injected block persisted in the conversation file");
 
                 var chat = mock.Requests.Where(r => !MockLlm.IsDistill(r)).ToList();
@@ -188,7 +189,7 @@ static partial class Tests
                 Assert(u.Contains("## Previous summary") && u.Contains("PRIOR-DECISION"), "previous summary not passed to distiller");
                 var latest = u[(u.IndexOf("## Latest conversation"))..];
                 Assert(!latest.Contains("[SESSION CONTEXT]") && !latest.Contains("Notes from previous sessions"), "summary was fed back into itself");
-                Assert(File.ReadAllText(memFile + ".semantic.json.summary.json").Contains("Use /home for config"), "new summary not saved");
+                Assert(File.ReadAllText(mp.Summary).Contains("Use /home for config"), "new summary not saved");
                 return $"{chat.Count} chat requests, each with exactly one block at index 1; distiller saw previous summary but not the block";
             }
             finally { Directory.SetCurrentDirectory(prev); }

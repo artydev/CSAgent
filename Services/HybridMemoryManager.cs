@@ -1,4 +1,5 @@
 ﻿using CsAgent.Core.Llm;
+using CsAgent.Core.Memory;
 using CsAgent.Services;
 using System.Text;
 using System.Text.Json.Nodes;
@@ -95,13 +96,13 @@ namespace CsAgent.Services
         }
 
         // Persistence: delegates to both layers
-        public async Task SaveAsync(string sem, string ex)
-        { await Task.WhenAll(_semantic.SaveAsync(sem), _exact.SaveAsync(ex)); }
+        public async Task SaveAsync(MemoryPaths paths)
+        { await Task.WhenAll(_semantic.SaveAsync(paths.Semantic), _exact.SaveAsync(paths.Exact)); }
 
-        public async Task LoadAsync(string sem, string ex)
+        public async Task LoadAsync(MemoryPaths paths)
         {
-            await Task.WhenAll(_semantic.LoadAsync(sem), _exact.LoadAsync(ex));
-            var summary = await _summary.LoadAsync(SummaryPath(sem));
+            await Task.WhenAll(_semantic.LoadAsync(paths.Semantic), _exact.LoadAsync(paths.Exact));
+            var summary = await _summary.LoadAsync(paths.Summary);
             lock (_summaryGate) _previousSummary = summary;   // null when none: no stale summary from another file
         }
 
@@ -109,8 +110,6 @@ namespace CsAgent.Services
         private readonly SummaryMemory _summary = new();
         private readonly object _summaryGate = new();
         private SessionSummary? _previousSummary;
-
-        private static string SummaryPath(string sem) => sem + ".summary.json";
 
         /// <summary>Number of notes of the loaded summary (0 when there is none).</summary>
         public int SessionNoteCount
@@ -139,9 +138,9 @@ namespace CsAgent.Services
         /// Returns a one-line status for the user, or null when there was nothing to do.
         /// </summary>
         public async Task<string?> DistillAndSaveAsync(
-            JsonArray messages, LlmClient client, string sem, string ex, CancellationToken ct)
+            JsonArray messages, LlmClient client, MemoryPaths paths, CancellationToken ct)
         {
-            await SaveAsync(sem, ex);
+            await SaveAsync(paths);
 
             // Nothing worth summarising (system prompt + at most one exchange).
             if (messages.Count < 4) return null;
@@ -154,11 +153,11 @@ namespace CsAgent.Services
                 var summary = await _summary.DistillAsync(messages, client, previous, ct);
                 if (summary.IsEmpty) return "Session summary unchanged (the model returned nothing to keep).";
 
-                if (!await _summary.SaveAsync(summary, SummaryPath(sem)))
+                if (!await _summary.SaveAsync(summary, paths.Summary))
                     return "Session summary could not be saved (see message above).";
 
                 lock (_summaryGate) _previousSummary = summary;
-                return $"Session summary updated: {SessionNoteCount} note(s) saved to {Path.GetFileName(SummaryPath(sem))}.";
+                return $"Session summary updated: {SessionNoteCount} note(s) saved to {paths.Summary}.";
             }
             catch (Exception e) when (e is OperationCanceledException or HttpRequestException
                                          or FormatException or System.Text.Json.JsonException

@@ -17,6 +17,10 @@ public static class AtomicFile
     /// <summary>Writes <paramref name="content"/> atomically. Throws on I/O failure.</summary>
     public static async Task WriteAllTextAsync(string path, string content, Encoding? encoding = null)
     {
+        // The memory folder is created on first save.
+        var dir = Path.GetDirectoryName(Path.GetFullPath(path));
+        if (!string.IsNullOrEmpty(dir)) Directory.CreateDirectory(dir);
+
         // unique name: two writers (e.g. two web requests) never share a temp file
         var tmp = $"{path}.{Guid.NewGuid():N}.tmp";
         try

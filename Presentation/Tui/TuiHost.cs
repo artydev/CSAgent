@@ -24,7 +24,7 @@ public static class TuiHost
             return;
         }
 
-        var messages = await MemoryStore.LoadAsync(args.MemoryFile);
+        var messages = await MemoryStore.LoadAsync(MemoryPaths.Resolve(args.MemoryFile).Conversation);
         if (messages.Count == 0)
             messages.Add(CodingAgent.SystemMessage(OperatingSystem.IsWindows()));
 
@@ -32,6 +32,8 @@ public static class TuiHost
             Console.WriteLine($"  MCP: {args.McpUrl}");
         if (args.IsDryRun)
             Console.WriteLine("  Dry-run: ON (no changes will be made)");
+        if (args.AutoApprove)
+            Console.WriteLine("  Auto-approve: ON (tools run without confirmation)");
         if (!string.IsNullOrWhiteSpace(args.TaskSlug))
             Console.WriteLine($"  Task: {args.TaskSlug}");
         Console.WriteLine();
@@ -72,7 +74,7 @@ public static class TuiHost
             using var agent = new CodingAgent(
                 apiKey, LlmSettings.Endpoint, model,
                 new AgentOptions(
-                    Confirm: true,
+                    Confirm: !args.AutoApprove,
                     DryRun: args.IsDryRun,
                     Distill: args.Distill,
                     Retry: new RetryPolicy(args.MaxRetries, args.RetryDelayMs),

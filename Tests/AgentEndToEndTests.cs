@@ -21,6 +21,7 @@ static partial class Tests
 
         string work = "";
         var memFile = "agent_memory.json";
+        var mp = MemoryPaths.Resolve(memFile);   // -> folder agent_memory/
         string Content(JsonNode? m) => m?["content"] is JsonValue v && v.TryGetValue<string>(out var s) ? s : "";
 
         // Each test gets its own working directory; the current directory is restored afterwards.
@@ -39,7 +40,7 @@ static partial class Tests
 
         await T("tool-call turns (no text) retrieve the relevant pattern; ONE [MEMORY] block; solution stored with args only", InWork(async () =>
         {
-            foreach (var f in Directory.GetFiles(work, "agent_memory*")) File.Delete(f);
+            if (Directory.Exists(mp.Directory)) Directory.Delete(mp.Directory, recursive: true);
             int n = 0;
             var mock = new MockLlm
             {
@@ -71,7 +72,7 @@ static partial class Tests
             foreach (var r in mock.Requests.Skip(3))
                 Assert(r["messages"]!.AsArray().Count(m => Content(m).StartsWith("[MEMORY]")) <= 1, "several [MEMORY] blocks in one request");
             // Phase 2: semantic file content
-            var raw = File.ReadAllText(memFile + ".semantic.json");
+            var raw = File.ReadAllText(mp.Semantic);
             var arr = JsonNode.Parse(raw)!.AsArray();
             Assert(!raw.Contains("SECRET-FILE-BODY"), "file content leaked into semantic file");
             var errs = arr.Where(x => x!["type"]!.GetValue<string>() == "error_pattern").ToList();
@@ -83,14 +84,14 @@ static partial class Tests
 
         await T("long run: semantic file stays small (30 successful reads, no errors)", InWork(async () =>
         {
-            foreach (var f in Directory.GetFiles(work, "agent_memory*")) File.Delete(f);
+            if (Directory.Exists(mp.Directory)) Directory.Delete(mp.Directory, recursive: true);
             int n = 0;
             var mock = new MockLlm { Handler = req => (++n > 30) ? (200, MockLlm.Text("done"), 0) : (200, MockLlm.ToolCall("read_file", "{\"path\":\"exists.txt\"}"), 0) };
             var msgs = new JsonArray { CodingAgent.SystemMessage(false), JsonHelpers.Message("user", "go") };
             using var agent = new CodingAgent("k", mock.BaseUrl, "m", new AgentOptions(MaxSteps: 40, Confirm: false), new SilentObserver(), null,
                 new HybridMemoryManager(new SemanticMemory(), new ExactMemory()));
             await agent.RunAsync(msgs, memFile);
-            var count = JsonNode.Parse(File.ReadAllText(memFile + ".semantic.json"))!.AsArray().Count;
+            var count = JsonNode.Parse(File.ReadAllText(mp.Semantic))!.AsArray().Count;
             Assert(count == 0, "semantic entries: " + count);
             Assert(msgs.Count(m => Content(m).StartsWith("[MEMORY]")) <= 1, "[MEMORY] accumulated");
             return "0 semantic entries after 30 successes";
@@ -98,22 +99,23 @@ static partial class Tests
 
         await T("agent starts and finishes normally with ALL THREE memory files corrupt", InWork(async () =>
         {
-            foreach (var f in Directory.GetFiles(work, "agent_memory*")) File.Delete(f);
-            File.WriteAllText(memFile, "[{broken");
-            File.WriteAllText(memFile + ".exact.json", "");
-            File.WriteAllText(memFile + ".semantic.json", "{\"not\":\"an array\"}");
+            if (Directory.Exists(mp.Directory)) Directory.Delete(mp.Directory, recursive: true);
+            Directory.CreateDirectory(mp.Directory);
+            File.WriteAllText(mp.Conversation, "[{broken");
+            File.WriteAllText(mp.Exact, "");
+            File.WriteAllText(mp.Semantic, "{\"not\":\"an array\"}");
             int n = 0;
             var mock = new MockLlm { Handler = req => (++n > 2) ? (200, MockLlm.Text("done"), 0) : (200, MockLlm.ToolCall("list_dir", "{\"path\":\".\"}"), 0) };
             var obs = new SilentObserver();
-            var msgs = await MemoryStore.LoadAsync(memFile);
+            var msgs = await MemoryStore.LoadAsync(mp.Conversation);
             if (msgs.Count == 0) msgs.Add(CodingAgent.SystemMessage(false));
             msgs.Add(JsonHelpers.Message("user", "go"));
             using var agent = new CodingAgent("k", mock.BaseUrl, "m", new AgentOptions(Confirm: false), obs, null,
                 new HybridMemoryManager(new SemanticMemory(), new ExactMemory()));
             await agent.RunAsync(msgs, memFile);
             Assert(!obs.Results.Any(r => r.StartsWith("AGENT-ERROR")), string.Join(";", obs.Results));
-            Assert(File.Exists(memFile + ".bad") && File.Exists(memFile + ".exact.json.bad") && File.Exists(memFile + ".semantic.json.bad"), "not all quarantined");
-            Assert(JsonNode.Parse(File.ReadAllText(memFile)) is JsonArray, "fresh conversation file");
+            Assert(File.Exists(mp.Conversation + ".bad") && File.Exists(mp.Exact + ".bad") && File.Exists(mp.Semantic + ".bad"), "not all quarantined");
+            Assert(JsonNode.Parse(File.ReadAllText(mp.Conversation)) is JsonArray, "fresh conversation file");
             return "run completed; 3 files quarantined as .bad";
         }));
 

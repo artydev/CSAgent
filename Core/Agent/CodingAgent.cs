@@ -45,16 +45,15 @@ public sealed class CodingAgent : IDisposable
 
     // ── Main loop ────────────────────────────────────────────────────────────
 
-    public async Task RunAsync(JsonArray messages, string memoryFile)
+    public async Task RunAsync(JsonArray messages, string memory)
     {
+        var paths = MemoryPaths.Resolve(memory);   // a folder per memory (see MemoryPaths)
         _cts = new CancellationTokenSource();
 
 
         if (_memory != null)
 
-            await _memory.LoadAsync($"{memoryFile}.semantic.json",
-
-                                     $"{memoryFile}.exact.json");
+            await _memory.LoadAsync(paths);
 
         if (_memory is { SessionNoteCount: > 0 })
             await _observer.OnWarning(
@@ -166,7 +165,7 @@ public sealed class CodingAgent : IDisposable
                     {
                         _tracker?.Finalize("complete", "Task completed.");
                         await _observer.OnDone("Task complete.");
-                        await MemoryStore.SaveAsync(memoryFile, messages);
+                        await MemoryStore.SaveAsync(paths.Conversation, messages);
                         return;
                     }
                     await _observer.OnDone("Assistant finished.");
@@ -229,13 +228,11 @@ public sealed class CodingAgent : IDisposable
                     _tracker?.LogStep(isError ? "failed" : "done", $"{funcName}: {Truncate(result)}");
                 }
 
-                await MemoryStore.SaveAsync(memoryFile, messages);
+                await MemoryStore.SaveAsync(paths.Conversation, messages);
 
                 if (_memory != null)
 
-                    await _memory.SaveAsync($"{memoryFile}.semantic.json",
-
-                                            $"{memoryFile}.exact.json");
+                    await _memory.SaveAsync(paths);
 
 
 
@@ -255,18 +252,14 @@ public sealed class CodingAgent : IDisposable
                     // Not _cts.Token: it may already be cancelled.
                     using var distillCts = new CancellationTokenSource(TimeSpan.FromSeconds(60));
                     var status = await _memory.DistillAndSaveAsync(
-                        messages, _client,
-                        $"{memoryFile}.semantic.json",
-                        $"{memoryFile}.exact.json",
-                        distillCts.Token);
+                        messages, _client, paths, distillCts.Token);
                     if (status != null)
                         await _observer.OnWarning(status);
                 }
                 else
                 {
                     // --no-distill: keep saving the two memory layers, skip the LLM call.
-                    await _memory.SaveAsync($"{memoryFile}.semantic.json",
-                                            $"{memoryFile}.exact.json");
+                    await _memory.SaveAsync(paths);
                 }
             }
         }

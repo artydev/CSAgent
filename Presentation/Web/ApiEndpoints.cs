@@ -124,7 +124,7 @@ public static class ApiEndpoints
         if (string.IsNullOrEmpty(apiKey))
         { await observer.OnError("API Key not set."); return; }
 
-        var msgs = await MemoryStore.LoadAsync(memoryFile);
+        var msgs = await MemoryStore.LoadAsync(MemoryPaths.Resolve(memoryFile).Conversation);
         if (msgs.Count == 0)
             msgs.Add(CodingAgent.SystemMessage(OperatingSystem.IsWindows()));
 

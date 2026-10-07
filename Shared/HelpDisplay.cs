@@ -64,8 +64,8 @@ public static class HelpDisplay
         Console.WriteLine("    --help, -h, /?    Show this help message and exit");
         Console.WriteLine("    --version         Show version number and exit");
         Console.WriteLine("    --doc             Display full documentation in terminal and exit");
-        Console.WriteLine("    --mem <file>      Use a custom memory/conversation file");
-        Console.WriteLine("                       (default: agent_memory.json)");
+        Console.WriteLine("    --mem <name>      Memory folder: holds conversation.json, exact.json,");
+        Console.WriteLine("                       semantic.json and summary.json (default: agent_memory)");
         Console.WriteLine("    --model <name>    Override the LLM model for the current mode");
         Console.WriteLine($"                       (default: {LlmSettings.Model})");
         Console.WriteLine("    --port, -p <n>    Web UI port number (default: 5050)");

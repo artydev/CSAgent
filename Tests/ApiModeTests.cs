@@ -56,7 +56,7 @@ static partial class Tests
             var a = WithoutEnvKey(() => ArgumentParser.Parse(new[] { "--api", "--host", "10.0.0.5", "--api-key", "abc", "mem.json" }));
             Assert(a.MemoryFile == "mem.json", "memory file: " + a.MemoryFile);
             var b = WithoutEnvKey(() => ArgumentParser.Parse(new[] { "--api", "--host", "10.0.0.5", "--api-key", "abc" }));
-            Assert(b.MemoryFile == "agent_memory.json", "memory file: " + b.MemoryFile);
+            Assert(b.MemoryFile == "agent_memory", "memory file: " + b.MemoryFile);
             return "ok";
             await Task.CompletedTask;
         });

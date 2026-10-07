@@ -146,7 +146,7 @@ curl -N -H "Authorization: Bearer s3cret" \
      "http://localhost:8080/api/chat?prompt=create+hello.txt+containing+hi"
 ```
 
-**One conversation per server.** All requests share the same memory file (`--mem`) and conversation, so send one request at a time. To run several independent tasks in parallel, start one instance per task, each with its own `--mem` and `--port`.
+**One conversation per server.** All requests share the same memory folder (`--mem`) and conversation, so send one request at a time. To run several independent tasks in parallel, start one instance per task, each with its own `--mem` name and `--port`.
 
 ### Vision / Image Attachments
 
@@ -216,7 +216,7 @@ The following capabilities are planned for future releases:
 | `--yes`, `-y` | Approve every tool call automatically (no confirmation prompts; the shell command filter stays active) |
 | `--host <addr>` | With `--api`: address to listen on (default: `localhost`; a non-local address requires an API key) |
 | `--api-key <key>` | With `--api`: key required on every request (or set `CSAGENT_API_KEY`) |
-| `--mem <file>` | Specify a custom memory/conversation file (default: `agent_memory.json`) |
+| `--mem <name>` | Memory folder holding the conversation and the memory files (default: `agent_memory`, see [Memory files](#memory-files)) |
 | `--model <model>` | Override the default LLM model for the current mode |
 | `--port`, `-p <n>` | Web UI port number (default: `5050`) |
 | `--dry-run` | Simulate tool execution without making changes |
@@ -226,13 +226,13 @@ The following capabilities are planned for future releases:
 | `--help`, `-h`, `/?` | Display help and exit |
 | `--version` | Display the current version of CSAgent and exit |
 | `--doc` | Display this documentation in a nicely formatted terminal view and exit |
-| `<file>` | Positional argument: specify a memory file without `--mem` flag |
+| `<name>` | Positional argument: memory name without the `--mem` flag |
 
 ### Examples
 
 ```bash
-# Web UI with custom memory file
-csagent --ui --mem my_project_memory.json
+# Web UI with a custom memory (folder my_project_memory/)
+csagent --ui --mem my_project_memory
 
 # Lean UI mode
 csagent --leanui
@@ -240,8 +240,8 @@ csagent --leanui
 # Web UI on a custom port
 csagent --ui --port 8080
 
-# CLI mode with a specific memory file
-dotnet run my_memory.json
+# CLI mode with a specific memory (folder my_memory/)
+dotnet run my_memory
 
 # Dry run mode
 csagent --dry-run
@@ -376,12 +376,12 @@ Execute a shell command. Uses `cmd.exe` on Windows, `/bin/sh` elsewhere.
 
 ## Memory & Conversation Persistence
 
-CSAgent saves the conversation history to a JSON file (default: `agent_memory.json`). This allows the agent to maintain context across sessions.
+CSAgent saves the conversation history, and the files of its memory system, in a **memory folder** (default: `agent_memory/`). This allows the agent to maintain context across sessions.
 
-- The memory file is automatically loaded when the agent starts
+- The memory is automatically loaded when the agent starts
 - It is saved after each step
 - Old messages are trimmed when the total content exceeds ~96 KB to keep context manageable
-- You can specify a custom memory file with `--mem <file>` or as a positional argument
+- You can choose another memory with `--mem <name>` or as a positional argument; the name is the folder
 
 ### Hybrid Memory (anti-amnesia)
 
@@ -417,14 +417,14 @@ The hybrid memory above lives inside one task. **Session distillation** carries 
 | **Pending** | Work still to be done |
 | **Failed approaches** | What was tried and did not work, so it is not retried |
 
-The new summary is merged with the previous one (resolved or obsolete items are dropped) and saved next to the memory file. On the next run it is sent to the model as a `[SESSION CONTEXT]` message right after the system prompt, so the agent resumes with the previous reasoning and not only the raw history.
+The new summary is merged with the previous one (resolved or obsolete items are dropped) and saved in the memory folder. On the next run it is sent to the model as a `[SESSION CONTEXT]` message right after the system prompt, so the agent resumes with the previous reasoning and not only the raw history.
 
 What you see in the terminal:
 
 ```
 Session summary loaded: 5 note(s) from previous sessions (sent to the model as [SESSION CONTEXT]).
 ...
-Session summary updated: 6 note(s) saved to agent_memory.json.semantic.json.summary.json.
+Session summary updated: 6 note(s) saved to agent_memory/summary.json.
 ```
 
 Design rules:
@@ -435,21 +435,25 @@ Design rules:
 - *Skipped when pointless.* A conversation with at most one exchange is not summarised.
 - *Safe files.* The summary is written atomically; a corrupt file is renamed to `.bad` and the agent starts without a summary.
 
-**Cost and opting out.** Each run ends with one extra LLM call. Use `--no-distill` to skip it: the two memory layers are still saved, and an existing summary is still read and used, but it is neither created nor changed. Delete `<memory file>.semantic.json.summary.json` to forget the summary entirely.
+**Cost and opting out.** Each run ends with one extra LLM call. Use `--no-distill` to skip it: the two memory layers are still saved, and an existing summary is still read and used, but it is neither created nor changed. Delete `summary.json` in the memory folder to forget the summary entirely.
 
 ### Memory files
 
-All files are derived from the memory file name (`--mem`, default `agent_memory.json`):
+Each memory is a **folder**, named after `--mem` (default `agent_memory`). A trailing `.json` is dropped, so `--mem my_task.json` and `--mem my_task` both use the folder `my_task/`. The folder is created on the first save.
 
-| File | Content |
-|---|---|
-| `agent_memory.json` | Full conversation history (sent to the LLM) |
-| `agent_memory.json.exact.json` | ExactMemory (last 50 steps) |
-| `agent_memory.json.semantic.json` | SemanticMemory (error / solution patterns) |
-| `agent_memory.json.semantic.json.summary.json` | Distilled session summary (decisions, constraints, pending, failed approaches) |
-| `*.bad` | A memory file that could not be read, kept aside for inspection (safe to delete) |
+```
+agent_memory/
+├── conversation.json   Full conversation history (sent to the LLM)
+├── exact.json          ExactMemory (last 50 steps)
+├── semantic.json       SemanticMemory (error / solution patterns)
+└── summary.json        Distilled session summary (decisions, constraints, pending, failed approaches)
+```
 
-To start a **new, unrelated task**, use a different `--mem` file (or delete these files, including the summary). To **continue** a task, keep the same memory file.
+A file that could not be read is kept beside the others as `<name>.bad` (for example `semantic.json.bad`; safe to delete).
+
+To start a **new, unrelated task**, use a different `--mem` name (or delete the folder). To **continue** a task, keep the same name.
+
+> **Upgrading from 0.7.0 or earlier.** The previous layout (`agent_memory.json`, `agent_memory.json.exact.json`, `agent_memory.json.semantic.json`, `agent_memory.json.semantic.json.summary.json`, all side by side) is no longer read and there is no automatic migration: the agent starts with an empty memory. To keep an old memory, move its files into the new folder and rename them to the four names above.
 
 ### Code layout
 
@@ -509,7 +513,7 @@ In Visual Studio, open **Test Explorer** and choose **Run All Tests**: every tes
 dotnet run --project Tests -c Release
 ```
 
-The output ends with a summary line (`TOTAL 65 | PASS 65 | FAIL 0 | FINDINGS 0`), the process exit code is `0` when everything passes and `1` otherwise, and a full report is written to `results.txt` next to the test binary.
+The output ends with a summary line (`TOTAL 71 | PASS 71 | FAIL 0 | FINDINGS 0`), the process exit code is `0` when everything passes and `1` otherwise, and a full report is written to `results.txt` next to the test binary.
 
 The project compiles the app's `Core/`, `Services/` and `Shared/` sources directly (the app itself is a Web / NativeAOT project) with reflection-based JSON disabled, which reproduces the AOT constraint: a stray `JsonSerializer.Serialize<T>()` fails the tests, as it would fail the published binary.
 
@@ -518,6 +522,7 @@ The project compiles the app's `Core/`, `Services/` and `Shared/` sources direct
 | `MemoryLayerTests.cs` | ExactMemory, SemanticMemory and HybridMemoryManager basics |
 | `SemanticTests.cs` | Keyword search (EN + FR), de-duplication, 200-entry cap, solutions only after an error |
 | `PersistenceTests.cs` | Atomic saves, tolerant loading, `.bad` quarantine, conversation file |
+| `MemoryFolderTests.cs` | Memory folder naming (`--mem`), creation on first save, the four files of a run |
 | `ConcurrencyTests.cs` | One shared memory manager used by many parallel requests |
 | `DistillationTests.cs` | Session summary: saving, failure modes, sanitising, injection at every step |
 | `NoDistillTests.cs` | `--no-distill` parsing and behaviour |
@@ -575,18 +580,18 @@ Navigate manually to **http://localhost:5050** in your browser (or the port you 
 ### "Unsupported image type" / image won't attach
 Only **PNG, JPEG, GIF, and WebP** images are supported, and the file must be **10 MB or smaller**. If you're attaching a different format (e.g. BMP, TIFF, SVG), convert it to a supported format first.
 
-### Hybrid memory files (`.exact.json`, `.semantic.json`) are not created
+### Hybrid memory files (`exact.json`, `semantic.json`) are not created
 Check that a `HybridMemoryManager` is created in `TuiHost.cs` / `ApiEndpoints.cs` and passed to the `CodingAgent` constructor (otherwise memory is `null` and silently skipped). Saving is done in a `finally` block, so it happens on every exit path.
 
 ### "Session summary not updated" / "unchanged"
 *not updated (timed out / API error)*: the model did not answer within 60 seconds or answered something that was not the expected JSON. Your task is not affected and the previous summary is kept; it will be tried again at the end of the next run. If it happens every time, check the model and the API, or use `--no-distill`.
 *unchanged*: the model judged there was nothing worth keeping (typical for a trivial task). This is normal.
 
-### No `.summary.json` file appears
+### No `summary.json` file appears
 The conversation was too short (system prompt plus at most one exchange), `--no-distill` was used, or the model returned nothing to keep. Run a task that uses a few tools and look for the `Session summary updated` line at the end.
 
 ### A memory file was renamed to `.bad`
-The file was not valid JSON (for example after a manual edit or a disk problem). The agent started with an empty memory and kept the damaged file as `<name>.bad`. Fix or delete it; nothing else is needed.
+The file was not valid JSON (for example after a manual edit or a disk problem). The agent started with an empty memory and kept the damaged file as `<name>.bad` in the memory folder (for example `semantic.json.bad`). Fix or delete it; nothing else is needed.
 
 ### "Reflection-based serialization has been disabled"
 A `JsonSerializer.Serialize<T>()` / `Deserialize<T>()` call slipped into an AOT build. Replace it with manual `JsonNode` / `JsonObject` / `JsonArray` construction.

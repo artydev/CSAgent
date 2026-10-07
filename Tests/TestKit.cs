@@ -77,6 +77,7 @@ static partial class Tests
         await Distillation();
         await NoDistill();
         await ApiMode();
+        await MemoryFolder();
         await AgentEndToEnd();
     }
 
@@ -125,4 +126,19 @@ static partial class Tests
             _tmpDirs.Clear();
         }
     }
+}
+
+/// <summary>
+/// Low-level tests address the manager with explicit file paths. These overloads build the
+/// <see cref="MemoryPaths"/> for them (the summary sits next to the semantic file).
+/// </summary>
+static class MemoryTestExtensions
+{
+    static MemoryPaths P(string sem, string ex) =>
+        new(Path.GetDirectoryName(sem) ?? "", "", ex, sem, sem + ".summary.json");
+
+    public static Task SaveAsync(this HybridMemoryManager m, string sem, string ex) => m.SaveAsync(P(sem, ex));
+    public static Task LoadAsync(this HybridMemoryManager m, string sem, string ex) => m.LoadAsync(P(sem, ex));
+    public static Task<string?> DistillAndSaveAsync(this HybridMemoryManager m, JsonArray messages, LlmClient client,
+        string sem, string ex, CancellationToken ct) => m.DistillAndSaveAsync(messages, client, P(sem, ex), ct);
 }
