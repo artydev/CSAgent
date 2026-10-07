@@ -120,7 +120,7 @@ public static class ApiEndpoints
 
         var observer = new SseObserver(ctx.Response, broker);
 
-        var apiKey = Environment.GetEnvironmentVariable("ALBERT_API_KEY") ?? "";
+        var apiKey = LlmConfig.ResolveApiKey();
         if (string.IsNullOrEmpty(apiKey))
         { await observer.OnError("API Key not set."); return; }
 
@@ -134,14 +134,14 @@ public static class ApiEndpoints
             msgs.Add(JsonHelpers.Message("user", prompt));
 
         var needsVision = imageBase64 is not null || JsonHelpers.HistoryContainsImage(msgs);
-        var model = modelOverride ?? (needsVision ? LlmSettings.VisionModel : LlmSettings.Model);
+        var model = modelOverride ?? (needsVision ? LlmConfig.VisionModel : LlmSettings.Model);
 
         TaskTracker? tracker = null;
         if (!string.IsNullOrWhiteSpace(taskSlug))
             tracker = TaskTracker.Create(taskSlug, prompt);
 
         using var agent = new CodingAgent(
-            apiKey, LlmSettings.Endpoint, model,
+            apiKey, LlmConfig.Endpoint, model,
             new AgentOptions(Confirm: confirm, Retry: retry, Tracker: tracker, Distill: distill),
             observer,
             mcpUrl,

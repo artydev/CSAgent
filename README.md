@@ -176,6 +176,20 @@ CSAgent uses different LLM models depending on the mode of operation. This is in
 
 You can override the default model in any mode using the `--model` argument (see [Command-Line Arguments](#command-line-arguments)).
 
+### Local models with Ollama
+
+Any OpenAI-compatible server works. With [Ollama](https://ollama.com):
+
+```bash
+ollama pull qwen2.5-coder:14b
+csagent --endpoint http://localhost:11434/v1 --model qwen2.5-coder:14b
+```
+
+- No API key is needed for a local endpoint (`localhost`, `127.x`, `::1`); a remote endpoint still requires `ALBERT_API_KEY`.
+- Pick a model that supports **tool calling** (e.g. `qwen2.5-coder`, `qwen3`, `llama3.1`); the agent loop depends on it.
+- Images need a vision model: `--vision-model llava` (otherwise the default `gemma-4-31b-it` is requested, which Ollama does not have).
+- Set `CSAGENT_ENDPOINT` to avoid retyping the URL. Works in every mode (`--ui`, `--leanui`, `--api`).
+
 ### Examples
 
 ```bash
@@ -201,7 +215,9 @@ The following capabilities are planned for future releases:
 
 | Variable | Required | Description |
 |---|---|---|
-| `ALBERT_API_KEY` | Yes | Your API key for the OpenAI-compatible endpoint |
+| `ALBERT_API_KEY` | Yes, except for a local endpoint | Your API key for the OpenAI-compatible endpoint. Not needed when `--endpoint` points to this machine (localhost, 127.x, ::1) |
+| `CSAGENT_ENDPOINT` | No | Same as `--endpoint` (the argument wins) |
+| `CSAGENT_VISION_MODEL` | No | Same as `--vision-model` |
 | `CSAGENT_API_KEY` | No | Key that clients must present in `--api` mode (same as `--api-key`) |
 
 ---
@@ -218,6 +234,8 @@ The following capabilities are planned for future releases:
 | `--api-key <key>` | With `--api`: key required on every request (or set `CSAGENT_API_KEY`) |
 | `--mem <name>` | Memory folder holding the conversation and the memory files (default: `agent_memory`, see [Memory files](#memory-files)) |
 | `--model <model>` | Override the default LLM model for the current mode |
+| `--endpoint <url>` | OpenAI-compatible base URL (default: Albert API). For Ollama: `http://localhost:11434/v1` (see [Local models with Ollama](#local-models-with-ollama)) |
+| `--vision-model <name>` | Model used when the conversation contains an image (default: `gemma-4-31b-it`) |
 | `--port`, `-p <n>` | Web UI port number (default: `5050`) |
 | `--dry-run` | Simulate tool execution without making changes |
 | `--max-retries <n>` | Max attempts for HTTP 429 (rate limit) retries (default: `3`) |

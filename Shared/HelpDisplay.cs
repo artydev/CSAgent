@@ -68,6 +68,10 @@ public static class HelpDisplay
         Console.WriteLine("                       semantic.json and summary.json (default: agent_memory)");
         Console.WriteLine("    --model <name>    Override the LLM model for the current mode");
         Console.WriteLine($"                       (default: {LlmSettings.Model})");
+        Console.WriteLine("    --endpoint <url>  OpenAI-compatible base URL (default: " + LlmSettings.Endpoint + ")");
+        Console.WriteLine("                       e.g. http://localhost:11434/v1 for Ollama (no key needed)");
+        Console.WriteLine("    --vision-model <n> Model used when the conversation contains an image");
+        Console.WriteLine($"                       (default: {LlmSettings.VisionModel})");
         Console.WriteLine("    --port, -p <n>    Web UI port number (default: 5050)");
         Console.WriteLine("    --dry-run         Simulate tool execution without making changes");
         Console.WriteLine("    --max-retries <n> Max attempts for 429 rate-limit retries");
@@ -87,7 +91,10 @@ public static class HelpDisplay
         C("green");
         Console.WriteLine("  ENVIRONMENT");
         Console.ResetColor();
-        Console.WriteLine("    ALBERT_API_KEY    API key for the OpenAI-compatible endpoint (required)");
+        Console.WriteLine("    ALBERT_API_KEY    API key for the OpenAI-compatible endpoint (required,");
+        Console.WriteLine("                       except for a local --endpoint such as Ollama)");
+        Console.WriteLine("    CSAGENT_ENDPOINT  Same as --endpoint");
+        Console.WriteLine("    CSAGENT_VISION_MODEL  Same as --vision-model");
         Console.WriteLine("    CSAGENT_API_KEY   Key clients must present in --api mode (same as --api-key)");
         Console.WriteLine();
 

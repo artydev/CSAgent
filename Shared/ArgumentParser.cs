@@ -27,7 +27,9 @@ public sealed record AgentArguments(
     bool IsApiMode = false,
     bool AutoApprove = false,
     string Host = "localhost",
-    string? ApiKey = null);
+    string? ApiKey = null,
+    string? Endpoint = null,
+    string? VisionModel = null);
 
 /// <summary>
 /// Pure argument parsing — no side effects, no console output.
@@ -59,11 +61,15 @@ public static class ArgumentParser
         var host = GetValue(args, "--host") ?? ApiSecurity.DefaultHost;
         var apiKey = GetValue(args, "--api-key") ?? Environment.GetEnvironmentVariable("CSAGENT_API_KEY");
         if (string.IsNullOrEmpty(apiKey)) apiKey = null;
+        var endpoint = GetValue(args, "--endpoint") ?? Environment.GetEnvironmentVariable("CSAGENT_ENDPOINT");
+        if (string.IsNullOrWhiteSpace(endpoint)) endpoint = null;
+        var visionModel = GetValue(args, "--vision-model") ?? Environment.GetEnvironmentVariable("CSAGENT_VISION_MODEL");
+        if (string.IsNullOrWhiteSpace(visionModel)) visionModel = null;
 
         return new AgentArguments(memFile, modelOverride, mcpUrl, taskSlug,
             port, isUiMode, isLeanUiMode, isNativeMode, isDryRun,
             showHelp, showVersion, showDoc, maxRetries, retryDelayMs, usePropMem, propositionFile, distill,
-            isApiMode, autoApprove, host, apiKey);
+            isApiMode, autoApprove, host, apiKey, endpoint, visionModel);
     }
 
     private static string GetMemoryFile(string[] args)
@@ -75,7 +81,8 @@ public static class ArgumentParser
         {
             if (args[i] is "--model" or "--mcp" or "--mcp-url" or "--port"
                           or "-p" or "--max-retries" or "--retry-delay"
-                          or "--task" or "--prop" or "--host" or "--api-key")
+                          or "--task" or "--prop" or "--host" or "--api-key"
+                          or "--endpoint" or "--vision-model")
             { i++; continue; }
 
             if (args[i] != "--ui" && args[i] != "--leanui" && args[i] != "--native"

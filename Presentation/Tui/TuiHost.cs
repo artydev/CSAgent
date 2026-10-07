@@ -17,10 +17,10 @@ public static class TuiHost
         Console.WriteLine($"  CSAgent v{Program.Version}");
         Console.WriteLine();
 
-        var apiKey = Environment.GetEnvironmentVariable("ALBERT_API_KEY") ?? "";
+        var apiKey = LlmConfig.ResolveApiKey();
         if (string.IsNullOrEmpty(apiKey))
         {
-            Console.WriteLine("Error: ALBERT_API_KEY env var not set.");
+            Console.WriteLine($"Error: {LlmConfig.MissingKeyMessage}");
             return;
         }
 
@@ -63,7 +63,7 @@ public static class TuiHost
 
             var model = args.ModelOverride
                         ?? (JsonHelpers.HistoryContainsImage(messages)
-                                ? LlmSettings.VisionModel
+                                ? LlmConfig.VisionModel
                                 : LlmSettings.Model);
             Console.WriteLine($"  [model: {model}]");
 
@@ -72,7 +72,7 @@ public static class TuiHost
                 tracker = TaskTracker.Create(args.TaskSlug, input);
 
             using var agent = new CodingAgent(
-                apiKey, LlmSettings.Endpoint, model,
+                apiKey, LlmConfig.Endpoint, model,
                 new AgentOptions(
                     Confirm: !args.AutoApprove,
                     DryRun: args.IsDryRun,

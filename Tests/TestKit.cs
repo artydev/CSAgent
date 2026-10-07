@@ -78,6 +78,7 @@ static partial class Tests
         await NoDistill();
         await ApiMode();
         await MemoryFolder();
+        await LlmEndpoint();
         await AgentEndToEnd();
     }
 

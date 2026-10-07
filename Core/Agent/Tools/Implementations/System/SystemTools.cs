@@ -9,9 +9,9 @@ public static partial class ToolDispatcher
 {
     private static async Task<string> ListModelsAsync()
     {
-        var apiKey = Environment.GetEnvironmentVariable("ALBERT_API_KEY") ?? "";
+        var apiKey = CsAgent.Core.Llm.LlmConfig.ResolveApiKey();
         if (string.IsNullOrEmpty(apiKey))
-            return "Error: list_models — ALBERT_API_KEY environment variable is not set.";
+            return $"Error: list_models — {CsAgent.Core.Llm.LlmConfig.MissingKeyMessage}";
 
         try
         {
@@ -20,8 +20,12 @@ public static partial class ToolDispatcher
             // ?status=true asks the Albert API to include real-time availability
             // information for each model in the response (additional "status" field
             // on each model object, e.g. "available", "unavailable", "degraded").
-            using var request = new HttpRequestMessage(HttpMethod.Get,
-                "https://albert.api.etalab.gouv.fr/v1/models?status=true");
+            // Only the default Albert endpoint understands ?status=true.
+            var endpoint = CsAgent.Core.Llm.LlmConfig.Endpoint;
+            var url = endpoint == CsAgent.Core.Llm.LlmSettings.Endpoint
+                ? $"{endpoint}/models?status=true"
+                : $"{endpoint}/models";
+            using var request = new HttpRequestMessage(HttpMethod.Get, url);
 
             // AOT-safe: TryAddWithoutValidation avoids any header-type reflection
             request.Headers.TryAddWithoutValidation("Authorization", $"Bearer {apiKey}");

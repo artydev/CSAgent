@@ -65,7 +65,8 @@ public static class ApiHost
                 : "--- Auto-approve: OFF (destructive tools wait for POST /api/confirm) ---");
             if (!string.IsNullOrWhiteSpace(args.McpUrl))
                 Console.WriteLine($"--- MCP endpoint: {args.McpUrl} ---");
-            if (string.IsNullOrEmpty(Environment.GetEnvironmentVariable("ALBERT_API_KEY")))
+            Console.WriteLine($"--- LLM endpoint: {LlmConfig.Endpoint} ---");
+            if (string.IsNullOrEmpty(LlmConfig.ResolveApiKey()))
                 Console.WriteLine("--- WARNING: ALBERT_API_KEY is not set; every request will fail ---");
         });
 

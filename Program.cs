@@ -1,3 +1,4 @@
+using CsAgent.Core.Llm;
 using System.Text;
 using CsAgent.Infrastructure.Clipboard;
 using CsAgent.Presentation.LeanUI;
@@ -9,7 +10,7 @@ namespace CsAgent;
 
 public static class Program
 {
-    public const string Version = "0.7.0";
+    public const string Version = "0.7.1";
 
     [STAThread]
     public static int Main(string[] args)
@@ -19,9 +20,11 @@ public static class Program
 
         var parsed = ArgumentParser.Parse(args);
 
-        if (parsed.ShowHelp)    { HelpDisplay.Show(Version); return 0; }
+        LlmConfig.Configure(parsed.Endpoint, parsed.VisionModel);
+
+        if (parsed.ShowHelp) { HelpDisplay.Show(Version); return 0; }
         if (parsed.ShowVersion) { Console.WriteLine($"CSAgent version {Version}"); return 0; }
-        if (parsed.ShowDoc)     { DocDisplay.Show(); return 0; }
+        if (parsed.ShowDoc) { DocDisplay.Show(); return 0; }
 
         // Headless API mode: no clipboard, no browser, no UI assets.
         if (parsed.IsApiMode)
