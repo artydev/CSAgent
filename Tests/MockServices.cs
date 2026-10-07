@@ -143,5 +143,10 @@ sealed class SilentObserver : IAgentObserver
     public List<string> Warnings = new();
     public Task OnWarning(string m) { lock (Warnings) Warnings.Add(m); return Task.CompletedTask; }
     public Task OnDanger(string m) => Task.CompletedTask;
-    public Task<bool> OnConfirm(string t) => Task.FromResult(true);
+    /// <summary>What OnConfirm answers (default: allow).</summary>
+    public bool ConfirmAnswer = true;
+    int _confirmCount;
+    /// <summary>How many times the agent asked for a confirmation.</summary>
+    public int ConfirmCount => _confirmCount;
+    public Task<bool> OnConfirm(string t) { Interlocked.Increment(ref _confirmCount); return Task.FromResult(ConfirmAnswer); }
 }

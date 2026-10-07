@@ -23,6 +23,10 @@ public static class Program
         if (parsed.ShowVersion) { Console.WriteLine($"CSAgent version {Version}"); return 0; }
         if (parsed.ShowDoc)     { DocDisplay.Show(); return 0; }
 
+        // Headless API mode: no clipboard, no browser, no UI assets.
+        if (parsed.IsApiMode)
+            return ApiHost.Run(parsed);
+
         using var clipboard = new WindowsClipboardMonitor();
         clipboard.Start();
 

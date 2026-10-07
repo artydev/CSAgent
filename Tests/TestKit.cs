@@ -76,6 +76,7 @@ static partial class Tests
         await Concurrency();
         await Distillation();
         await NoDistill();
+        await ApiMode();
         await AgentEndToEnd();
     }
 

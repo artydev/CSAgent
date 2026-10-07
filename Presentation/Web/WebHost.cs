@@ -21,13 +21,15 @@ public static class WebHost
         app.MapEndpoints(
             args.MemoryFile, args.ModelOverride, args.McpUrl,
             new RetryPolicy(args.MaxRetries, args.RetryDelayMs),
-            args.TaskSlug, clipboard, distill: args.Distill);
+            args.TaskSlug, clipboard, distill: args.Distill, confirm: !args.AutoApprove);
 
         var url = $"http://localhost:{args.Port}";
 
         app.Lifetime.ApplicationStarted.Register(() =>
         {
             Console.WriteLine($"\n--- Server started at {url} ---");
+            if (args.AutoApprove)
+                Console.WriteLine("--- Auto-approve: ON (tools run without confirmation) ---");
             if (!string.IsNullOrWhiteSpace(args.McpUrl))
                 Console.WriteLine($"--- MCP endpoint: {args.McpUrl} ---");
             try { Process.Start(new ProcessStartInfo(url) { UseShellExecute = true }); }

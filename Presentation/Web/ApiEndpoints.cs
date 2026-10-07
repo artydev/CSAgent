@@ -21,7 +21,8 @@ public static class ApiEndpoints
         RetryPolicy? retry = null,
         string? taskSlug = null,
         WindowsClipboardMonitor? clipboard = null,
-        bool distill = true)
+        bool distill = true,
+        bool confirm = true)
     {
         var broker = new ConfirmationBroker();
 
@@ -46,7 +47,7 @@ public static class ApiEndpoints
             if (string.IsNullOrWhiteSpace(slug)) slug = taskSlug;
 
             await RunChatAsync(ctx, prompt, null, null,
-                               memoryFile, modelOverride, mcpUrl, retry, broker, slug, memory, distill);
+                               memoryFile, modelOverride, mcpUrl, retry, broker, slug, memory, distill, confirm);
         });
 
         app.MapPost("/api/chat", async (HttpContext ctx) =>
@@ -93,7 +94,7 @@ public static class ApiEndpoints
             }
 
             await RunChatAsync(ctx, prompt, imageBase64, imageMime,
-                               memoryFile, modelOverride, mcpUrl, retry, broker, slug, memory, distill);
+                               memoryFile, modelOverride, mcpUrl, retry, broker, slug, memory, distill, confirm);
         });
 
         return app;
@@ -111,7 +112,8 @@ public static class ApiEndpoints
         ConfirmationBroker broker,
         string? taskSlug,
         HybridMemoryManager memory,           // ← ADD parameter
-        bool distill = true)
+        bool distill = true,
+        bool confirm = true)
     {
         ctx.Response.Headers.ContentType = "text/event-stream";
         ctx.Response.Headers.CacheControl = "no-cache";
@@ -140,7 +142,7 @@ public static class ApiEndpoints
 
         using var agent = new CodingAgent(
             apiKey, LlmSettings.Endpoint, model,
-            new AgentOptions(Retry: retry, Tracker: tracker, Distill: distill),
+            new AgentOptions(Confirm: confirm, Retry: retry, Tracker: tracker, Distill: distill),
             observer,
             mcpUrl,
             memory);                          // ← ADD

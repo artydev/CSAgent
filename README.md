@@ -13,6 +13,7 @@ It ships with three presentation modes — a terminal UI (TUI), a web UI, and a 
   - [CLI Mode (Default)](#cli-mode-default)
   - [Web UI Mode](#web-ui-mode)
   - [Lean UI Mode](#lean-ui-mode)
+  - [Headless API Mode (for orchestrators)](#headless-api-mode-for-orchestrators)
 - [LLM Models](#llm-models)
 - [Future Features](#future-features)
 - [Environment Variables](#environment-variables)
@@ -92,6 +93,61 @@ The web UI is served at **http://localhost:5050** by default. Use `--port <n>` (
 
 Lean UI mode (`--leanui` flag) is a lightweight duplicate of the Web UI. It serves the same embedded assets and SSE-based chat endpoints, launched via the `--leanui` command-line argument. It is served at **http://localhost:5050** by default (use `--port <n>` to change it).
 
+### Headless API Mode (for orchestrators)
+
+`--api` starts the same SSE server as the Web UI **without any web interface**: no HTML/JS/CSS routes, no browser opened, no clipboard access. It is meant to be driven by another program, such as an agent orchestrator.
+
+```bash
+set ALBERT_API_KEY=your-llm-key
+
+# Local, no confirmations
+csagent --api --yes
+
+# Reachable from other machines: an API key is mandatory
+csagent --api --yes --host 0.0.0.0 --port 8080 --api-key s3cret
+```
+
+| Option | Effect |
+|---|---|
+| `--api` | Headless mode (takes precedence over `--ui` / `--leanui`). |
+| `--yes`, `-y`, `--auto-approve` | Every tool call is approved automatically: the agent never waits for `POST /api/confirm`. Also works in CLI, `--ui` and `--leanui` modes. |
+| `--host <addr>` | Address to listen on (default `localhost`). Only used with `--api`; the Web UI modes always listen on `localhost`. |
+| `--api-key <key>` | Every request must present this key. Can also be set with the `CSAGENT_API_KEY` environment variable (preferred: a command-line value is visible in the process list). |
+
+**`--yes` only removes the confirmation prompts.** The shell command filter (`sudo`, `chmod`, `shutdown`, `/etc/`, …) and the path restrictions stay active.
+
+**Endpoints**
+
+| Endpoint | Description |
+|---|---|
+| `GET /api/chat?prompt=…[&task=slug]` | Run a prompt, response is a Server-Sent Events stream |
+| `POST /api/chat` | Same, as `multipart/form-data` (`prompt`, optional `task`, optional `image`) |
+| `POST /api/confirm` | Body `true` or `false`: answers a pending `confirm` event (not needed with `--yes`) |
+
+**Authentication.** When a key is set, send `Authorization: Bearer <key>` or `X-API-Key: <key>`; anything else gets `401`. The server speaks plain HTTP: when it is exposed beyond the local machine, put it behind a TLS reverse proxy. **Without a key, a non-local `--host` is refused at startup**, because the agent can run commands and write files.
+
+**Events.** Each SSE message is `data: {"id": <n>, "type": "<type>", "data": …}`:
+
+| `type` | `data` |
+|---|---|
+| `step` | `{"n": 1, "m": 30}`: step number / maximum steps |
+| `thought` | The model's text |
+| `call` | `{"n": "<tool>", "a": "<arguments JSON>"}` |
+| `result` | `{"r": "<output>", "e": false}`: `e` is `true` when the tool failed |
+| `confirm` | `{"tool": "<tool>"}`: waiting for `POST /api/confirm` (never sent with `--yes`) |
+| `done` | The task is complete |
+| `error` | A fatal error for this request |
+| `warning`, `danger` | Notices (for example the session-summary line) |
+
+`done` is not always the last message (a `warning` about the session summary can follow): read until the server closes the connection.
+
+```bash
+curl -N -H "Authorization: Bearer s3cret" \
+     "http://localhost:8080/api/chat?prompt=create+hello.txt+containing+hi"
+```
+
+**One conversation per server.** All requests share the same memory file (`--mem`) and conversation, so send one request at a time. To run several independent tasks in parallel, start one instance per task, each with its own `--mem` and `--port`.
+
 ### Vision / Image Attachments
 
 CSAgent supports **multimodal (vision) prompts** — you can attach an image to a prompt and the agent will analyze it. This works in both the Web UI and the Lean UI, and in the CLI/TUI.
@@ -146,6 +202,7 @@ The following capabilities are planned for future releases:
 | Variable | Required | Description |
 |---|---|---|
 | `ALBERT_API_KEY` | Yes | Your API key for the OpenAI-compatible endpoint |
+| `CSAGENT_API_KEY` | No | Key that clients must present in `--api` mode (same as `--api-key`) |
 
 ---
 
@@ -155,6 +212,10 @@ The following capabilities are planned for future releases:
 |---|---|
 | `--ui` | Start in Web UI mode (starts a web server) |
 | `--leanui` | Start in Lean UI mode (lightweight duplicate of the Web UI) |
+| `--api` | Start the headless SSE server, without web UI (see [Headless API Mode](#headless-api-mode-for-orchestrators)) |
+| `--yes`, `-y` | Approve every tool call automatically (no confirmation prompts; the shell command filter stays active) |
+| `--host <addr>` | With `--api`: address to listen on (default: `localhost`; a non-local address requires an API key) |
+| `--api-key <key>` | With `--api`: key required on every request (or set `CSAGENT_API_KEY`) |
 | `--mem <file>` | Specify a custom memory/conversation file (default: `agent_memory.json`) |
 | `--model <model>` | Override the default LLM model for the current mode |
 | `--port`, `-p <n>` | Web UI port number (default: `5050`) |
@@ -202,6 +263,12 @@ csagent --max-retries 5 --retry-delay 2000
 
 # Do not summarise the session at the end of the run
 csagent --no-distill
+
+# Headless SSE server for an orchestrator, no confirmations
+csagent --api --yes
+
+# Same, reachable from the network (API key required)
+csagent --api --yes --host 0.0.0.0 --port 8080 --api-key s3cret
 ```
 
 ---
@@ -217,6 +284,8 @@ The `write_file` tool is classified as **destructive** because it modifies files
 ```
 [?] Allow destructive action 'write_file'? [Y/n]
 ```
+
+With `--yes` (or `-y`) these prompts are skipped and every tool call is approved automatically, which is what an unattended orchestrator needs (see [Headless API Mode](#headless-api-mode-for-orchestrators)). The two filters below stay active.
 
 Shell commands (`sh`) are **not** classified as destructive by default, but they are still filtered for dangerous operations (see below).
 
@@ -396,7 +465,9 @@ src/
 │   └── SummaryMemory.cs            # Distils, saves and loads the session summary
 ├── Presentation/
 │   ├── Tui/TuiHost.cs              # Creates and passes the memory manager
-│   └── Web/ApiEndpoints.cs         # Same, for the Web / Lean UI
+│   └── Web/
+│       ├── ApiEndpoints.cs         # Same, for the Web / Lean UI
+│       └── ApiHost.cs              # Headless --api server (key check, no UI)
 └── Tests/                          # Test project (see Tests)
 ```
 
@@ -430,13 +501,15 @@ csagent --ui
 
 ## Tests
 
-The `Tests/` folder holds a test project for the memory system (hybrid memory, session distillation, atomic saves, `--no-distill`) and the agent loop. It uses **no NuGet package and no test framework**: tests are plain code, and a mock OpenAI-compatible server stands in for the LLM, so no API key and no network are needed.
+The `Tests/` folder holds a test project for the memory system (hybrid memory, session distillation, atomic saves, `--no-distill`) and the agent loop. It uses **MSTest** (test-only NuGet packages; the application itself has no dependency). A mock OpenAI-compatible server stands in for the LLM, so no API key and no network are needed.
+
+In Visual Studio, open **Test Explorer** and choose **Run All Tests**: every test is listed on its own row. The same tests also run from the console:
 
 ```bash
 dotnet run --project Tests -c Release
 ```
 
-The output ends with a summary line (`TOTAL 54 | PASS 54 | FAIL 0 | FINDINGS 0`), the process exit code is `0` when everything passes and `1` otherwise, and a full report is written to `results.txt` next to the test binary.
+The output ends with a summary line (`TOTAL 65 | PASS 65 | FAIL 0 | FINDINGS 0`), the process exit code is `0` when everything passes and `1` otherwise, and a full report is written to `results.txt` next to the test binary.
 
 The project compiles the app's `Core/`, `Services/` and `Shared/` sources directly (the app itself is a Web / NativeAOT project) with reflection-based JSON disabled, which reproduces the AOT constraint: a stray `JsonSerializer.Serialize<T>()` fails the tests, as it would fail the published binary.
 
@@ -448,6 +521,8 @@ The project compiles the app's `Core/`, `Services/` and `Shared/` sources direct
 | `ConcurrencyTests.cs` | One shared memory manager used by many parallel requests |
 | `DistillationTests.cs` | Session summary: saving, failure modes, sanitising, injection at every step |
 | `NoDistillTests.cs` | `--no-distill` parsing and behaviour |
+| `ApiModeTests.cs` | `--api`, `--yes`, `--host`, `--api-key`: parsing, host/key policy, authentication, auto-approve in the agent loop |
+| `TestExplorer.cs` | Lists every test in Visual Studio's Test Explorer |
 | `AgentEndToEndTests.cs` | Whole `CodingAgent` runs against the mock LLM |
 | `MockServices.cs`, `TestKit.cs`, `Report.cs` | Mock server, observer, tiny test runner, report |
 

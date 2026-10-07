@@ -22,7 +22,11 @@ public sealed record AgentArguments(
     int RetryDelayMs = 1000,
     bool UsePropMem = true,
     string PropositionFile = "agent_propositions.json",
-    bool Distill = true);
+    bool Distill = true,
+    bool IsApiMode = false,
+    bool AutoApprove = false,
+    string Host = "localhost",
+    string? ApiKey = null);
 
 /// <summary>
 /// Pure argument parsing — no side effects, no console output.
@@ -49,10 +53,16 @@ public static class ArgumentParser
         var usePropMem = !args.Contains("--no-propmem");
         var propositionFile = GetValue(args, "--prop") ?? "agent_propositions.json";
         var distill = !args.Contains("--no-distill");
+        var isApiMode = args.Contains("--api");
+        var autoApprove = args.Contains("--yes") || args.Contains("-y") || args.Contains("--auto-approve");
+        var host = GetValue(args, "--host") ?? ApiSecurity.DefaultHost;
+        var apiKey = GetValue(args, "--api-key") ?? Environment.GetEnvironmentVariable("CSAGENT_API_KEY");
+        if (string.IsNullOrEmpty(apiKey)) apiKey = null;
 
         return new AgentArguments(memFile, modelOverride, mcpUrl, taskSlug,
             port, isUiMode, isLeanUiMode, isNativeMode, isDryRun,
-            showHelp, showVersion, showDoc, maxRetries, retryDelayMs, usePropMem, propositionFile, distill);
+            showHelp, showVersion, showDoc, maxRetries, retryDelayMs, usePropMem, propositionFile, distill,
+            isApiMode, autoApprove, host, apiKey);
     }
 
     private static string GetMemoryFile(string[] args)
@@ -64,7 +74,7 @@ public static class ArgumentParser
         {
             if (args[i] is "--model" or "--mcp" or "--mcp-url" or "--port"
                           or "-p" or "--max-retries" or "--retry-delay"
-                          or "--task" or "--prop")
+                          or "--task" or "--prop" or "--host" or "--api-key")
             { i++; continue; }
 
             if (args[i] != "--ui" && args[i] != "--leanui" && args[i] != "--native"

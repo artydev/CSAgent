@@ -54,6 +54,7 @@ public static class HelpDisplay
         Console.WriteLine("    (no flag)     CLI mode — interactive terminal session");
         Console.WriteLine("    --ui          Web UI mode — starts a web server");
         Console.WriteLine("    --leanui      Lean UI mode — lightweight duplicate of the Web UI");
+        Console.WriteLine("    --api         Headless API mode — SSE server without web UI, for orchestrators");
         Console.WriteLine("    --native      Native window mode — AOTrino WebView2 window (Windows only)");
         Console.WriteLine();
 
@@ -75,12 +76,19 @@ public static class HelpDisplay
         Console.WriteLine($"                       (default: {RetryPolicy.Default.BaseDelayMs})");
         Console.WriteLine("    --no-distill      Do not summarise the session at the end of a run");
         Console.WriteLine("                       (saves one LLM call; an existing summary is still used)");
+        Console.WriteLine("    --yes, -y         Approve every tool call automatically (no confirmation");
+        Console.WriteLine("                       prompts). The shell command filter stays active");
+        Console.WriteLine("    --host <addr>     With --api: address to listen on (default: localhost).");
+        Console.WriteLine("                       A non-local address requires an API key");
+        Console.WriteLine("    --api-key <key>   With --api: require this key on every request");
+        Console.WriteLine("                       (Authorization: Bearer <key> or X-API-Key: <key>)");
         Console.WriteLine();
 
         C("green");
         Console.WriteLine("  ENVIRONMENT");
         Console.ResetColor();
         Console.WriteLine("    ALBERT_API_KEY    API key for the OpenAI-compatible endpoint (required)");
+        Console.WriteLine("    CSAGENT_API_KEY   Key clients must present in --api mode (same as --api-key)");
         Console.WriteLine();
 
         C("green");
@@ -90,6 +98,8 @@ public static class HelpDisplay
         Console.WriteLine("    csagent --ui                                  Web UI mode (port 5050)");
         Console.WriteLine("    csagent --leanui                              Lean UI mode (port 5050)");
         Console.WriteLine("    csagent --native                              Native window mode (AOTrino)");
+        Console.WriteLine("    csagent --api --yes                           Headless SSE server, no confirmations");
+        Console.WriteLine("    csagent --api --yes --host 0.0.0.0 --api-key s3cret   Reachable from the network");
         Console.WriteLine("    csagent --ui --port 8080                      Web UI on port 8080");
         Console.WriteLine("    csagent --model gpt-4o                        CLI with custom model");
         Console.WriteLine("    csagent --ui --model gpt-4o                   Web UI with custom model");
