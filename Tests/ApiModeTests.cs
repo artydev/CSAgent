@@ -168,11 +168,16 @@ static partial class Tests
             var prev = Directory.GetCurrentDirectory(); Directory.SetCurrentDirectory(d);
             try
             {
+                // The filter is platform-aware. Pick a command that the current platform's filter blocks
+                // and that would be harmless even if it were not blocked.
+                var dangerous = OperatingSystem.IsWindows()
+                    ? "reg delete HKCU\\\\Software\\\\CsAgentTestNoSuchKey /f"
+                    : "sudo true";
                 int n = 0;
                 using var mock = new MockLlm();
                 mock.Handler = req => Interlocked.Increment(ref n) switch
                 {
-                    1 => (200, MockLlm.ToolCall("sh", "{\"cmd\":\"sudo rm -rf /tmp/x\"}"), 0),
+                    1 => (200, MockLlm.ToolCall("sh", "{\"cmd\":\"" + dangerous + "\"}"), 0),
                     _ => (200, MockLlm.Text("done"), 0),
                 };
                 var msgs = new JsonArray { CodingAgent.SystemMessage(false), JsonHelpers.Message("user", "go") };
