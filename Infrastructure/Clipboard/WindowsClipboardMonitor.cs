@@ -48,6 +48,11 @@ public sealed partial class WindowsClipboardMonitor : IDisposable
         if (_disposed) throw new ObjectDisposedException(nameof(WindowsClipboardMonitor));
         if (_started) return;
 
+        // Image capture relies on Win32 clipboard messages (user32/kernel32). On Linux and macOS the
+        // monitor stays inert: no thread, no native call, and ConsumeLatest() always returns null.
+        // (Text clipboard tools use xclip / wl-clipboard / pbcopy and do not depend on this class.)
+        if (!OperatingSystem.IsWindows()) return;
+
         _thread = new Thread(MessageThread) { IsBackground = true, Name = "CSAgent Clipboard" };
         _thread.Start();
         _startedEvent.Wait();
