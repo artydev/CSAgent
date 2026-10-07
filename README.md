@@ -1,4 +1,4 @@
-# CSAgent — Cross-Platform Autonomous Coding Agent
+# CSAgent — Cross-Platform Autonomous Coding Agent.
 
 **CSAgent** is a cross-platform autonomous coding agent that runs on Windows, Linux, and macOS. It uses an OpenAI-compatible API (e.g., [Albert API](https://albert.api.etalab.gouv.fr)) to understand natural-language instructions and autonomously perform coding tasks by reading, writing, and listing files, as well as executing shell commands.
 
