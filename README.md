@@ -229,6 +229,7 @@ The following capabilities are planned for future releases:
 | `--ui` | Start in Web UI mode (starts a web server) |
 | `--leanui` | Start in Lean UI mode (lightweight duplicate of the Web UI) |
 | `--api` | Start the headless SSE server, without web UI (see [Headless API Mode](#headless-api-mode-for-orchestrators)) |
+| `--quiet`, `-q` | CLI only: show just the assistant's messages (plus warnings, errors and the final line). Steps, tool calls and results are hidden; a failed tool call is reported on one line, and a destructive action shows its tool call right before asking for confirmation |
 | `--yes`, `-y` | Approve every tool call automatically (no confirmation prompts; the shell command filter stays active) |
 | `--host <addr>` | With `--api`: address to listen on (default: `localhost`; a non-local address requires an API key) |
 | `--api-key <key>` | With `--api`: key required on every request (or set `CSAGENT_API_KEY`) |
@@ -565,6 +566,7 @@ The project compiles the app's `Core/`, `Services/` and `Shared/` sources direct
 | `ConcurrencyTests.cs` | One shared memory manager used by many parallel requests |
 | `DistillationTests.cs` | Session summary: saving, failure modes, sanitising, injection at every step |
 | `NoDistillTests.cs` | `--no-distill` parsing and behaviour |
+| `QuietModeTests.cs` | `--quiet`: what the CLI prints (and hides), failed calls, confirmation prompts |
 | `LlmEndpointTests.cs` | `--endpoint`, `--vision-model`, local endpoints and the API key |
 | `MsgTests.cs` / `MsgTestFile.cs` | Outlook `.msg` reader (a test-only builder writes valid `.msg` files), HTML/RTF to text, `read_msg`, `save_attachment` and its file-name safety |
 | `ApiModeTests.cs` | `--api`, `--yes`, `--host`, `--api-key`: parsing, host/key policy, authentication, auto-approve in the agent loop |

@@ -25,6 +25,9 @@
 		<Compile Include="../Services/**/*.cs" />
 		<Compile Include="../Shared/**/*.cs"
 		         Exclude="../Shared/DocDisplay.cs;../Shared/HelpDisplay.cs" />
+		<!-- Console output of the CLI (self-contained: only needs Shared). -->
+		<Compile Include="../Presentation/Tui/ConsoleObserver.cs" />
+		<Compile Include="../Presentation/Tui/ConsoleRenderer.cs" />
 		<Compile Include="*.cs" />
 	</ItemGroup>
 

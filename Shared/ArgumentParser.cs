@@ -29,7 +29,8 @@ public sealed record AgentArguments(
     string Host = "localhost",
     string? ApiKey = null,
     string? Endpoint = null,
-    string? VisionModel = null);
+    string? VisionModel = null,
+    bool Quiet = false);
 
 /// <summary>
 /// Pure argument parsing — no side effects, no console output.
@@ -61,6 +62,7 @@ public static class ArgumentParser
         var host = GetValue(args, "--host") ?? ApiSecurity.DefaultHost;
         var apiKey = GetValue(args, "--api-key") ?? Environment.GetEnvironmentVariable("CSAGENT_API_KEY");
         if (string.IsNullOrEmpty(apiKey)) apiKey = null;
+        var quiet = args.Contains("--quiet") || args.Contains("-q");
         var endpoint = GetValue(args, "--endpoint") ?? Environment.GetEnvironmentVariable("CSAGENT_ENDPOINT");
         if (string.IsNullOrWhiteSpace(endpoint)) endpoint = null;
         var visionModel = GetValue(args, "--vision-model") ?? Environment.GetEnvironmentVariable("CSAGENT_VISION_MODEL");
@@ -69,7 +71,7 @@ public static class ArgumentParser
         return new AgentArguments(memFile, modelOverride, mcpUrl, taskSlug,
             port, isUiMode, isLeanUiMode, isNativeMode, isDryRun,
             showHelp, showVersion, showDoc, maxRetries, retryDelayMs, usePropMem, propositionFile, distill,
-            isApiMode, autoApprove, host, apiKey, endpoint, visionModel);
+            isApiMode, autoApprove, host, apiKey, endpoint, visionModel, quiet);
     }
 
     private static string GetMemoryFile(string[] args)

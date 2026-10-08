@@ -79,7 +79,7 @@ public static class TuiHost
                     Distill: args.Distill,
                     Retry: new RetryPolicy(args.MaxRetries, args.RetryDelayMs),
                     Tracker: tracker),
-                new ConsoleObserver(),
+                new ConsoleObserver(args.Quiet),
                 args.McpUrl,
                 memory);
 
