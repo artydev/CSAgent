@@ -10,7 +10,7 @@ namespace CsAgent;
 
 public static class Program
 {
-    public const string Version = "0.7.2";
+    public const string Version = "0.7.3";
 
     [STAThread]
     public static int Main(string[] args)
