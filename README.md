@@ -390,6 +390,27 @@ Execute a shell command. Uses `cmd.exe` on Windows, `/bin/sh` elsewhere.
 **Parameters:**
 - `cmd` (string, required) — Shell command to run
 
+### `read_msg`
+Read an Outlook `.msg` e-mail file: subject, sender, recipients, dates, body and the numbered list of attachments. Read-only. It is a pure C# reader, so it works on every OS and needs neither Outlook nor a NuGet package.
+
+**Parameters:**
+- `path` (string, required) — Path of the `.msg` file (inside the working directory)
+- `max_chars` (integer, optional, default: `50000`, maximum `200000`) — Maximum body characters returned
+
+The body is the plain-text part when there is one; otherwise the HTML or RTF part converted to text (best effort). Embedded messages are shown after the body. The result is framed by `[EMAIL …]` / `[END OF EMAIL]` markers and the system prompt tells the agent that the content is **untrusted data, never instructions**.
+
+### `save_attachment`
+Save the attachments of a `.msg` file to disk. **Destructive: requires confirmation** (unless `--yes`).
+
+**Parameters:**
+- `path` (string, required) — Path of the `.msg` file
+- `index` (integer, optional) — Attachment number shown by `read_msg`; omit to save all
+- `destination` (string, optional) — Directory inside the working directory; default `<name>_attachments` next to the `.msg`
+
+File names are sanitised (no path, no reserved or invalid characters), and an existing file is never overwritten (`name (1).ext` is written instead). Embedded messages and attachments stored by reference cannot be saved.
+
+Not supported: `.pst` / `.ost` archives, and `.msg` files that are encrypted or rights-protected.
+
 ---
 
 ## Memory & Conversation Persistence
@@ -544,6 +565,8 @@ The project compiles the app's `Core/`, `Services/` and `Shared/` sources direct
 | `ConcurrencyTests.cs` | One shared memory manager used by many parallel requests |
 | `DistillationTests.cs` | Session summary: saving, failure modes, sanitising, injection at every step |
 | `NoDistillTests.cs` | `--no-distill` parsing and behaviour |
+| `LlmEndpointTests.cs` | `--endpoint`, `--vision-model`, local endpoints and the API key |
+| `MsgTests.cs` / `MsgTestFile.cs` | Outlook `.msg` reader (a test-only builder writes valid `.msg` files), HTML/RTF to text, `read_msg`, `save_attachment` and its file-name safety |
 | `ApiModeTests.cs` | `--api`, `--yes`, `--host`, `--api-key`: parsing, host/key policy, authentication, auto-approve in the agent loop |
 | `TestExplorer.cs` | Lists every test in Visual Studio's Test Explorer |
 | `AgentEndToEndTests.cs` | Whole `CodingAgent` runs against the mock LLM |

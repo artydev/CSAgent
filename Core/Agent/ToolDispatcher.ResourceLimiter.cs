@@ -1,4 +1,4 @@
-namespace CsAgent.Core.Agent;
+﻿namespace CsAgent.Core.Agent;
 
 public static partial class ToolDispatcher
 {

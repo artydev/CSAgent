@@ -135,6 +135,15 @@ public static partial class ToolDispatcher
 
                 "list_models" => await ListModelsAsync(),
 
+                "read_msg" => ReadMsg(
+                    args["path"]!.GetValue<string>(),
+                    args["max_chars"]?.GetValue<int>()),
+
+                "save_attachment" => SaveAttachment(
+                    args["path"]!.GetValue<string>(),
+                    args["index"]?.GetValue<int>(),
+                    args["destination"]?.GetValue<string>()),
+
                 "read_clipboard" => await ReadClipboardAsync(isWindows),
 
                 "write_clipboard" => await WriteClipboardAsync(
@@ -174,5 +183,5 @@ public static partial class ToolDispatcher
     /// Returns true if the tool name is considered destructive (requires user confirmation).
     /// </summary>
     public static bool IsDestructive(string name) =>
-        name is "write_file" or "edit_file" or "git_commit" or "move_file" or "delete_file" or "unzip" or "write_clipboard" or "send_email";
+        name is "write_file" or "edit_file" or "git_commit" or "move_file" or "delete_file" or "unzip" or "write_clipboard" or "send_email" or "save_attachment";
 }

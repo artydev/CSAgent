@@ -79,6 +79,7 @@ static partial class Tests
         await ApiMode();
         await MemoryFolder();
         await LlmEndpoint();
+        await OutlookMsg();
         await AgentEndToEnd();
     }
 
