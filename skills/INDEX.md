@@ -13,6 +13,7 @@ index.
 | Excel Report Builder | 1.2 | The user wants raw data turned into a formatted Excel report (pasted, fetched, or read from a file), with professional styling and a confirmed save. | `skills/export-report-builder.md` |
 | CSV Handling | 1.0 | The user asks to read, parse, import, or work with a `.csv` file — especially before turning it into a report or passing it to another tool. | `skills/csv-handling.md` |
 | Pre-Commit Review & Message Drafting | 1.0 | The user asks to commit changes, or asks for a commit message — before any `git_commit` call. | `skills/precommit-review.md` |
+| Organize .msg Emails by Sender | 1.0 | The user asks to sort, organize, or move Outlook `.msg` email files into per-sender folders, especially when filenames contain accented characters. | `skills/msg-organize-by-sender.md` |
 
 ---
 
