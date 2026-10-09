@@ -296,6 +296,60 @@ static partial class Tests
             return "ok";
         }));
 
+        await T("purge: deletes old audio only; recent audio, transcripts and foreign files stay", InWork(async dir =>
+        {
+            Directory.CreateDirectory("recordings"); Directory.CreateDirectory("transcripts");
+            var old = DateTime.UtcNow.AddDays(-40);
+            string Make(string path, DateTime when) { File.WriteAllText(path, "x"); File.SetLastWriteTimeUtc(path, when); return path; }
+            var oldAudio = Make("recordings/rec_20260101_000000_aaaaaa.webm", old);
+            var oldM4a = Make("recordings/rec_20260101_000001_bbbbbb.m4a", old);
+            var recent = Make("recordings/rec_20261001_000000_cccccc.webm", DateTime.UtcNow.AddDays(-2));
+            var foreign = Make("recordings/notes.txt", old);                       // not ours
+            var foreignAudio = Make("recordings/meeting.webm", old);               // not named rec_*
+            var transcript = Make("transcripts/rec_20260101_000000_aaaaaa.txt", old);
+
+            var n = CsAgent.Services.AudioRecordings.PurgeOld(30);
+            Assert(n == 2, "deleted: " + n);
+            Assert(!File.Exists(oldAudio) && !File.Exists(oldM4a), "old audio deleted");
+            Assert(File.Exists(recent), "recent audio kept");
+            Assert(File.Exists(foreign) && File.Exists(foreignAudio), "files we did not create are kept");
+            Assert(File.Exists(transcript), "transcript kept, even when old");
+            Assert(CsAgent.Services.AudioRecordings.PurgeOld(30) == 0, "second run: nothing left to delete");
+            await Task.CompletedTask;
+            return "ok";
+        }));
+
+        await T("purge: no recordings folder, or a non-positive number of days, deletes nothing", InWork(async dir =>
+        {
+            Assert(CsAgent.Services.AudioRecordings.PurgeOld(30) == 0, "no folder");
+            Directory.CreateDirectory("recordings");
+            var f = "recordings/rec_20200101_000000_dddddd.webm"; File.WriteAllText(f, "x"); File.SetLastWriteTimeUtc(f, DateTime.UtcNow.AddDays(-900));
+            Assert(CsAgent.Services.AudioRecordings.PurgeOld(0) == 0 && CsAgent.Services.AudioRecordings.PurgeOld(-5) == 0 && File.Exists(f), "0 / negative: nothing deleted");
+            Assert(CsAgent.Services.AudioRecordings.PurgeOld(30, DateTime.UtcNow.AddDays(-1000)) == 0 && File.Exists(f), "a file newer than the limit stays");
+            await Task.CompletedTask;
+            return "ok";
+        }));
+
+        await T("purge: CSAGENT_AUDIO_KEEP_DAYS is off by default and ignores garbage", async () =>
+        {
+            var prev = Environment.GetEnvironmentVariable("CSAGENT_AUDIO_KEEP_DAYS");
+            try
+            {
+                Environment.SetEnvironmentVariable("CSAGENT_AUDIO_KEEP_DAYS", null);
+                Assert(CsAgent.Services.AudioRecordings.KeepDaysFromEnvironment() is null, "unset => keep everything");
+                foreach (var bad in new[] { "", "abc", "0", "-3", "1.5" })
+                {
+                    Environment.SetEnvironmentVariable("CSAGENT_AUDIO_KEEP_DAYS", bad);
+                    Assert(CsAgent.Services.AudioRecordings.KeepDaysFromEnvironment() is null, "accepted: '" + bad + "'");
+                }
+                Environment.SetEnvironmentVariable("CSAGENT_AUDIO_KEEP_DAYS", " 30 ");
+                Assert(CsAgent.Services.AudioRecordings.KeepDaysFromEnvironment() == 30, "30");
+            }
+            finally { Environment.SetEnvironmentVariable("CSAGENT_AUDIO_KEEP_DAYS", prev); }
+            await Task.CompletedTask;
+            return "ok";
+        });
+
         await T("append: a recording cannot grow past the limit", InWork(async dir =>
         {
             var rec = new CsAgent.Services.AudioRecordings(maxBytes: 10);

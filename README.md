@@ -96,6 +96,8 @@ The 🎙 button records from the browser. Long recordings are fine: audio is upl
 - **Use as instruction**: the text is put in the prompt box.
 - **Keep as text**: the transcript is saved to `transcripts/<name>.txt` and attached to your next prompt as `[Attached text file: path]` (data for the agent, e.g. to email as an attachment).
 
+Old audio can be deleted automatically: set `CSAGENT_AUDIO_KEEP_DAYS=30` and, at each start of `--ui` / `--leanui`, the audio files of `recordings/` not modified for 30 days are removed. It is off by default, and transcripts are never deleted.
+
 Endpoints (same-origin only): `POST /api/audio/start`, `POST /api/audio/{id}` (chunk), `POST /api/audio/{id}/transcribe` (SSE progress). Recordings and transcripts stay on disk; you may want `recordings/` and `transcripts/` in `.gitignore`.
 
 ### Lean UI Mode
@@ -229,6 +231,7 @@ The following capabilities are planned for future releases:
 | `CSAGENT_VISION_MODEL` | No | Same as `--vision-model` |
 | `CSAGENT_TRANSCRIBE_MODEL` | No | Speech-to-text model used by `transcribe_audio` (default `openai/whisper-large-v3`) |
 | `CSAGENT_FFMPEG` | No | Path of `ffmpeg` for `transcribe_audio` when it is not in the `PATH` |
+| `CSAGENT_AUDIO_KEEP_DAYS` | No | Web recorder: delete the audio of `recordings/` older than this many days at startup (default: keep everything; transcripts are never deleted) |
 | `CSAGENT_API_KEY` | No | Key that clients must present in `--api` mode (same as `--api-key`) |
 
 ---

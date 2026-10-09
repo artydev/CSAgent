@@ -11,6 +11,13 @@ public static class AudioEndpoints
     {
         var recordings = new AudioRecordings();
 
+        // Opt-in clean-up of old audio, once per start (CSAGENT_AUDIO_KEEP_DAYS=30). Transcripts are never deleted.
+        if (AudioRecordings.KeepDaysFromEnvironment() is { } keepDays)
+        {
+            var purged = AudioRecordings.PurgeOld(keepDays);
+            if (purged > 0) Console.WriteLine($"--- Deleted {purged} recording(s) older than {keepDays} day(s) from recordings/ ---");
+        }
+
         // A page from another site must not be able to write files here.
         static bool SameOrigin(HttpContext ctx)
         {

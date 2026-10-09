@@ -63,6 +63,41 @@ public sealed class AudioRecordings
         finally { _gate.Release(); }
     }
 
+    /// <summary>
+    /// Days to keep recordings, from CSAGENT_AUDIO_KEEP_DAYS. Null (the default) means "keep everything":
+    /// nothing is ever deleted unless the user turns this on. Anything that is not a positive whole number is ignored.
+    /// </summary>
+    public static int? KeepDaysFromEnvironment()
+    {
+        var raw = Environment.GetEnvironmentVariable("CSAGENT_AUDIO_KEEP_DAYS");
+        return int.TryParse(raw?.Trim(), out var days) && days > 0 ? days : null;
+    }
+
+    /// <summary>
+    /// Deletes the audio files of recordings/ not modified for <paramref name="keepDays"/> days. Only files this
+    /// class creates (rec_*.webm/.ogg/.m4a/.wav/.mp3) are touched: transcripts/ and any other file stay.
+    /// Returns how many files were deleted. A file that cannot be deleted is skipped.
+    /// </summary>
+    public static int PurgeOld(int keepDays, DateTime? nowUtc = null)
+    {
+        if (keepDays <= 0 || !Directory.Exists(AudioDir)) return 0;
+        var limit = (nowUtc ?? DateTime.UtcNow).AddDays(-keepDays);
+
+        var deleted = 0;
+        foreach (var file in Directory.EnumerateFiles(AudioDir, "rec_*"))
+        {
+            if (!Extensions.ContainsValue(Path.GetExtension(file).ToLowerInvariant())) continue;
+            try
+            {
+                if (File.GetLastWriteTimeUtc(file) >= limit) continue;
+                File.Delete(file);
+                deleted++;
+            }
+            catch { /* in use or read-only: next time */ }
+        }
+        return deleted;
+    }
+
     /// <summary>Relative path of a recording, or null when the id is unknown.</summary>
     public string? PathOf(string id) => _files.TryGetValue(id, out var file) ? file : null;
 
