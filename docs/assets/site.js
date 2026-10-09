@@ -212,10 +212,13 @@
     var endpoint = (box.getAttribute("data-endpoint") || "").trim();
     var local = /^(localhost|127\.0\.0\.1|\[::1\]|)$/.test(location.hostname) || location.protocol === "file:";
     var optOut = navigator.doNotTrack === "1" || window.doNotTrack === "1" || navigator.globalPrivacyControl === true;
+    // A reload or a back/forward move is the same visit again: read the total without adding to it.
+    var navEntry = window.performance && performance.getEntriesByType ? performance.getEntriesByType("navigation")[0] : null;
+    var again = !!navEntry && (navEntry.type === "reload" || navEntry.type === "back_forward");
     if (/^https?:\/\//.test(endpoint) && !local && "fetch" in window) {
       var ctl = "AbortController" in window ? new AbortController() : null;
       var timer = setTimeout(function () { if (ctl) ctl.abort(); }, 5000);
-      var url = endpoint + (endpoint.indexOf("?") < 0 ? "?" : "&") + "hit=" + (optOut ? "0" : "1");
+      var url = endpoint + (endpoint.indexOf("?") < 0 ? "?" : "&") + "hit=" + (optOut || again ? "0" : "1");
       fetch(url, { method: "GET", mode: "cors", cache: "no-store", credentials: "omit", referrerPolicy: "no-referrer", signal: ctl ? ctl.signal : undefined })
         .then(function (r) { if (!r.ok) throw new Error("HTTP " + r.status); return r.json(); })
         .then(function (d) {
