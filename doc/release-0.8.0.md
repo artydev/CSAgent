@@ -17,7 +17,7 @@ La version 0.8.0 ajoute la transcription de la parole (un outil pour l'agent et 
 | Domaine | Ce qui change |
 |---|---|
 | Nouvel outil | `transcribe_audio` : enregistrement de parole vers texte (Whisper, via l'endpoint configuré) |
-| `--ui` et `--leanui` | Bouton micro : enregistre, transcrit, puis tu choisis d'utiliser le texte comme instruction ou de le garder dans un fichier joint au prochain prompt |
+| `--ui` et `--leanui` | Bouton micro et choix de la langue (FR / EN / Auto) : enregistre, transcrit, puis tu choisis d'utiliser le texte comme instruction ou de le garder dans un fichier joint au prochain prompt |
 | MCP | Les outils sont proposés sous le nom `mcp_<nom>`, **chaque appel MCP demande confirmation**, les résultats sont traités comme des données non fiables |
 | Configuration | `CSAGENT_TRANSCRIBE_MODEL`, `CSAGENT_FFMPEG`, `CSAGENT_AUDIO_KEEP_DAYS`, `CSAGENT_MCP_URL` (désormais documentée) |
 | Documentation | README : enregistreur vocal, serveurs MCP, description du mode lean. `--help` mentionne `--mcp` |
@@ -60,7 +60,7 @@ Exemple de prompt : *« Transcris `entretien.m4a` en français et résume-le en 
 Disponible dans `--ui` et `--leanui` (pas dans `--api`). Le bouton micro 🎙 enregistre depuis le navigateur.
 
 1. **Enregistrement.** Le navigateur envoie l'audio au serveur local toutes les 30 secondes, dans `recordings/` (dans le dossier de travail). Un onglet fermé fait perdre au plus les 30 dernières secondes, et les longs enregistrements sont acceptés (limite : 100 Mo par enregistrement, soit environ 7 heures avec la qualité par défaut).
-2. **Transcription.** À l'arrêt, le fichier entier est transcrit avec le même code que `transcribe_audio` (donc `ffmpeg` est nécessaire, sauf pour un `.wav` ou `.mp3` court ; les navigateurs enregistrent en webm ou m4a). Une ligne de progression indique la partie en cours. La transcription a lieu à la fin, pas pendant que tu parles. La langue envoyée à Whisper est celle du navigateur ; un sélecteur FR / EN / Auto est ajouté dans la version suivante.
+2. **Transcription.** À l'arrêt, le fichier entier est transcrit avec le même code que `transcribe_audio` (donc `ffmpeg` est nécessaire, sauf pour un `.wav` ou `.mp3` court ; les navigateurs enregistrent en webm ou m4a). Une ligne de progression indique la partie en cours. La transcription a lieu à la fin, pas pendant que tu parles. La langue parlée se choisit avec le sélecteur **FR / EN / Auto** placé à côté du micro : le choix est mémorisé par le navigateur, et à la première visite c'est la langue du navigateur si elle est française ou anglaise, sinon Auto (Whisper détecte la langue). Seul un code à deux lettres est transmis à Whisper.
 3. **Ton choix, à la fin :**
    - **Use as instruction** : le texte est placé dans la zone de saisie, prêt à être envoyé.
    - **Keep as text** : la transcription est enregistrée dans `transcripts/rec_<date>_<id>.txt` et jointe à ton **prochain** prompt sous la forme `[Attached text file: transcripts/...]`. L'agent la lit avec `read_file` et la traite comme une donnée à exploiter (la résumer, l'envoyer en pièce jointe, ...), jamais comme une instruction.
@@ -105,7 +105,6 @@ Endpoints (même origine uniquement ; une page d'un autre site est refusée) : `
 
 - La transcription se fait après l'enregistrement, pas en direct.
 - Les textes de l'enregistreur sont en anglais, comme le reste de l'interface.
-- La langue parlée n'est pas modifiable dans l'enregistreur : c'est celle du navigateur.
 - Le texte d'une dictée est en lecture seule dans la carte de l'enregistreur ; corrige-le après l'avoir envoyé dans la zone de saisie.
 - L'audio et les transcriptions restent sur le disque jusqu'à ce que tu les supprimes ou que tu actives `CSAGENT_AUDIO_KEEP_DAYS`.
 - MCP : un seul serveur, HTTP uniquement (pas de stdio), pas d'en-tête d'authentification, outils seulement (ni ressources ni prompts), résultats en texte. Si le serveur est injoignable, la session s'arrête avec une erreur.
@@ -113,10 +112,10 @@ Endpoints (même origine uniquement ; une page d'un autre site est refusée) : `
 
 ## Tests
 
-135 tests (`dotnet run --project Tests -c Release`), dont :
+136 tests (`dotnet run --project Tests -c Release`), dont :
 
 - `transcribe_audio` : parties envoyées dans l'ordre (faux Whisper, faux `ffmpeg`), erreurs, troncature, contrôles du chemin et de la clé.
-- Stockage de l'enregistreur (`AudioRecordings`) et nettoyage des anciens enregistrements.
+- Stockage de l'enregistreur (`AudioRecordings`), nettoyage des anciens enregistrements et choix de la langue (seul un code à deux lettres atteint l'API de transcription).
 - MCP (faux serveur MCP) : noms `mcp_`, aucun remplacement d'un outil intégré, appels sous le nom d'origine du serveur, confirmation avant chaque appel.
 
 L'enregistreur a aussi été vérifié dans un vrai navigateur (Chromium avec un faux micro), dans les deux interfaces.
