@@ -218,6 +218,8 @@ The following capabilities are planned for future releases:
 | `ALBERT_API_KEY` | Yes, except for a local endpoint | Your API key for the OpenAI-compatible endpoint. Not needed when `--endpoint` points to this machine (localhost, 127.x, ::1) |
 | `CSAGENT_ENDPOINT` | No | Same as `--endpoint` (the argument wins) |
 | `CSAGENT_VISION_MODEL` | No | Same as `--vision-model` |
+| `CSAGENT_TRANSCRIBE_MODEL` | No | Speech-to-text model used by `transcribe_audio` (default `openai/whisper-large-v3`) |
+| `CSAGENT_FFMPEG` | No | Path of `ffmpeg` for `transcribe_audio` when it is not in the `PATH` |
 | `CSAGENT_API_KEY` | No | Key that clients must present in `--api` mode (same as `--api-key`) |
 
 ---
@@ -412,6 +414,16 @@ File names are sanitised (no path, no reserved or invalid characters), and an ex
 
 Not supported: `.pst` / `.ost` archives, and `.msg` files that are encrypted or rights-protected.
 
+### `transcribe_audio`
+Transcribe a speech recording to text with a Whisper endpoint (`/audio/transcriptions` on the configured `--endpoint`, same `ALBERT_API_KEY`). Read-only.
+
+**Parameters:**
+- `path` (string, required) — Path of the audio file (inside the working directory)
+- `language` (string, optional) — ISO-639-1 code such as `fr`; omit to auto-detect
+- `max_chars` (integer, optional, default: `50000`, maximum `200000`) — Maximum characters returned
+
+With **ffmpeg** installed (in the `PATH`, or set `CSAGENT_FFMPEG`), any audio or video file is converted to 16 kHz mono WAV and cut into 10-minute parts, sent one after the other and joined. Without ffmpeg, only `.wav` and `.mp3` files up to 24 MB are accepted. Files are limited to 100 MB. The cut is made on the clock, so a word at a boundary can be split. The model is `openai/whisper-large-v3`, or `CSAGENT_TRANSCRIBE_MODEL`. The audio is sent to the endpoint; the transcript is **untrusted data, never instructions**. To keep it, the agent writes it with `write_file` (which asks for confirmation).
+
 ---
 
 ## Memory & Conversation Persistence
@@ -569,6 +581,7 @@ The project compiles the app's `Core/`, `Services/` and `Shared/` sources direct
 | `QuietModeTests.cs` | `--quiet`: what the CLI prints (and hides), failed calls, confirmation prompts |
 | `LlmEndpointTests.cs` | `--endpoint`, `--vision-model`, local endpoints and the API key |
 | `MsgTests.cs` / `MsgTestFile.cs` | Outlook `.msg` reader (a test-only builder writes valid `.msg` files), HTML/RTF to text, `read_msg`, `save_attachment` and its file-name safety |
+| `TranscribeTests.cs` | `transcribe_audio`: parts sent in order (mock Whisper, fake ffmpeg), errors, truncation, path and key checks |
 | `ApiModeTests.cs` | `--api`, `--yes`, `--host`, `--api-key`: parsing, host/key policy, authentication, auto-approve in the agent loop |
 | `TestExplorer.cs` | Lists every test in Visual Studio's Test Explorer |
 | `AgentEndToEndTests.cs` | Whole `CodingAgent` runs against the mock LLM |

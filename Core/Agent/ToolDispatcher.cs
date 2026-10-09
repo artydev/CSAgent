@@ -144,6 +144,11 @@ public static partial class ToolDispatcher
                     args["index"]?.GetValue<int>(),
                     args["destination"]?.GetValue<string>()),
 
+                "transcribe_audio" => await TranscribeAudioAsync(
+                    args["path"]!.GetValue<string>(),
+                    args["language"]?.GetValue<string>(),
+                    args["max_chars"]?.GetValue<int>()),
+
                 "read_clipboard" => await ReadClipboardAsync(isWindows),
 
                 "write_clipboard" => await WriteClipboardAsync(

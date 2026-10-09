@@ -70,7 +70,7 @@ sealed class MockLlm : IDisposable
     }
 
     // Reads one request and returns its body (the client always sends Content-Length).
-    static async Task<string> ReadBodyAsync(NetworkStream stream)
+    internal static async Task<string> ReadBodyAsync(NetworkStream stream)
     {
         var data = new List<byte>();
         var chunk = new byte[8192];

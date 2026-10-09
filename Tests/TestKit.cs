@@ -80,6 +80,7 @@ static partial class Tests
         await MemoryFolder();
         await LlmEndpoint();
         await OutlookMsg();
+        await TranscribeAudio();
         await QuietMode();
         await AgentEndToEnd();
     }
