@@ -81,6 +81,7 @@ static partial class Tests
         await LlmEndpoint();
         await OutlookMsg();
         await TranscribeAudio();
+        await AudioRecordingsTests();
         await QuietMode();
         await AgentEndToEnd();
     }

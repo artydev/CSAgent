@@ -55,12 +55,26 @@
         </header>
         <div id="log"></div>
         <div class="input-area">
+            <div id="voiceCard" style="display:none">
+                <div id="voiceStatus"></div>
+                <div id="voiceText" style="display:none"></div>
+                <div id="voiceActions" style="display:none">
+                    <button id="voiceUseBtn" title="Put the text in the prompt box">Use as instruction</button>
+                    <button id="voiceKeepBtn" title="Keep it as a file, to attach to your next prompt">Keep as text</button>
+                    <button id="voiceCloseBtn">Close</button>
+                </div>
+            </div>
             <div class="input-row">
                 <input id="in"
                        autocomplete="off"
                        placeholder="Ask CSAgent anything... (All destructive actions require approval)">
                 <input id="imageInput" type="file" accept="image/png,image/jpeg,image/gif,image/webp" style="display:none" />
                 <span id="attachBtn" title="Attach image for vision analysis">📎</span>
+                <span id="micBtn" title="Record your voice (transcribed with Whisper)">🎙</span>
+                <span id="textChipWrap" style="display:none">
+                    <span id="textChip"></span>
+                    <span id="clearTextBtn" title="Remove the text file">✕</span>
+                </span>
                 <span id="imagePreviewWrap" style="display:none">
                     <img id="imagePreview" alt="attached" />
                     <span id="clearImageBtn" title="Remove image">✕</span>

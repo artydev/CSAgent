@@ -13,40 +13,12 @@ public static partial class ToolDispatcher
     private const int DefaultTranscriptChars = 50_000;
     private const int MaxTranscriptChars = 200_000;
 
-    /// <summary>
-    /// transcribe_audio: speech to text through the endpoint's /audio/transcriptions (Whisper).
-    /// With ffmpeg the audio is converted to 16 kHz mono WAV and cut into 10-minute parts, one
-    /// request per part; without it only .wav / .mp3 files up to 24 MB are accepted. Read-only.
-    /// </summary>
+    /// <summary>transcribe_audio (tool): the transcript of an audio file, cut at max_chars. Read-only.</summary>
     private static async Task<string> TranscribeAudioAsync(string path, string? language, int? maxChars)
     {
-        string? tmp = null;
         try
         {
-            var full = Path.GetFullPath(path);
-            if (!IsSafePath(full))
-                return $"Error: transcribe_audio - Path '{full}' is not allowed for reading. Only files in the current working directory are permitted.";
-            if (!File.Exists(full)) return $"Error: transcribe_audio - not found '{full}'";
-            var len = new FileInfo(full).Length;
-            if (len == 0) return $"Error: transcribe_audio - '{full}' is empty.";
-            if (len > MaxAudioBytes)
-                return $"Error: transcribe_audio - file too large ({len / (1024 * 1024)} MB, limit {MaxAudioBytes / (1024 * 1024)} MB).";
-
-            var apiKey = LlmConfig.ResolveApiKey();
-            if (string.IsNullOrEmpty(apiKey)) return $"Error: transcribe_audio — {LlmConfig.MissingKeyMessage}";
-
-            tmp = Directory.CreateTempSubdirectory("csagent-audio-").FullName;
-            var parts = await SplitAudioAsync(full, len, tmp);
-
-            var model = Environment.GetEnvironmentVariable("CSAGENT_TRANSCRIBE_MODEL");
-            if (string.IsNullOrWhiteSpace(model)) model = LlmSettings.TranscribeModel;
-
-            using var client = new HttpClient { Timeout = TimeSpan.FromMinutes(10) };
-            var texts = new List<string>();
-            foreach (var part in parts)
-                texts.Add(await TranscribePartAsync(client, apiKey, model, language, part));
-
-            var text = string.Join(" ", texts).Trim();
+            var text = await TranscribeFileAsync(path, language, null);
             if (text.Length == 0) return "(no speech detected)";
 
             var max = Math.Clamp(maxChars ?? DefaultTranscriptChars, 1, MaxTranscriptChars);
@@ -55,6 +27,47 @@ public static partial class ToolDispatcher
                 : text[..max] + $"\n[... truncated: {text.Length} characters in total, raise max_chars to read more]";
         }
         catch (Exception ex) { return $"Error: transcribe_audio — {ex.Message}"; }
+    }
+
+    /// <summary>
+    /// Speech to text through the endpoint's /audio/transcriptions (Whisper). With ffmpeg the audio is
+    /// converted to 16 kHz mono WAV and cut into 10-minute parts, one request per part; without it only
+    /// .wav / .mp3 files up to 24 MB are accepted. <paramref name="progress"/> gets (part, total) before
+    /// each part. Returns "" when there is no speech; throws with a readable message on any failure.
+    /// Shared by the transcribe_audio tool and the web UI's recorder.
+    /// </summary>
+    internal static async Task<string> TranscribeFileAsync(string path, string? language, Func<int, int, Task>? progress)
+    {
+        var full = Path.GetFullPath(path);
+        if (!IsSafePath(full))
+            throw new Exception($"Path '{full}' is not allowed for reading. Only files in the current working directory are permitted.");
+        if (!File.Exists(full)) throw new Exception($"not found '{full}'");
+        var len = new FileInfo(full).Length;
+        if (len == 0) throw new Exception($"'{full}' is empty.");
+        if (len > MaxAudioBytes)
+            throw new Exception($"file too large ({len / (1024 * 1024)} MB, limit {MaxAudioBytes / (1024 * 1024)} MB).");
+
+        var apiKey = LlmConfig.ResolveApiKey();
+        if (string.IsNullOrEmpty(apiKey)) throw new Exception(LlmConfig.MissingKeyMessage);
+
+        string? tmp = null;
+        try
+        {
+            tmp = Directory.CreateTempSubdirectory("csagent-audio-").FullName;
+            var parts = await SplitAudioAsync(full, len, tmp);
+
+            var model = Environment.GetEnvironmentVariable("CSAGENT_TRANSCRIBE_MODEL");
+            if (string.IsNullOrWhiteSpace(model)) model = LlmSettings.TranscribeModel;
+
+            using var client = new HttpClient { Timeout = TimeSpan.FromMinutes(10) };
+            var texts = new List<string>();
+            for (int i = 0; i < parts.Count; i++)
+            {
+                if (progress is not null) await progress(i + 1, parts.Count);
+                texts.Add(await TranscribePartAsync(client, apiKey, model, language, parts[i]));
+            }
+            return string.Join(" ", texts).Trim();
+        }
         finally
         {
             if (tmp is not null) { try { Directory.Delete(tmp, true); } catch { /* best effort */ } }

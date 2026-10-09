@@ -213,10 +213,110 @@ static partial class Tests
             return "ok";
         }));
 
+        await T("the progress callback gets (part, total) before each part (fake ffmpeg script)", Run(async (dir, mock) =>
+        {
+            if (OperatingSystem.IsWindows()) return "skipped (the fake ffmpeg is a /bin/sh script)";
+            var fake = Path.Combine(dir, "fake-ffmpeg");
+            File.WriteAllText(fake,
+                "#!/bin/sh\nfor a; do last=\"$a\"; done\n" +
+                "printf 'RIFFpart0' > \"$(echo \"$last\" | sed 's/%03d/000/')\"\n" +
+                "printf 'RIFFpart1' > \"$(echo \"$last\" | sed 's/%03d/001/')\"\n");
+            File.SetUnixFileMode(fake, UnixFileMode.UserRead | UnixFileMode.UserWrite | UnixFileMode.UserExecute);
+            Environment.SetEnvironmentVariable("CSAGENT_FFMPEG", fake);
+            File.WriteAllBytes("long.m4a", new byte[50]);
+
+            var seen = new List<string>();
+            var text = await ToolDispatcher.TranscribeFileAsync("long.m4a", "fr", (n, t) => { seen.Add($"{n}/{t}"); return Task.CompletedTask; });
+            Assert(string.Join(",", seen) == "1/2,2/2", "progress: " + string.Join(",", seen));
+            Assert(text == "part1 part2", "text: " + text);
+            return "ok";
+        }));
+
+        await T("TranscribeFileAsync throws a readable message (the web UI shows it)", Run(async (dir, mock) =>
+        {
+            try { await ToolDispatcher.TranscribeFileAsync("nope.wav", null, null); throw new Exception("no exception"); }
+            catch (Exception ex) when (ex.Message.Contains("not found")) { }
+            await Task.CompletedTask;
+            return "ok";
+        }));
+
         await T("the tool is read-only and known to the model", Run(async (dir, mock) =>
         {
             Assert(!ToolDispatcher.IsDestructive("transcribe_audio"), "must not require confirmation");
             Assert(ToolDispatcher.ToolDefinitions.Any(t => t?["function"]?["name"]?.GetValue<string>() == "transcribe_audio"), "definition");
+            await Task.CompletedTask;
+            return "ok";
+        }));
+    }
+    // ═════════════════════════ web UI recorder: AudioRecordings ═════════════════════════
+    static async Task AudioRecordingsTests()
+    {
+        Group("Web recorder / AudioRecordings");
+
+        Func<Func<string, Task<string?>>, Func<Task<string?>>> InWork = body => async () =>
+        {
+            var prev = Directory.GetCurrentDirectory();
+            var dir = Tmp();
+            Directory.SetCurrentDirectory(dir);
+            try { return await body(dir); }
+            finally { Directory.SetCurrentDirectory(prev); }
+        };
+        static MemoryStream Bytes(string s) => new(Encoding.ASCII.GetBytes(s));
+
+        await T("start: an audio type gets recordings/rec_<date>_<id>.<ext>; codecs parameters are ignored", InWork(async dir =>
+        {
+            var rec = new CsAgent.Services.AudioRecordings();
+            var a = rec.Start("audio/webm;codecs=opus");
+            Assert(a is not null && a.Value.Path.StartsWith("recordings/rec_") && a.Value.Path.EndsWith(".webm"), "path: " + a?.Path);
+            Assert(File.Exists(a!.Value.Path) && new FileInfo(a.Value.Path).Length == 0, "empty file created");
+            Assert(rec.Start("audio/mp4")!.Value.Path.EndsWith(".m4a") && rec.Start("audio/ogg")!.Value.Path.EndsWith(".ogg"), "other extensions");
+            Assert(rec.Start("audio/webm")!.Value.Path != rec.Start("audio/webm")!.Value.Path, "two recordings never share a name");
+            await Task.CompletedTask;
+            return "ok";
+        }));
+
+        await T("start: anything that is not on the audio list is refused (no client-chosen extension)", InWork(async dir =>
+        {
+            var rec = new CsAgent.Services.AudioRecordings();
+            foreach (var bad in new[] { "text/html", "application/octet-stream", "audio/evil", "../../x", "" })
+                Assert(rec.Start(bad) is null, "accepted: " + bad);
+            Assert(!Directory.Exists("recordings") || Directory.GetFiles("recordings").Length == 0, "nothing written");
+            await Task.CompletedTask;
+            return "ok";
+        }));
+
+        await T("append: chunks are concatenated in order; unknown ids are refused", InWork(async dir =>
+        {
+            var rec = new CsAgent.Services.AudioRecordings();
+            var s = rec.Start("audio/webm")!.Value;
+            Assert(await rec.AppendAsync(s.Id, Bytes("AAA")) && await rec.AppendAsync(s.Id, Bytes("BB")) && await rec.AppendAsync(s.Id, Bytes("C")), "append");
+            Assert(File.ReadAllText(s.Path) == "AAABBC", "content: " + File.ReadAllText(s.Path));
+            Assert(!await rec.AppendAsync("unknown", Bytes("x")) && !await rec.AppendAsync("../../etc/passwd", Bytes("x")), "unknown id");
+            Assert(rec.PathOf(s.Id) == s.Path.Replace('/', Path.DirectorySeparatorChar) && rec.PathOf("unknown") is null, "PathOf");
+            return "ok";
+        }));
+
+        await T("append: a recording cannot grow past the limit", InWork(async dir =>
+        {
+            var rec = new CsAgent.Services.AudioRecordings(maxBytes: 10);
+            var s = rec.Start("audio/webm")!.Value;
+            Assert(await rec.AppendAsync(s.Id, Bytes("123456")), "first chunk");
+            try { await rec.AppendAsync(s.Id, Bytes("7890123")); throw new Exception("no exception"); }
+            catch (InvalidOperationException ex) { Assert(ex.Message.Contains("too large"), ex.Message); }
+            Assert(new FileInfo(s.Path).Length == 6, "file unchanged by the refused chunk");
+            return "ok";
+        }));
+
+        await T("transcript: saved next to the recording's name, accents intact; unknown id is an error", InWork(async dir =>
+        {
+            var rec = new CsAgent.Services.AudioRecordings();
+            var s = rec.Start("audio/webm")!.Value;
+            var t = rec.SaveTranscript(s.Id, "Bonjour, ça va très bien.");
+            Assert(t.StartsWith("transcripts/rec_") && t.EndsWith(".txt"), t);
+            Assert(Path.GetFileNameWithoutExtension(t) == Path.GetFileNameWithoutExtension(s.Path), "same stem");
+            Assert(File.ReadAllText(t, Encoding.UTF8) == "Bonjour, ça va très bien.", "content");
+            try { rec.SaveTranscript("unknown", "x"); throw new Exception("no exception"); }
+            catch (InvalidOperationException) { }
             await Task.CompletedTask;
             return "ok";
         }));

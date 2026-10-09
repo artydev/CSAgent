@@ -450,6 +450,192 @@ clearImageBtn.addEventListener("click", () => setAttachedFile(null));
 stopBtn.addEventListener("click", () => stopGeneration());
 
 // -----------------------------------------------------------------------------
+// SECTION 5b — Voice recorder
+// The audio is sent to the server in 30 s chunks while recording, so a closed tab
+// loses seconds, not the whole recording. When it stops, the server transcribes it
+// (progress is streamed) and the user chooses what the text is:
+//   - an instruction: it goes into the prompt box;
+//   - a text to process: it stays a file (transcripts/…), attached to the next prompt.
+// -----------------------------------------------------------------------------
+
+const micBtn = document.getElementById("micBtn");
+const voiceCard = document.getElementById("voiceCard");
+const voiceStatus = document.getElementById("voiceStatus");
+const voiceText = document.getElementById("voiceText");
+const voiceActions = document.getElementById("voiceActions");
+const textChipWrap = document.getElementById("textChipWrap");
+const textChip = document.getElementById("textChip");
+
+const CHUNK_MS = 30_000;
+let recorder = null;
+let timerId = null;
+let attachedTextPath = null;   // transcripts/….txt attached to the next prompt
+let voiceResult = null;        // { path, text } shown in the card
+
+if (!navigator.mediaDevices?.getUserMedia || !window.MediaRecorder) micBtn.style.display = "none";
+
+function showVoice(message, { error = false, text = null } = {}) {
+    voiceCard.style.display = "block";
+    voiceStatus.textContent = message;
+    voiceStatus.classList.toggle("error", error);
+    voiceText.style.display = text === null ? "none" : "block";
+    voiceText.textContent = text ?? "";
+    voiceActions.style.display = text === null ? "none" : "flex";
+}
+
+function setAttachedText(path) {
+    attachedTextPath = path;
+    textChipWrap.style.display = path ? "flex" : "none";
+    textChip.textContent = path ? `📝 ${path}` : "";
+}
+
+function pickMimeType() {
+    const candidates = ["audio/webm;codecs=opus", "audio/webm", "audio/mp4", "audio/ogg;codecs=opus"];
+    return candidates.find((m) => MediaRecorder.isTypeSupported(m)) ?? "";
+}
+
+async function uploadChunk(rec, blob) {
+    if (rec.error) return;
+    try {
+        const response = await fetch(`/api/audio/${rec.id}`, { method: "POST", body: blob });
+        if (!response.ok) throw new Error((await response.text()) || response.statusText);
+    } catch (err) {
+        rec.error = err.message;
+        if (recorder && recorder.state === "recording") recorder.stop();
+    }
+}
+
+async function startRecording() {
+    let stream;
+    try {
+        stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+    } catch (err) {
+        showVoice(`Microphone unavailable: ${err.message}`, { error: true });
+        return;
+    }
+
+    const mimeType = pickMimeType();
+    const mediaRecorder = new MediaRecorder(stream, {
+        ...(mimeType ? { mimeType } : {}),
+        audioBitsPerSecond: 32000,   // plenty for speech: about 14 MB per hour
+    });
+
+    let rec;
+    try {
+        const response = await fetch(
+            `/api/audio/start?type=${encodeURIComponent(mediaRecorder.mimeType || mimeType || "audio/webm")}`,
+            { method: "POST" });
+        if (!response.ok) throw new Error((await response.text()) || response.statusText);
+        rec = { ...(await response.json()), queue: Promise.resolve(), error: null };
+    } catch (err) {
+        stream.getTracks().forEach((t) => t.stop());
+        showVoice(`Cannot start the recording: ${err.message}`, { error: true });
+        return;
+    }
+
+    mediaRecorder.ondataavailable = (e) => {
+        if (e.data.size > 0) rec.queue = rec.queue.then(() => uploadChunk(rec, e.data));
+    };
+    mediaRecorder.onstop = () => {
+        stream.getTracks().forEach((t) => t.stop());
+        clearInterval(timerId);
+        recorder = null;
+        micBtn.classList.remove("recording");
+        finishRecording(rec);
+    };
+
+    recorder = mediaRecorder;
+    mediaRecorder.start(CHUNK_MS);
+    micBtn.classList.add("recording");
+    const startedAt = Date.now();
+    const tick = () => {
+        const s = Math.floor((Date.now() - startedAt) / 1000);
+        const mm = String(Math.floor(s / 60)).padStart(2, "0");
+        const ss = String(s % 60).padStart(2, "0");
+        showVoice(`● Recording ${mm}:${ss} — click 🎙 to stop`);
+    };
+    tick();
+    timerId = setInterval(tick, 1000);
+}
+
+async function finishRecording(rec) {
+    micBtn.classList.add("busy");
+    try {
+        await rec.queue;
+        if (rec.error) {
+            showVoice(`Upload interrupted: ${rec.error}. What was recorded is in ${rec.path}.`, { error: true });
+            return;
+        }
+        await transcribeRecording(rec);
+    } finally {
+        micBtn.classList.remove("busy");
+    }
+}
+
+async function transcribeRecording(rec) {
+    showVoice("Transcribing…");
+    const lang = (navigator.language || "").split("-")[0];
+    let response;
+    try {
+        response = await fetch(`/api/audio/${rec.id}/transcribe?lang=${encodeURIComponent(lang)}`, { method: "POST" });
+        if (!response.ok) throw new Error((await response.text()) || response.statusText);
+    } catch (err) {
+        showVoice(`Transcription failed: ${err.message}. The audio is in ${rec.path}.`, { error: true });
+        return;
+    }
+
+    const reader = response.body.getReader();
+    const decoder = new TextDecoder();
+    let buffer = "";
+    while (true) {
+        const { done, value } = await reader.read();
+        if (done) break;
+        buffer += decoder.decode(value, { stream: true });
+        const events = buffer.split("\n\n");
+        buffer = events.pop();
+        for (const event of events) {
+            const line = event.split("\n").find((l) => l.startsWith("data:"));
+            if (!line) continue;
+            const message = JSON.parse(line.slice(5).trim());
+            if (message.type === "progress") {
+                showVoice(message.total > 1
+                    ? `Transcribing… part ${message.part}/${message.total}`
+                    : "Transcribing…");
+            } else if (message.type === "error") {
+                showVoice(`Transcription failed: ${message.message} The audio is in ${rec.path}.`, { error: true });
+                return;
+            } else if (message.type === "done") {
+                voiceResult = { path: message.path, text: message.text };
+                const words = message.text.trim().split(/\s+/).length;
+                showVoice(`${words} words — saved as ${message.path}`, { text: message.text });
+                return;
+            }
+        }
+    }
+}
+
+micBtn.addEventListener("click", () => {
+    if (recorder) recorder.stop();
+    else startRecording();
+});
+
+document.getElementById("voiceUseBtn").addEventListener("click", () => {
+    const input = document.getElementById("in");
+    input.value = voiceResult.text;
+    voiceCard.style.display = "none";
+    input.focus();
+});
+document.getElementById("voiceKeepBtn").addEventListener("click", () => {
+    setAttachedText(voiceResult.path);
+    voiceCard.style.display = "none";
+    document.getElementById("in").focus();
+});
+document.getElementById("voiceCloseBtn").addEventListener("click", () => {
+    voiceCard.style.display = "none";
+});
+document.getElementById("clearTextBtn").addEventListener("click", () => setAttachedText(null));
+
+// -----------------------------------------------------------------------------
 // SECTION 6 — SSE Stream (GET for text-only, POST for image)
 // -----------------------------------------------------------------------------
 
@@ -610,11 +796,17 @@ function run() {
 
     const log = document.getElementById("log");
 
-    // Show image indicator in log when an image is attached
-    if (attachedFile) {
+    // The agent is told about an attached transcript by its path; what it contains is data.
+    const textPath = attachedTextPath;
+    const sent = textPath ? `${prompt}\n\n[Attached text file: ${textPath}]` : prompt;
+
+    // Show attachment indicators in log
+    if (attachedFile || textPath) {
         const div = document.createElement("div");
         div.className = "user-msg";
-        div.innerHTML = `<strong>> User:</strong> 📎 [${attachedFile.name}] ${prompt}`;
+        const marks = (attachedFile ? `📎 [${attachedFile.name}] ` : "") + (textPath ? `📝 [${textPath}] ` : "");
+        div.innerHTML = `<strong>> User:</strong> ${marks}`;
+        div.appendChild(document.createTextNode(prompt));
         log.appendChild(div);
     } else {
         appendUserMessage(prompt, log);
@@ -622,13 +814,14 @@ function run() {
 
     const imageFile = attachedFile;
     setAttachedFile(null);
+    setAttachedText(null);
     input.value = "";
     scrollToBottom(log);
 
     setGenerating(true);
     currentStream = imageFile
-        ? startChatStreamPost(prompt, imageFile, log)
-        : startChatStreamGet(prompt, log);
+        ? startChatStreamPost(sent, imageFile, log)
+        : startChatStreamGet(sent, log);
 }
 
 // Command history state
