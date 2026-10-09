@@ -70,8 +70,8 @@ public static class AudioEndpoints
 
             try
             {
-                var lang = ctx.Request.Query["lang"].ToString();
-                var text = await ToolDispatcher.TranscribeFileAsync(path, lang.Length == 0 ? null : lang,
+                var lang = AudioRecordings.ParseLanguage(ctx.Request.Query["lang"].ToString());
+                var text = await ToolDispatcher.TranscribeFileAsync(path, lang,
                     (part, total) => Send(new JsonObject { ["type"] = "progress", ["part"] = part, ["total"] = total }));
 
                 if (text.Length == 0) { await Send(new JsonObject { ["type"] = "error", ["message"] = "No speech detected." }); return; }

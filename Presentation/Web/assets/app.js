@@ -474,6 +474,20 @@ let voiceResult = null;        // { path, text } shown in the card
 
 if (!navigator.mediaDevices?.getUserMedia || !window.MediaRecorder) micBtn.style.display = "none";
 
+// Language spoken in the recording: the user picks it (FR / EN / Auto) and it is remembered.
+// First visit: the browser's language when it is French or English, else automatic detection.
+const voiceLang = document.getElementById("voiceLang");
+(function initVoiceLang() {
+    let saved = null;
+    try { saved = localStorage.getItem("csagent_voice_lang"); } catch { /* storage blocked */ }
+    const browser = (navigator.language || "").slice(0, 2).toLowerCase();
+    const wanted = saved !== null ? saved : (browser === "fr" || browser === "en" ? browser : "");
+    voiceLang.value = [...voiceLang.options].some((o) => o.value === wanted) ? wanted : "";
+    voiceLang.addEventListener("change", () => {
+        try { localStorage.setItem("csagent_voice_lang", voiceLang.value); } catch { /* storage blocked */ }
+    });
+})();
+
 function showVoice(message, { error = false, text = null } = {}) {
     voiceCard.style.display = "block";
     voiceStatus.textContent = message;
@@ -574,7 +588,7 @@ async function finishRecording(rec) {
 
 async function transcribeRecording(rec) {
     showVoice("Transcribing…");
-    const lang = (navigator.language || "").split("-")[0];
+    const lang = voiceLang.value;   // "fr", "en" or "" (automatic)
     let response;
     try {
         response = await fetch(`/api/audio/${rec.id}/transcribe?lang=${encodeURIComponent(lang)}`, { method: "POST" });

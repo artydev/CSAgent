@@ -296,6 +296,17 @@ static partial class Tests
             return "ok";
         }));
 
+        await T("language: only a plain two-letter code reaches the transcription API; anything else means automatic", async () =>
+        {
+            Assert(CsAgent.Services.AudioRecordings.ParseLanguage("fr") == "fr" && CsAgent.Services.AudioRecordings.ParseLanguage("en") == "en", "fr / en");
+            Assert(CsAgent.Services.AudioRecordings.ParseLanguage(" FR ") == "fr", "case and spaces");
+            Assert(CsAgent.Services.AudioRecordings.ParseLanguage("fr-FR") == "fr" && CsAgent.Services.AudioRecordings.ParseLanguage("en_US") == "en", "region part dropped");
+            foreach (var bad in new[] { null, "", "   ", "french", "f", "f1", "12", "../x", "fr;rm", "fr fr", "é\u00e9", "frfr" })
+                Assert(CsAgent.Services.AudioRecordings.ParseLanguage(bad) is null, "accepted: '" + bad + "'");
+            await Task.CompletedTask;
+            return "ok";
+        });
+
         await T("purge: deletes old audio only; recent audio, transcripts and foreign files stay", InWork(async dir =>
         {
             Directory.CreateDirectory("recordings"); Directory.CreateDirectory("transcripts");

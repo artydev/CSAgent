@@ -947,3 +947,7 @@ html, body {
 .line.voice-actions .voice-act { cursor: pointer; color: var(--green); }
 .line.voice-actions .voice-act:hover { text-decoration: underline; }
 .line.voice-actions .voice-act.secondary { color: var(--comment); }
+
+#voiceLang { background: transparent; color: var(--comment); border: 1px solid var(--comment); border-radius: 3px; padding: 0 2px; font: inherit; font-size: .8em; cursor: pointer; }
+#voiceLang:hover, #voiceLang:focus { color: var(--fg, inherit); }
+#voiceLang option { background: #282a36; color: #f8f8f2; }

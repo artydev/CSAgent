@@ -97,6 +97,8 @@ The 🎙 button records from the browser. Long recordings are fine: audio is upl
 - **Use as instruction**: the text is put in the prompt box.
 - **Keep as text**: the transcript is saved to `transcripts/<name>.txt` and attached to your next prompt as `[Attached text file: path]` (data for the agent, e.g. to email as an attachment).
 
+Next to the button, **FR / EN / Auto** sets the language you speak (it helps Whisper, and is remembered by the browser). On the first visit it follows the browser's language when that is French or English; **Auto** lets Whisper detect it.
+
 Old audio can be deleted automatically: set `CSAGENT_AUDIO_KEEP_DAYS=30` and, at each start of `--ui` / `--leanui`, the audio files of `recordings/` not modified for 30 days are removed. It is off by default, and transcripts are never deleted.
 
 Endpoints (same-origin only): `POST /api/audio/start`, `POST /api/audio/{id}` (chunk), `POST /api/audio/{id}/transcribe` (SSE progress). Recordings and transcripts stay on disk; you may want `recordings/` and `transcripts/` in `.gitignore`.

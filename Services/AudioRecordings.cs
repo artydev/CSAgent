@@ -98,6 +98,18 @@ public sealed class AudioRecordings
         return deleted;
     }
 
+    /// <summary>
+    /// The spoken language the client asks for, as a two-letter ISO-639-1 code ("fr", "en"). "fr-FR" gives "fr".
+    /// Null (automatic detection) for an empty or unusable value: the text goes to the transcription API, so
+    /// only a plain lower-case code is ever forwarded.
+    /// </summary>
+    public static string? ParseLanguage(string? value)
+    {
+        if (string.IsNullOrWhiteSpace(value)) return null;
+        var code = value.Trim().ToLowerInvariant().Split('-', '_')[0];
+        return code.Length == 2 && code.All(c => c is >= 'a' and <= 'z') ? code : null;
+    }
+
     /// <summary>Relative path of a recording, or null when the id is unknown.</summary>
     public string? PathOf(string id) => _files.TryGetValue(id, out var file) ? file : null;
 

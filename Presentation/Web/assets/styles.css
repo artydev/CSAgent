@@ -724,3 +724,22 @@ input {
     #clearTextBtn:hover {
         opacity: 1;
     }
+
+
+/* Language of the recorder (FR / EN / Auto) */
+#voiceLang {
+    flex-shrink: 0;
+    background: transparent;
+    color: inherit;
+    border: 1px solid rgba(128, 128, 128, 0.4);
+    border-radius: 6px;
+    padding: 2px 4px;
+    font: inherit;
+    font-size: 12px;
+    opacity: 0.7;
+    cursor: pointer;
+}
+
+    #voiceLang:hover, #voiceLang:focus {
+        opacity: 1;
+    }
