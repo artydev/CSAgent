@@ -23,6 +23,7 @@ public static class LeanUIHost
             args.MemoryFile, args.ModelOverride, args.McpUrl,
             new RetryPolicy(args.MaxRetries, args.RetryDelayMs),
             args.TaskSlug, clipboard, distill: args.Distill, confirm: !args.AutoApprove);
+        app.MapAudioEndpoints();
 
         var url = $"http://localhost:{args.Port}";
 

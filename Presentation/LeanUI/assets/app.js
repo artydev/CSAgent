@@ -31,6 +31,10 @@ const attachBtn = document.getElementById("attachBtn");
 const imagePreviewWrap = document.getElementById("imagePreviewWrap");
 const imagePreview = document.getElementById("imagePreview");
 const clearImageBtn = document.getElementById("clearImageBtn");
+const micBtn = document.getElementById("micBtn");
+const textChipWrap = document.getElementById("textChipWrap");
+const textChip = document.getElementById("textChip");
+const clearTextBtn = document.getElementById("clearTextBtn");
 
 /* ──────────────────────────────────────────────────────────────
    CONSTANTS
@@ -659,6 +663,183 @@ imageInput.addEventListener("change", () => {
 clearImageBtn.addEventListener("click", () => setAttachedFile(null));
 
 /* ──────────────────────────────────────────────────────────────
+   SECTION 7b — Voice recorder
+   The audio is sent to the server in 30 s chunks while recording (a closed tab
+   loses seconds, not the whole recording). When it stops, the server
+   transcribes it (progress is streamed) and the user chooses what the text is:
+     - an instruction  -> it goes into the prompt line;
+     - a text to process -> it stays a file (transcripts/…), attached to the
+       next prompt as "[Attached text file: path]".
+────────────────────────────────────────────────────────────── */
+
+const CHUNK_MS = 30_000;
+let recorder = null;
+let timerId = null;
+let attachedTextPath = null;   // transcripts/….txt attached to the next prompt
+
+if (!navigator.mediaDevices?.getUserMedia || !window.MediaRecorder) micBtn.style.display = "none";
+
+function setAttachedText(path) {
+    attachedTextPath = path;
+    textChipWrap.style.display = path ? "flex" : "none";
+    textChip.textContent = path ? `📝 ${path}` : "";
+}
+clearTextBtn.addEventListener("click", () => setAttachedText(null));
+
+function pickMimeType() {
+    const candidates = ["audio/webm;codecs=opus", "audio/webm", "audio/mp4", "audio/ogg;codecs=opus"];
+    return candidates.find((m) => MediaRecorder.isTypeSupported(m)) ?? "";
+}
+
+async function uploadChunk(rec, blob) {
+    if (rec.error) return;
+    try {
+        const response = await fetch(`/api/audio/${rec.id}`, { method: "POST", body: blob });
+        if (!response.ok) throw new Error((await response.text()) || response.statusText);
+    } catch (err) {
+        rec.error = err.message;
+        if (recorder && recorder.state === "recording") recorder.stop();
+    }
+}
+
+async function startRecording() {
+    let stream;
+    try {
+        stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+    } catch (err) {
+        print(`🎙 Microphone unavailable: ${err.message}`, "err");
+        return;
+    }
+
+    const mimeType = pickMimeType();
+    const mediaRecorder = new MediaRecorder(stream, {
+        ...(mimeType ? { mimeType } : {}),
+        audioBitsPerSecond: 32000,   // plenty for speech: about 14 MB per hour
+    });
+
+    let rec;
+    try {
+        const response = await fetch(
+            `/api/audio/start?type=${encodeURIComponent(mediaRecorder.mimeType || mimeType || "audio/webm")}`,
+            { method: "POST" });
+        if (!response.ok) throw new Error((await response.text()) || response.statusText);
+        rec = { ...(await response.json()), queue: Promise.resolve(), error: null };
+    } catch (err) {
+        stream.getTracks().forEach((t) => t.stop());
+        print(`🎙 Cannot start the recording: ${err.message}`, "err");
+        return;
+    }
+
+    mediaRecorder.ondataavailable = (e) => {
+        if (e.data.size > 0) rec.queue = rec.queue.then(() => uploadChunk(rec, e.data));
+    };
+
+    // One log line shows the state (recording timer, then transcription progress).
+    const statusLine = print("🎙 Recording 00:00 — click 🎙 to stop", "sys");
+    mediaRecorder.onstop = () => {
+        stream.getTracks().forEach((t) => t.stop());
+        clearInterval(timerId);
+        recorder = null;
+        micBtn.classList.remove("recording");
+        finishRecording(rec, statusLine);
+    };
+
+    recorder = mediaRecorder;
+    mediaRecorder.start(CHUNK_MS);
+    micBtn.classList.add("recording");
+    const startedAt = Date.now();
+    timerId = setInterval(() => {
+        const s = Math.floor((Date.now() - startedAt) / 1000);
+        const mm = String(Math.floor(s / 60)).padStart(2, "0");
+        const ss = String(s % 60).padStart(2, "0");
+        statusLine.textContent = `🎙 Recording ${mm}:${ss} — click 🎙 to stop`;
+    }, 1000);
+}
+
+async function finishRecording(rec, statusLine) {
+    micBtn.classList.add("busy");
+    try {
+        await rec.queue;
+        if (rec.error) {
+            statusLine.className = "line err";
+            statusLine.textContent = `🎙 Upload interrupted: ${rec.error}. What was recorded is in ${rec.path}.`;
+            return;
+        }
+        await transcribeRecording(rec, statusLine);
+    } finally {
+        micBtn.classList.remove("busy");
+    }
+}
+
+async function transcribeRecording(rec, statusLine) {
+    const fail = (msg) => {
+        statusLine.className = "line err";
+        statusLine.textContent = `🎙 Transcription failed: ${msg} The audio is in ${rec.path}.`;
+    };
+    statusLine.textContent = "🎙 Transcribing…";
+    const lang = (navigator.language || "").split("-")[0];
+    let response;
+    try {
+        response = await fetch(`/api/audio/${rec.id}/transcribe?lang=${encodeURIComponent(lang)}`, { method: "POST" });
+        if (!response.ok) throw new Error((await response.text()) || response.statusText);
+    } catch (err) {
+        fail(err.message);
+        return;
+    }
+
+    const reader = response.body.getReader();
+    const decoder = new TextDecoder();
+    let buffer = "";
+    while (true) {
+        const { done, value } = await reader.read();
+        if (done) break;
+        buffer += decoder.decode(value, { stream: true });
+        const events = buffer.split("\n\n");
+        buffer = events.pop();
+        for (const event of events) {
+            const line = event.split("\n").find((l) => l.startsWith("data:"));
+            if (!line) continue;
+            const message = JSON.parse(line.slice(5).trim());
+            if (message.type === "progress") {
+                statusLine.textContent = message.total > 1
+                    ? `🎙 Transcribing… part ${message.part}/${message.total}`
+                    : "🎙 Transcribing…";
+            } else if (message.type === "error") {
+                fail(message.message);
+                return;
+            } else if (message.type === "done") {
+                showVoiceResult(statusLine, message.path, message.text);
+                return;
+            }
+        }
+    }
+}
+
+/** Prints the transcript and the choice made at the end: instruction or text to keep. */
+function showVoiceResult(statusLine, path, text) {
+    const words = text.trim() ? text.trim().split(/\s+/).length : 0;
+    statusLine.textContent = `🎙 ${words} words — saved as ${path}`;
+    print(text || "(no speech detected)", "voice-text");
+
+    const actions = print("", "voice-actions");
+    const add = (label, cls, fn) => {
+        const b = document.createElement("span");
+        b.className = "voice-act " + cls;
+        b.textContent = label;
+        b.addEventListener("click", () => { fn(); actions.remove(); input.focus(); });
+        actions.appendChild(b);
+    };
+    add("[use as instruction]", "", () => { input.value = text; });
+    add("[keep as text]", "", () => setAttachedText(path));
+    add("[close]", "secondary", () => {});
+}
+
+micBtn.addEventListener("click", () => {
+    if (recorder) recorder.stop();
+    else startRecording();
+});
+
+/* ──────────────────────────────────────────────────────────────
    SECTION 8 — SSE Chat Stream
 ────────────────────────────────────────────────────────────── */
 
@@ -845,6 +1026,12 @@ async function askAI(promptText) {
     // submit can't accidentally re-use the same image.
     const imageFile = attachedFile;
     setAttachedFile(null);
+
+    // A transcript kept as text travels with the prompt as a data file reference.
+    if (attachedTextPath) {
+        promptText = `${promptText}\n\n[Attached text file: ${attachedTextPath}]`;
+        setAttachedText(null);
+    }
 
     // Show image indicator in the log when an image is attached
     if (imageFile) {

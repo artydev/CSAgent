@@ -89,9 +89,9 @@ In Web UI mode (`--ui` flag), CSAgent starts a local web server with a modern, d
 
 The web UI is served at **http://localhost:5050** by default. Use `--port <n>` (or `-p <n>`) to change the port.
 
-#### Voice recorder (Web UI)
+#### Voice recorder (Web UI and Lean UI)
 
-The microphone button records from the browser (long recordings are fine: audio is uploaded in 30-second chunks to `recordings/`). When you stop, the audio is transcribed through the LLM endpoint (Albert, Whisper; needs `ffmpeg` for recordings over a few minutes, see `transcribe_audio`). You then choose:
+The 🎙 button records from the browser (in Lean UI the transcript and the two choices are printed in the log) (long recordings are fine: audio is uploaded in 30-second chunks to `recordings/`). When you stop, the audio is transcribed through the LLM endpoint (Albert, Whisper; needs `ffmpeg` for recordings over a few minutes, see `transcribe_audio`). You then choose:
 
 - **Use as instruction**: the text is put in the prompt box.
 - **Keep as text**: the transcript is saved to `transcripts/<name>.txt` and attached to your next prompt as `[Attached text file: path]` (data for the agent, e.g. to email as an attachment).
@@ -100,7 +100,7 @@ Endpoints (same-origin only): `POST /api/audio/start`, `POST /api/audio/{id}` (c
 
 ### Lean UI Mode
 
-Lean UI mode (`--leanui` flag) is a lightweight duplicate of the Web UI. It serves the same embedded assets and SSE-based chat endpoints, launched via the `--leanui` command-line argument. It is served at **http://localhost:5050** by default (use `--port <n>` to change it).
+Lean UI mode (`--leanui` flag) is a lightweight, terminal-style variant of the Web UI. It has its own embedded assets (`Presentation/LeanUI/assets`) and the same SSE-based chat endpoints, launched via the `--leanui` command-line argument. It is served at **http://localhost:5050** by default (use `--port <n>` to change it).
 
 ### Headless API Mode (for orchestrators)
 

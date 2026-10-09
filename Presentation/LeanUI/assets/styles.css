@@ -929,3 +929,21 @@ html, body {
         display: none;
     }
 }
+
+
+/* ── Voice recorder ───────────────────────────────────────────── */
+#micBtn { cursor: pointer; user-select: none; padding: 0 6px; opacity: .8; }
+#micBtn:hover { opacity: 1; }
+#micBtn.recording { color: var(--red); opacity: 1; animation: micPulse 1.2s ease-in-out infinite; }
+#micBtn.busy { opacity: .4; pointer-events: none; }
+@keyframes micPulse { 50% { opacity: .35; } }
+
+#textChipWrap { display: none; align-items: center; gap: 6px; color: var(--cyan); font-size: .85em; }
+#clearTextBtn { cursor: pointer; color: var(--comment); }
+#clearTextBtn:hover { color: var(--red); }
+
+.line.voice-text { color: var(--fg, inherit); white-space: pre-wrap; border-left: 2px solid var(--comment); padding-left: 10px; margin: 4px 0; max-height: 220px; overflow: auto; }
+.line.voice-actions { display: flex; gap: 14px; }
+.line.voice-actions .voice-act { cursor: pointer; color: var(--green); }
+.line.voice-actions .voice-act:hover { text-decoration: underline; }
+.line.voice-actions .voice-act.secondary { color: var(--comment); }
