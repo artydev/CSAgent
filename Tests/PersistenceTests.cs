@@ -152,5 +152,65 @@ static partial class Tests
             Assert(back.Count == 2 && back[1]!["content"]!.GetValue<string>() == "look", "round trip");
             return "ok";
         });
+
+        Group("Persistence / locked target file (Windows antivirus, indexer, sync clients)");
+
+        await T("a transient 'access denied' on the final move is retried and the save succeeds", async () =>
+        {
+            var d = Tmp(); var p = Path.Combine(d, "conversation.json");
+            var oldMove = AtomicFile.MoveOverwrite; var oldDelay = AtomicFile.MoveBaseDelayMs;
+            var calls = 0;
+            try
+            {
+                AtomicFile.MoveBaseDelayMs = 1;
+                AtomicFile.MoveOverwrite = (from, to) =>
+                {
+                    if (++calls <= 3) throw new UnauthorizedAccessException("Access to the path is denied.");
+                    File.Move(from, to, overwrite: true);
+                };
+                await MemoryStore.SaveAsync(p, new JsonArray { JsonHelpers.Message("user", "hello") });
+            }
+            finally { AtomicFile.MoveOverwrite = oldMove; AtomicFile.MoveBaseDelayMs = oldDelay; }
+            Assert(calls == 4, "move attempts: " + calls);
+            Assert((await MemoryStore.LoadAsync(p)).Count == 1, "file not saved after retries");
+            Assert(!Directory.GetFiles(d, "*.tmp").Any(), "tmp left over");
+            return $"saved after {calls} attempts";
+        });
+
+        await T("a target that stays locked: SaveAsync does not throw, the old file is intact, no .tmp left", async () =>
+        {
+            var d = Tmp(); var p = Path.Combine(d, "conversation.json");
+            await MemoryStore.SaveAsync(p, new JsonArray { JsonHelpers.Message("user", "first") });
+            var oldMove = AtomicFile.MoveOverwrite; var oldDelay = AtomicFile.MoveBaseDelayMs;
+            var calls = 0;
+            try
+            {
+                AtomicFile.MoveBaseDelayMs = 1;
+                AtomicFile.MoveOverwrite = (from, to) => { calls++; throw new IOException("The process cannot access the file."); };
+                await MemoryStore.SaveAsync(p, new JsonArray { JsonHelpers.Message("user", "second") });   // must not throw
+            }
+            finally { AtomicFile.MoveOverwrite = oldMove; AtomicFile.MoveBaseDelayMs = oldDelay; }
+            Assert(calls == AtomicFile.MoveAttempts, "attempts: " + calls);
+            var back = await MemoryStore.LoadAsync(p);
+            Assert(back.Count == 1 && back[0]!["content"]!.GetValue<string>() == "first", "previous file damaged");
+            Assert(!Directory.GetFiles(d, "*.tmp").Any(), "tmp left over");
+            return $"gave up after {calls} attempts, nothing thrown";
+        });
+
+        await T("AtomicFile.WriteAllTextAsync still throws when the move keeps failing (callers that need to know)", async () =>
+        {
+            var d = Tmp(); var p = Path.Combine(d, "x.json");
+            var oldMove = AtomicFile.MoveOverwrite; var oldDelay = AtomicFile.MoveBaseDelayMs;
+            var threw = false;
+            try
+            {
+                AtomicFile.MoveBaseDelayMs = 1;
+                AtomicFile.MoveOverwrite = (from, to) => throw new UnauthorizedAccessException("denied");
+                try { await AtomicFile.WriteAllTextAsync(p, "[]"); } catch (UnauthorizedAccessException) { threw = true; }
+            }
+            finally { AtomicFile.MoveOverwrite = oldMove; AtomicFile.MoveBaseDelayMs = oldDelay; }
+            Assert(threw, "no exception");
+            return "thrown after retries";
+        });
     }
 }

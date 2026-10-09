@@ -42,7 +42,9 @@ public static class MemoryStore
         }
 
         var json = persisted.ToJsonString(Pretty);
-        await AtomicFile.WriteAllTextAsync(path, json, Encoding.UTF8);
+        // Saving the conversation is an aid, never a reason to crash a run: a file that stays locked
+        // or read-only is reported on stderr and the agent carries on (same policy as the other memory files).
+        await AtomicFile.TryWriteAllTextAsync(path, json, Encoding.UTF8);
     }
 
     /// <summary>

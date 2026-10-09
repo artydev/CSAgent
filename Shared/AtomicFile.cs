@@ -26,11 +26,33 @@ public static class AtomicFile
         try
         {
             await File.WriteAllTextAsync(tmp, content, encoding ?? new UTF8Encoding(false));
-            File.Move(tmp, path, overwrite: true);
+            await MoveWithRetryAsync(tmp, path);
         }
         finally
         {
             try { if (File.Exists(tmp)) File.Delete(tmp); } catch { /* best effort */ }
+        }
+    }
+
+    // Test seam and tuning: replacing the target can fail for a moment on Windows when an antivirus,
+    // the search indexer or a sync client (OneDrive...) holds the file open right after it was written.
+    internal static Action<string, string> MoveOverwrite = (from, to) => File.Move(from, to, overwrite: true);
+    internal static int MoveAttempts = 6;
+    internal static int MoveBaseDelayMs = 25;
+
+    /// <summary>
+    /// Replaces <paramref name="to"/> with <paramref name="from"/>, retrying a few times (25, 50, 100, 200, 400 ms)
+    /// on <see cref="IOException"/> / <see cref="UnauthorizedAccessException"/>. The last failure is thrown.
+    /// </summary>
+    private static async Task MoveWithRetryAsync(string from, string to)
+    {
+        for (var attempt = 1; ; attempt++)
+        {
+            try { MoveOverwrite(from, to); return; }
+            catch (Exception ex) when ((ex is IOException or UnauthorizedAccessException) && attempt < MoveAttempts)
+            {
+                await Task.Delay(MoveBaseDelayMs * (1 << (attempt - 1)));
+            }
         }
     }
 
