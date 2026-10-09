@@ -1,3 +1,4 @@
+using CsAgent.Core.Abstractions;
 using CsAgent.Presentation.Tui;
 using CsAgent.Shared;
 
@@ -84,5 +85,93 @@ static partial class Tests
             Assert(!yes.Out.Contains("list_dir"), yes.Out);
             return "ok";
         });
+
+        // ── the same filter for the web UIs (QuietObserver wraps the SSE observer) ──────────
+        // The inner observer records, in order, what it is given.
+        static (IAgentObserver Obs, List<string> Seen) Recorder(bool confirmAnswer = true)
+        {
+            var seen = new List<string>();
+            return (new Recording(seen, confirmAnswer), seen);
+        }
+
+        await T("web --quiet: steps, tool calls and successful results are held back; messages, warnings, errors and the end pass", async () =>
+        {
+            var (inner, seen) = Recorder();
+            var q = new QuietObserver(inner);
+            await q.OnStep(1, 30);
+            await q.OnThought("I will list the folder.");
+            await q.OnToolCall("list_dir", "{\"path\":\".\"}");
+            await q.OnToolResult("[FILE] a.msg", false);
+            await q.OnWarning("Session summary loaded");
+            await q.OnDanger("blocked command");
+            await q.OnError("API 500");
+            await q.OnThought("Done.");
+            await q.OnDone("Task complete.");
+            Assert(string.Join("|", seen) == "thought:I will list the folder.|warning:Session summary loaded|danger:blocked command|error:API 500|thought:Done.|done:Task complete.",
+                string.Join("|", seen));
+            return "ok";
+        });
+
+        await T("web --quiet: a failed tool call is still reported, as one warning line naming the tool", async () =>
+        {
+            var (inner, seen) = Recorder();
+            var q = new QuietObserver(inner);
+            await q.OnToolCall("read_file", "{\"path\":\"missing.txt\"}");
+            await q.OnToolResult("Error: not found 'missing.txt'\nsecond line", true);
+            Assert(seen.Count == 1 && seen[0] == "warning:read_file failed: Error: not found 'missing.txt'", string.Join("|", seen));
+            await q.OnToolResult(new string('x', 500), true);
+            Assert(seen[1].Length < 260 && seen[1].EndsWith("..."), "a long error must be cut: " + seen[1].Length);
+            return "ok";
+        });
+
+        await T("web --quiet: a confirmation request is preceded by the call it is about, and the answer is passed back", async () =>
+        {
+            foreach (var answer in new[] { true, false })
+            {
+                var (inner, seen) = Recorder(answer);
+                var q = new QuietObserver(inner);
+                await q.OnToolCall("list_dir", "{\"path\":\".\"}");
+                await q.OnToolResult("ok", false);
+                await q.OnToolCall("write_file", "{\"path\":\"out.txt\"}");
+                var got = await q.OnConfirm("write_file");
+                Assert(got == answer, "the user's answer must come back");
+                Assert(string.Join("|", seen) == "call:write_file {\"path\":\"out.txt\"}|confirm:write_file", string.Join("|", seen));
+            }
+            return "ok";
+        });
+
+        await T("web --quiet: a confirmation for a tool whose call was not seen shows no other call", async () =>
+        {
+            var (inner, seen) = Recorder();
+            var q = new QuietObserver(inner);
+            await q.OnToolCall("list_dir", "{}");
+            await q.OnConfirm("write_file");
+            Assert(string.Join("|", seen) == "confirm:write_file", string.Join("|", seen));
+            return "ok";
+        });
+
+        await T("web without --quiet: Wrap returns the observer itself, nothing is filtered (and --api never wraps)", async () =>
+        {
+            var (inner, seen) = Recorder();
+            Assert(ReferenceEquals(QuietObserver.Wrap(inner, quiet: false), inner), "must be the same object");
+            Assert(QuietObserver.Wrap(inner, quiet: true) is QuietObserver, "quiet must wrap");
+            var plain = QuietObserver.Wrap(inner, quiet: false);
+            await plain.OnStep(1, 5); await plain.OnToolCall("sh", "{}"); await plain.OnToolResult("out", false);
+            Assert(string.Join("|", seen) == "step:1/5|call:sh {}|result:out", string.Join("|", seen));
+            return "ok";
+        });
+    }
+
+    sealed class Recording(List<string> seen, bool confirmAnswer) : IAgentObserver
+    {
+        public Task OnStep(int n, int m) { seen.Add($"step:{n}/{m}"); return Task.CompletedTask; }
+        public Task OnThought(string t) { seen.Add("thought:" + t); return Task.CompletedTask; }
+        public Task OnToolCall(string n, string a) { seen.Add($"call:{n} {a}"); return Task.CompletedTask; }
+        public Task OnToolResult(string r, bool e) { seen.Add((e ? "error-result:" : "result:") + r); return Task.CompletedTask; }
+        public Task OnDone(string m) { seen.Add("done:" + m); return Task.CompletedTask; }
+        public Task OnError(string m) { seen.Add("error:" + m); return Task.CompletedTask; }
+        public Task OnWarning(string m) { seen.Add("warning:" + m); return Task.CompletedTask; }
+        public Task OnDanger(string m) { seen.Add("danger:" + m); return Task.CompletedTask; }
+        public Task<bool> OnConfirm(string t) { seen.Add("confirm:" + t); return Task.FromResult(confirmAnswer); }
     }
 }

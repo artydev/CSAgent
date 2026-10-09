@@ -1,3 +1,4 @@
+using CsAgent.Core.Abstractions;
 using CsAgent.Core.Agent;
 using CsAgent.Core.Llm;
 using CsAgent.Core.Memory;
@@ -22,7 +23,8 @@ public static class ApiEndpoints
         string? taskSlug = null,
         WindowsClipboardMonitor? clipboard = null,
         bool distill = true,
-        bool confirm = true)
+        bool confirm = true,
+        bool quiet = false)
     {
         var broker = new ConfirmationBroker();
 
@@ -47,7 +49,7 @@ public static class ApiEndpoints
             if (string.IsNullOrWhiteSpace(slug)) slug = taskSlug;
 
             await RunChatAsync(ctx, prompt, null, null,
-                               memoryFile, modelOverride, mcpUrl, retry, broker, slug, memory, distill, confirm);
+                               memoryFile, modelOverride, mcpUrl, retry, broker, slug, memory, distill, confirm, quiet);
         });
 
         app.MapPost("/api/chat", async (HttpContext ctx) =>
@@ -94,7 +96,7 @@ public static class ApiEndpoints
             }
 
             await RunChatAsync(ctx, prompt, imageBase64, imageMime,
-                               memoryFile, modelOverride, mcpUrl, retry, broker, slug, memory, distill, confirm);
+                               memoryFile, modelOverride, mcpUrl, retry, broker, slug, memory, distill, confirm, quiet);
         });
 
         return app;
@@ -113,12 +115,14 @@ public static class ApiEndpoints
         string? taskSlug,
         HybridMemoryManager memory,           // ← ADD parameter
         bool distill = true,
-        bool confirm = true)
+        bool confirm = true,
+        bool quiet = false)
     {
         ctx.Response.Headers.ContentType = "text/event-stream";
         ctx.Response.Headers.CacheControl = "no-cache";
 
-        var observer = new SseObserver(ctx.Response, broker);
+        // --quiet (web UIs): steps, tool calls and results are not sent; --api always sends everything.
+        var observer = QuietObserver.Wrap(new SseObserver(ctx.Response, broker), quiet);
 
         var apiKey = LlmConfig.ResolveApiKey();
         if (string.IsNullOrEmpty(apiKey))

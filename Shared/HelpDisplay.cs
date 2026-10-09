@@ -82,9 +82,9 @@ public static class HelpDisplay
         Console.WriteLine($"                       (default: {RetryPolicy.Default.BaseDelayMs})");
         Console.WriteLine("    --no-distill      Do not summarise the session at the end of a run");
         Console.WriteLine("                       (saves one LLM call; an existing summary is still used)");
-        Console.WriteLine("    --quiet, -q       CLI: show only the assistant's messages, warnings and errors");
-        Console.WriteLine("                       (hides steps, tool calls and results; a tool call is still");
-        Console.WriteLine("                       shown when it asks for your confirmation)");
+        Console.WriteLine("    --quiet, -q       CLI, --ui, --leanui: show only the assistant's messages, warnings");
+        Console.WriteLine("                       and errors (hides steps, tool calls and results; a tool call is");
+        Console.WriteLine("                       still shown when it asks for your confirmation). Not used by --api");
         Console.WriteLine("    --yes, -y         Approve every tool call automatically (no confirmation");
         Console.WriteLine("                       prompts). The shell command filter stays active");
         Console.WriteLine("    --host <addr>     With --api: address to listen on (default: localhost).");
