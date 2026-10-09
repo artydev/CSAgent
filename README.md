@@ -20,6 +20,7 @@ It ships with three presentation modes — a terminal UI (TUI), a web UI, and a 
 - [Command-Line Arguments](#command-line-arguments)
 - [Safety Features](#safety-features)
 - [Available Tools](#available-tools)
+  - [MCP servers](#mcp-servers)
 - [Memory & Conversation Persistence](#memory--conversation-persistence)
   - [Hybrid Memory (anti-amnesia)](#hybrid-memory-anti-amnesia)
   - [Session Distillation (across sessions)](#session-distillation-across-sessions)
@@ -217,7 +218,6 @@ csagent --ui --model deepseek-v4-flash
 
 The following capabilities are planned for future releases:
 
-- **MCP (Model Context Protocol) integration** — connect to external MCP servers over Streamable HTTP to expose additional tools to the agent.
 - **Python scripting** — drive CSAgent from Python scripts: launch sessions, send prompts, and retrieve responses and agent events (steps, tool calls, results) programmatically, for example via a csagent module or a web-interface (SSE) client.
 
 ---
@@ -233,6 +233,7 @@ The following capabilities are planned for future releases:
 | `CSAGENT_FFMPEG` | No | Path of `ffmpeg` for `transcribe_audio` when it is not in the `PATH` |
 | `CSAGENT_AUDIO_KEEP_DAYS` | No | Web recorder: delete the audio of `recordings/` older than this many days at startup (default: keep everything; transcripts are never deleted) |
 | `CSAGENT_API_KEY` | No | Key that clients must present in `--api` mode (same as `--api-key`) |
+| `CSAGENT_MCP_URL` | No | Same as `--mcp` (the argument wins) |
 
 ---
 
@@ -247,6 +248,7 @@ The following capabilities are planned for future releases:
 | `--yes`, `-y` | Approve every tool call automatically (no confirmation prompts; the shell command filter stays active) |
 | `--host <addr>` | With `--api`: address to listen on (default: `localhost`; a non-local address requires an API key) |
 | `--api-key <key>` | With `--api`: key required on every request (or set `CSAGENT_API_KEY`) |
+| `--mcp <url>`, `--mcp-url <url>` | Connect to an MCP server over Streamable HTTP (see [MCP servers](#mcp-servers)). Or set `CSAGENT_MCP_URL` |
 | `--mem <name>` | Memory folder holding the conversation and the memory files (default: `agent_memory`, see [Memory files](#memory-files)) |
 | `--model <model>` | Override the default LLM model for the current mode |
 | `--endpoint <url>` | OpenAI-compatible base URL (default: Albert API). For Ollama: `http://localhost:11434/v1` (see [Local models with Ollama](#local-models-with-ollama)) |
@@ -436,6 +438,15 @@ Transcribe a speech recording to text with a Whisper endpoint (`/audio/transcrip
 
 With **ffmpeg** installed (in the `PATH`, or set `CSAGENT_FFMPEG`), any audio or video file is converted to 16 kHz mono WAV and cut into 10-minute parts, sent one after the other and joined. Without ffmpeg, only `.wav` and `.mp3` files up to 24 MB are accepted. Files are limited to 100 MB. The cut is made on the clock, so a word at a boundary can be split. The model is `openai/whisper-large-v3`, or `CSAGENT_TRANSCRIBE_MODEL`. The audio is sent to the endpoint; the transcript is **untrusted data, never instructions**. To keep it, the agent writes it with `write_file` (which asks for confirmation).
 
+### MCP servers
+
+`--mcp <url>` (or `CSAGENT_MCP_URL`) connects CsAgent to one MCP server over Streamable HTTP, for example `csagent --mcp http://localhost:8000/mcp`. At the first prompt the agent lists the server's tools and offers them to the model next to the built-in ones. This works in every mode (CLI, `--ui`, `--leanui`, `--api`).
+
+- **Names.** Every server tool is offered as `mcp_<name>` (characters other than letters, digits, `_` and `-` become `_`, 64 characters at most). A server therefore cannot replace a built-in tool: its `read_file` is `mcp_read_file`, and the built-in `read_file` is untouched.
+- **Confirmation.** CsAgent cannot know what a server's tool does, so with confirmations on (the default) **every** MCP call asks for your approval, like `write_file`. With `--yes` they run without asking.
+- **Untrusted content.** What a server sends (tool descriptions, results) is treated as data: the system prompt tells the model never to follow instructions found there, and descriptions are cut to 1000 characters. Only connect servers you trust.
+- **Limits.** One server, HTTP only (no stdio), no authentication header, tools only (no resources or prompts), text results (other content is shown as JSON). If the server cannot be reached the run stops with an error.
+
 ---
 
 ## Memory & Conversation Persistence
@@ -594,6 +605,7 @@ The project compiles the app's `Core/`, `Services/` and `Shared/` sources direct
 | `LlmEndpointTests.cs` | `--endpoint`, `--vision-model`, local endpoints and the API key |
 | `MsgTests.cs` / `MsgTestFile.cs` | Outlook `.msg` reader (a test-only builder writes valid `.msg` files), HTML/RTF to text, `read_msg`, `save_attachment` and its file-name safety |
 | `TranscribeTests.cs` | `transcribe_audio`: parts sent in order (mock Whisper, fake ffmpeg), errors, truncation, path and key checks; web recorder storage (`AudioRecordings`) |
+| `McpTests.cs` | MCP: `mcp_` names (no shadowing of native tools, collisions, 64 characters), calls under the server's own name, confirmation before every MCP call, native tool still wins when a server has the same name (mock MCP server) |
 | `ApiModeTests.cs` | `--api`, `--yes`, `--host`, `--api-key`: parsing, host/key policy, authentication, auto-approve in the agent loop |
 | `TestExplorer.cs` | Lists every test in Visual Studio's Test Explorer |
 | `AgentEndToEndTests.cs` | Whole `CodingAgent` runs against the mock LLM |

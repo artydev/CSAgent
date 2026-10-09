@@ -72,6 +72,8 @@ public static class HelpDisplay
         Console.WriteLine("                       e.g. http://localhost:11434/v1 for Ollama (no key needed)");
         Console.WriteLine("    --vision-model <n> Model used when the conversation contains an image");
         Console.WriteLine($"                       (default: {LlmSettings.VisionModel})");
+        Console.WriteLine("    --mcp <url>       Connect to an MCP server (Streamable HTTP); its tools are offered");
+        Console.WriteLine("                       to the model as mcp_<name> and each call asks for confirmation");
         Console.WriteLine("    --port, -p <n>    Web UI port number (default: 5050)");
         Console.WriteLine("    --dry-run         Simulate tool execution without making changes");
         Console.WriteLine("    --max-retries <n> Max attempts for 429 rate-limit retries");
@@ -99,6 +101,7 @@ public static class HelpDisplay
         Console.WriteLine("    CSAGENT_ENDPOINT  Same as --endpoint");
         Console.WriteLine("    CSAGENT_VISION_MODEL  Same as --vision-model");
         Console.WriteLine("    CSAGENT_API_KEY   Key clients must present in --api mode (same as --api-key)");
+        Console.WriteLine("    CSAGENT_MCP_URL   Same as --mcp");
         Console.WriteLine();
 
         C("green");

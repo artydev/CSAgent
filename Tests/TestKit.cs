@@ -82,6 +82,7 @@ static partial class Tests
         await OutlookMsg();
         await TranscribeAudio();
         await AudioRecordingsTests();
+        await McpTests();
         await QuietMode();
         await AgentEndToEnd();
     }

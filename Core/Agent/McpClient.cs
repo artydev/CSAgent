@@ -16,7 +16,14 @@ public sealed class McpClient : IDisposable
     private string? _sessionId;
     private string? _protocolVersion;
     private int _requestId;
+    // Keyed by the name the model sees ("mcp_<name>"), never by the server's own name: a server must not be
+    // able to shadow a native tool (read_file, sh, ...). The server's real name stays in each tool's "name".
     private readonly Dictionary<string, JsonObject> _tools = new(StringComparer.Ordinal);
+
+    /// <summary>Prefix of every MCP tool name seen by the model.</summary>
+    public const string ToolPrefix = "mcp_";
+    private const int MaxToolNameLength = 64;          // limit of the OpenAI function-calling name
+    private const int MaxDescriptionLength = 1000;     // a server's text goes into the prompt: keep it bounded
 
     public McpClient(string endpoint)
     {
@@ -57,28 +64,57 @@ public sealed class McpClient : IDisposable
             if (item is not JsonObject tool) continue;
             var name = tool["name"]?.GetValue<string>();
             if (!string.IsNullOrWhiteSpace(name))
-                _tools[name] = tool;
+                _tools[UniqueExposedName(name)] = tool;
+        }
+    }
+
+    /// <summary>
+    /// The name the model sees for a server tool: "mcp_" + the server's name, with every character that
+    /// function-calling APIs refuse replaced by '_', cut to 64 characters, and made unique.
+    /// </summary>
+    public static string ExposedName(string serverName)
+    {
+        var clean = new StringBuilder(ToolPrefix, MaxToolNameLength);
+        foreach (var c in serverName)
+        {
+            if (clean.Length >= MaxToolNameLength) break;
+            clean.Append(c is (>= 'a' and <= 'z') or (>= 'A' and <= 'Z') or (>= '0' and <= '9') or '_' or '-' ? c : '_');
+        }
+        return clean.ToString();
+    }
+
+    private string UniqueExposedName(string serverName)
+    {
+        var name = ExposedName(serverName);
+        if (!_tools.ContainsKey(name)) return name;
+
+        // Two server names can collapse to the same text ("a.b" and "a_b"): number the later ones.
+        for (var i = 2; ; i++)
+        {
+            var suffix = "_" + i;
+            var candidate = name[..Math.Min(name.Length, MaxToolNameLength - suffix.Length)] + suffix;
+            if (!_tools.ContainsKey(candidate)) return candidate;
         }
     }
 
     public JsonArray GetOpenAiToolDefinitions()
     {
         var result = new JsonArray();
-        foreach (var tool in _tools.Values.OrderBy(t => t["name"]?.GetValue<string>(), StringComparer.Ordinal))
+        foreach (var (exposed, tool) in _tools.OrderBy(t => t.Key, StringComparer.Ordinal))
         {
-            var name = tool["name"]?.GetValue<string>();
-            if (string.IsNullOrWhiteSpace(name)) continue;
-
             var parameters = tool["inputSchema"]?.DeepClone()
                 ?? new JsonObject { ["type"] = "object" };
+
+            var description = tool["description"]?.GetValue<string>() ?? "MCP tool.";
+            if (description.Length > MaxDescriptionLength) description = description[..MaxDescriptionLength] + "…";
 
             result.Add(new JsonObject
             {
                 ["type"] = "function",
                 ["function"] = new JsonObject
                 {
-                    ["name"] = name,
-                    ["description"] = tool["description"]?.GetValue<string>() ?? "MCP tool.",
+                    ["name"] = exposed,
+                    ["description"] = "(external MCP server tool) " + description,
                     ["parameters"] = parameters
                 }
             });
@@ -88,10 +124,12 @@ public sealed class McpClient : IDisposable
 
     public bool Contains(string name) => _tools.ContainsKey(name);
 
+    /// <summary>Calls a tool by the name the model uses (the "mcp_…" name).</summary>
     public async Task<string> CallToolAsync(string name, string argumentsJson, CancellationToken ct = default)
     {
-        if (!_tools.ContainsKey(name))
+        if (!_tools.TryGetValue(name, out var definition))
             return $"Error: Unknown MCP tool '{name}'.";
+        var serverName = definition["name"]!.GetValue<string>();
 
         JsonNode arguments;
         try { arguments = JsonNode.Parse(argumentsJson) ?? new JsonObject(); }
@@ -101,7 +139,7 @@ public sealed class McpClient : IDisposable
         {
             var result = await SendAsync("tools/call", new JsonObject
             {
-                ["name"] = name,
+                ["name"] = serverName,
                 ["arguments"] = arguments
             }, ct);
 
