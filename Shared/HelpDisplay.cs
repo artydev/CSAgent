@@ -53,7 +53,7 @@ public static class HelpDisplay
         Console.ResetColor();
         Console.WriteLine("    (no flag)     CLI mode — interactive terminal session");
         Console.WriteLine("    --ui          Web UI mode — starts a web server");
-        Console.WriteLine("    --leanui      Lean UI mode — lightweight duplicate of the Web UI");
+        Console.WriteLine("    --leanui      Lean UI mode — lightweight, terminal-style variant of the Web UI");
         Console.WriteLine("    --api         Headless API mode — SSE server without web UI, for orchestrators");
         Console.WriteLine("    --native      Native window mode — AOTrino WebView2 window (Windows only)");
         Console.WriteLine();

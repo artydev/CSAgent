@@ -91,7 +91,7 @@ The web UI is served at **http://localhost:5050** by default. Use `--port <n>` (
 
 #### Voice recorder (Web UI and Lean UI)
 
-The 🎙 button records from the browser (in Lean UI the transcript and the two choices are printed in the log) (long recordings are fine: audio is uploaded in 30-second chunks to `recordings/`). When you stop, the audio is transcribed through the LLM endpoint (Albert, Whisper; needs `ffmpeg` for recordings over a few minutes, see `transcribe_audio`). You then choose:
+The 🎙 button records from the browser. Long recordings are fine: audio is uploaded in 30-second chunks to `recordings/`. (In Lean UI the transcript and the two choices are printed in the log.) When you stop, the audio is transcribed through the LLM endpoint (Albert, Whisper; needs `ffmpeg` for recordings over a few minutes, see `transcribe_audio`). You then choose:
 
 - **Use as instruction**: the text is put in the prompt box.
 - **Keep as text**: the transcript is saved to `transcripts/<name>.txt` and attached to your next prompt as `[Attached text file: path]` (data for the agent, e.g. to email as an attachment).
@@ -238,7 +238,7 @@ The following capabilities are planned for future releases:
 | Argument | Description |
 |---|---|
 | `--ui` | Start in Web UI mode (starts a web server) |
-| `--leanui` | Start in Lean UI mode (lightweight duplicate of the Web UI) |
+| `--leanui` | Start in Lean UI mode (lightweight, terminal-style variant of the Web UI) |
 | `--api` | Start the headless SSE server, without web UI (see [Headless API Mode](#headless-api-mode-for-orchestrators)) |
 | `--quiet`, `-q` | CLI only: show just the assistant's messages (plus warnings, errors and the final line). Steps, tool calls and results are hidden; a failed tool call is reported on one line, and a destructive action shows its tool call right before asking for confirmation |
 | `--yes`, `-y` | Approve every tool call automatically (no confirmation prompts; the shell command filter stays active) |

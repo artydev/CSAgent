@@ -449,6 +449,6 @@ agent_memory*.json.*
 # Memory folders (one per --mem name; default agent_memory/)
 agent_memory*/
 *.bad
-session-distillation.patch
+*.patch
 recordings/
 transcripts/
