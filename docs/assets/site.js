@@ -1,4 +1,4 @@
-/* CsAgent site: terminal replay, copy buttons, per-OS commands. No dependencies. */
+/* CsAgent site: terminal replay, copy buttons, per-OS commands, optional page-view counter. No dependencies. */
 (function () {
   "use strict";
   var reduce = window.matchMedia && window.matchMedia("(prefers-reduced-motion: reduce)").matches;
@@ -205,5 +205,27 @@
     };
     tabs.forEach(function (t) { t.addEventListener("click", function () { setOs(t.getAttribute("data-os")); }); });
     setOs(guess);
+  }
+  /* ---------- page-view counter (napkin.io) ---------- */
+  var box = document.getElementById("views");
+  if (box) {
+    var endpoint = (box.getAttribute("data-endpoint") || "").trim();
+    var local = /^(localhost|127\.0\.0\.1|\[::1\]|)$/.test(location.hostname) || location.protocol === "file:";
+    var optOut = navigator.doNotTrack === "1" || window.doNotTrack === "1" || navigator.globalPrivacyControl === true;
+    if (/^https?:\/\//.test(endpoint) && !local && "fetch" in window) {
+      var ctl = "AbortController" in window ? new AbortController() : null;
+      var timer = setTimeout(function () { if (ctl) ctl.abort(); }, 5000);
+      var url = endpoint + (endpoint.indexOf("?") < 0 ? "?" : "&") + "hit=" + (optOut ? "0" : "1");
+      fetch(url, { method: "GET", mode: "cors", cache: "no-store", credentials: "omit", referrerPolicy: "no-referrer", signal: ctl ? ctl.signal : undefined })
+        .then(function (r) { if (!r.ok) throw new Error("HTTP " + r.status); return r.json(); })
+        .then(function (d) {
+          if (d && typeof d.count === "number" && isFinite(d.count)) {
+            document.getElementById("viewsN").textContent = d.count.toLocaleString("fr-FR");
+            box.hidden = false;
+          }
+        })
+        .catch(function () { /* the counter is optional: stay hidden on any failure */ })
+        .then(function () { clearTimeout(timer); });
+    }
   }
 })();

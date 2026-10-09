@@ -298,3 +298,6 @@ footer p { margin: 0 0 6px; max-width: 60ch; }
 .hero .wrap > *, .split > *, .shots > *, .catalog > *, .start-steps > * { min-width: 0; }
 .pre-wrap { min-width: 0; max-width: 100%; }
 .pre { max-width: 100%; }
+
+.views { font-size: 0.88rem; margin-top: 14px; }
+.views strong { color: var(--text); font-variant-numeric: tabular-nums; }
