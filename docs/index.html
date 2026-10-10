@@ -53,7 +53,7 @@
 
     <div>
       <div class="term" id="term" role="group" aria-label="Rejeu d'une session CsAgent dans le terminal">
-        <div class="term-bar"><span>orders-api</span><span>csagent v0.8.0</span></div>
+        <div class="term-bar"><span>orders-api</span><span>csagent v0.9.0</span></div>
         <pre class="term-body" id="termBody" tabindex="0"><span class="d">&gt; </span><span class="u">List every TODO in this project into TODO.md, grouped by file</span>
 
 <span class="d">-- Step 1/30 -------------------------</span>
@@ -93,7 +93,7 @@ Five TODOs in four files. I'll group them by file in TODO.md.
     <div class="glance">
       <div class="ask"><a href="#safety"><h3>Il demande d'abord</h3><p>Chaque écriture, déplacement, suppression, commit, e-mail et appel MCP attend un oui. Les étapes en lecture seule s'exécutent librement.</p></a></div>
       <div><a href="#keyboard"><h3>Trois façons de lui parler</h3><p>Le terminal, une interface web, ou une page web légère façon terminal. Même agent, même mémoire.</p></a></div>
-      <div><a href="#models"><h3>Votre modèle, votre point d'accès</h3><p>L'API Albert par défaut. Tout serveur compatible OpenAI convient, y compris les modèles locaux via Ollama, sans clé.</p></a></div>
+      <div><a href="#routing"><h3>Le bon modèle, à chaque message</h3><p>Code, chat et images vont chacun au modèle qui convient, affiché sous chaque réponse, et réglable en JSON. L'API Albert par défaut, ou tout serveur compatible OpenAI, Ollama compris.</p></a></div>
       <div><a href="#memory"><h3>Il se souvient</h3><p>Ce qui a échoué et ce qui a marché survit à la troncature de l'historique, et un court résumé des décisions et du travail restant passe à la session suivante.</p></a></div>
       <div><a href="#tools"><h3>34 outils intégrés</h3><p>Fichiers, shell, git, web, courrier Outlook, Excel, audio et presse-papiers. En ajouter un tient en six étapes.</p></a></div>
       <div><a href="#voice"><h3>Voix et images</h3><p>Dictez une tâche ou joignez une capture d'écran. Les longs enregistrements sont acceptés.</p></a></div>
@@ -155,7 +155,7 @@ Five TODOs in four files. I'll group them by file in TODO.md.
         <figcaption><strong>Interface lean</strong>&nbsp;: <span class="cmd">csagent --leanui</span> Le même agent dans une page légère façon terminal. Les étapes restent repliées jusqu'à ce que vous les ouvriez, avec plusieurs sessions en onglets.</figcaption>
       </figure>
     </div>
-    <p style="margin-top:24px">Vous préférez rester dans le shell&nbsp;? <span class="cmd">csagent</span> seul lance la session dans votre terminal, comme dans le rejeu ci-dessus.</p>
+    <p style="margin-top:24px">Vous préférez rester dans le shell&nbsp;? <span class="cmd">csagent</span> seul lance la session dans votre terminal, comme dans le rejeu ci-dessus. Pour une seule demande, sans session&nbsp;: <span class="cmd">csagent --prompt "hello my name is John"</span> exécute la demande, affiche la réponse et rend la main (code de sortie 0, ou 1 en cas d'erreur).</p>
 
     <div class="block">
       <h3>Pas seulement du code</h3>
@@ -304,12 +304,64 @@ curl -N "http://localhost:5050/api/chat?prompt=List+every+TODO+into+TODO.md"</pr
       </div>
     </div>
 
+    <div class="block" id="routing">
+      <div class="split">
+        <div>
+          <h3>Le bon modèle pour chaque message</h3>
+          <p>CsAgent choisit le modèle <strong>message par message</strong>, sans appel supplémentaire ni délai. Trois profils&nbsp;:</p>
+          <ul class="facts">
+            <li><strong>Code</strong> (<code>deepseek-v4-flash</code>)&nbsp;: le code, les fichiers, le shell, git, le courrier, l'audio. C'est lui qui exécute les outils.</li>
+            <li><strong>Chat</strong> (<code>openweight-large</code>)&nbsp;: les recherches (web, actualités, météo, un lien à lire) et les questions générales.</li>
+            <li><strong>Vision</strong> (<code>gemma-4-31b-it</code>)&nbsp;: dès qu'une image est jointe ou déjà dans la conversation.</li>
+          </ul>
+          <p style="margin-top:14px">Le modèle est affiché avant chaque exécution, avec la raison du choix, et sous <strong>chaque</strong> message de l'assistant (dans le terminal, dans les interfaces web et dans l'événement <code>model</code> de l'API). <code>--model &lt;nom&gt;</code> impose un seul modèle, et <code>--no-route</code> revient au modèle de code partout.</p>
+        </div>
+        <div>
+          <div class="pre-wrap"><pre class="pre">&gt; User: cherche sur internet les actualités de l'IA
+  [model: openweight-large (chat: recherche web (« actualites »))]
+...
+  [model: openweight-large]
+
+csagent --explain-routing "open in Edge browser"
+Modèle  : deepseek-v4-flash
+Raison  : action sur votre ordinateur (« open »)</pre></div>
+          <p class="muted" style="margin-top:12px">Sur un point d'accès personnalisé (Ollama…), il n'y a pas de modèle de chat tant que vous n'en indiquez pas un avec <code>--chat-model</code>&nbsp;: tous les messages utilisent alors le modèle de code. Le modèle de chat doit gérer l'appel d'outils.</p>
+        </div>
+      </div>
+    </div>
+
+    <div class="block" id="routing-rules">
+      <div class="split">
+        <div>
+          <h3>Réglez le routage à la main</h3>
+          <p><code>csagent --init-routing</code> crée un dossier <code>LLMRoutingRules/</code> de fichiers JSON. Modifiez-les avec un éditeur&nbsp;: le changement s'applique au message suivant, sans redémarrage ni recompilation.</p>
+          <ul class="facts">
+            <li><code>models.json</code>&nbsp;: le modèle de chaque profil (<code>null</code> pour garder la valeur intégrée).</li>
+            <li><code>keywords.json</code>&nbsp;: ajouter ou retirer des mots, des expressions et des extensions de fichier.</li>
+            <li><code>rules.json</code>&nbsp;: vos règles, testées avant la logique intégrée, la première qui correspond l'emporte.</li>
+          </ul>
+          <p style="margin-top:14px">Une erreur dans un fichier n'arrête jamais l'agent&nbsp;: un avertissement s'affiche une fois et les valeurs intégrées restent en place. <code>--explain-routing "message"</code> montre le modèle qui serait choisi, sans appeler aucun modèle. Les messages de routage existent en français et en anglais (<code>--lang fr|en</code>, ou la langue du système).</p>
+        </div>
+        <div>
+          <div class="pre-wrap"><pre class="pre">{ "rules": [
+  { "name": "tickets",
+    "contains": ["jira", "ticket"],
+    "use": "code" },
+  { "name": "traductions",
+    "starts_with": ["traduis", "translate"],
+    "use": "chat" }
+] }</pre></div>
+          <p class="muted" style="margin-top:12px">Le dossier est cherché dans l'ordre&nbsp;: <code>--rules &lt;dossier&gt;</code>, puis <code>./LLMRoutingRules</code>, puis à côté de l'exécutable.</p>
+        </div>
+      </div>
+    </div>
+
     <div class="block" id="models">
       <div class="split">
         <div>
           <h3>Apportez votre modèle</h3>
           <p>CsAgent parle l'API de chat compatible OpenAI, avec appel d'outils. Il utilise par défaut l'<a href="https://albert.api.etalab.gouv.fr">API Albert</a>, le service de LLM du secteur public français, et fonctionne avec tout ce qui expose la même interface.</p>
-          <p>Choisissez un modèle qui gère l'appel d'outils, car la boucle de l'agent en dépend. Les images demandent un modèle de vision, indiqué par <code>--vision-model</code>.</p>
+          <p>Choisissez un modèle qui gère l'appel d'outils, car la boucle de l'agent en dépend. Les images demandent un modèle de vision, indiqué par <code>--vision-model</code> ; le modèle du code et celui du chat se règlent avec <code>--code-model</code> et <code>--chat-model</code>.</p>
         </div>
         <div>
           <div class="pre-wrap"><pre class="pre">ollama pull qwen2.5-coder:14b
@@ -435,7 +487,7 @@ dotnet publish -c Release -r <span data-fill="rid">linux-x64</span></pre></div>
       </div>
       <div>
         <h3>Commencez par une demande modeste</h3>
-        <p>Essayez «&nbsp;Liste tous les TODO de ce projet dans un TODO.md.&nbsp;» Regardez défiler les appels, puis répondez à la demande d'approbation. <code>--doc</code> affiche la documentation dans le terminal, et <code>--help</code> liste toutes les options.</p>
+        <p>Essayez «&nbsp;Liste tous les TODO de ce projet dans un TODO.md.&nbsp;» Regardez défiler les appels, puis répondez à la demande d'approbation. Pour une seule demande, sans session&nbsp;: <code>csagent --prompt "votre demande"</code>. <code>--doc</code> affiche la documentation dans le terminal, et <code>--help</code> liste toutes les options.</p>
       </div>
     </div>
   </div>
@@ -447,13 +499,14 @@ dotnet publish -c Release -r <span data-fill="rid">linux-x64</span></pre></div>
     <div class="split wide-right">
       <div class="sec-head" style="margin:0">
         <h2 id="status-h">Où il en est</h2>
-        <p class="lede">Version 0.8.0. Voici ce qui n'existe pas encore, pour que vous ne le découvriez pas à vos dépens.</p>
+        <p class="lede">Version 0.9.0. Voici ce qui n'existe pas encore, pour que vous ne le découvriez pas à vos dépens.</p>
       </div>
       <ul class="limits">
         <li>Les outils Excel et Outlook utilisent l'automatisation COM, donc ils ne fonctionnent que sous Windows.</li>
         <li>MCP gère un seul serveur, en HTTP, avec les outils seulement et sans en-tête d'authentification.</li>
         <li>La transcription vocale a lieu après l'arrêt de l'enregistrement. L'enregistreur est testé avec Chromium&nbsp;; le chemin Safari ne l'est pas.</li>
-        <li>Les textes de l'interface et le prompt de l'agent sont en anglais.</li>
+        <li>Les textes de l'interface et le prompt de l'agent sont en anglais. Seuls les messages de routage existent aussi en français.</li>
+        <li>Le choix du modèle repose sur des mots-clés et des règles, pas sur le sens du message&nbsp;: un cas mal classé se corrige dans <code>LLMRoutingRules/</code> ou avec <code>--model</code>.</li>
         <li>Une instance de serveur porte une seule conversation.</li>
         <li>Prévu&nbsp;: un client Python pour piloter CsAgent depuis des scripts.</li>
       </ul>
@@ -474,8 +527,8 @@ dotnet publish -c Release -r <span data-fill="rid">linux-x64</span></pre></div>
     </div>
     <ul>
       <li><a href="https://github.com/artydev/csagent">Code source sur GitHub</a></li>
-      <li><a href="https://github.com/artydev/csagent/blob/main/README.md">README</a> (en anglais)</li>
-      <li><a href="https://github.com/artydev/csagent/blob/main/doc/release-0.8.0.md">Notes de version 0.8.0</a></li>
+      <li><a href="https://github.com/artydev/csagent/blob/main/README.fr.md">README</a> (en français) · <a href="https://github.com/artydev/csagent/blob/main/README.md">en anglais</a></li>
+      <li><a href="https://github.com/artydev/csagent/blob/main/doc/release-0.9.0.md">Notes de version 0.9.0</a></li>
       <li><a href="https://github.com/artydev/csagent/issues">Signaler un problème</a></li>
     </ul>
   </div>
