@@ -57,6 +57,7 @@ public class SseObserver(HttpResponse res, ConfirmationBroker broker) : IAgentOb
 
     public Task OnStep(int n, int m) => Send("step", new SseStep(n, m));
     public Task OnThought(string t) => Send("thought", t);
+    public Task OnAssistantModel(string m) => Send("model", m);
     public Task OnToolCall(string n, string a) => Send("call", new SseCall(n, a));
     public Task OnToolResult(string r, bool e) => Send("result", new SseResult(r, e));
     public Task OnDone(string m) => Send("done", m);
