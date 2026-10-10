@@ -18,6 +18,7 @@ public class ConsoleObserver : IAgentObserver
 
     public Task OnStep(int n, int m) { if (!_quiet) UI.Step(n, m); return Task.CompletedTask; }
     public Task OnThought(string t) { UI.AssistantText(t); return Task.CompletedTask; }
+    public Task OnAssistantModel(string model) { UI.ModelTag(model); return Task.CompletedTask; }
 
     public Task OnToolCall(string n, string a)
     {

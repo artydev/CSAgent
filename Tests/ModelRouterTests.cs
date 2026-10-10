@@ -1,5 +1,9 @@
 using System.Text.Json.Nodes;
+using CsAgent.Core.Abstractions;
+using CsAgent.Core.Agent;
 using CsAgent.Core.Llm;
+using CsAgent.Core.Memory;
+using CsAgent.Services;
 using CsAgent.Shared;
 
 namespace CsAgent.Tests;
@@ -95,6 +99,8 @@ static partial class Tests
                     "Quel jour de la semaine était le 10/10/2026 ?",
                     "Préfères-tu le thé et/ou le café ?",
                     "Le directeur a-t-il raison ?",
+                    "Regarde https://example.com et résume",
+                    "Lis https://www.sciencedaily.com/releases/2026/10/x.pdf et résume-le",
                 })
                 {
                     var c = Pick(p);
@@ -122,7 +128,6 @@ static partial class Tests
                     "Pourquoi cela plante ?\n```\nvar x = null;\n```",
                     "Transcris l'enregistrement de la réunion",
                     "Refactor this method to be shorter",
-                    "Regarde https://example.com et résume",
                     "Compile le projet",
                     "Quelle est la différence entre une classe et une interface ?",
                     "Résume ceci\n\n[Attached text file: transcripts/rec_1.txt]",
@@ -136,6 +141,100 @@ static partial class Tests
                 }
                 return 0;
             });
+            return "ok";
+            await Task.CompletedTask;
+        });
+
+        await T("searches go to the chat model: news, 'sur internet', 'search the web', links to read; code words do not override an explicit web search", async () =>
+        {
+            Clean(() =>
+            {
+                foreach (var p in new[]
+                {
+                    "fetch latest scientific news",
+                    "Quelles sont les actualités du jour ?",
+                    "Donne-moi la météo à Paris demain",
+                    "Cherche sur internet le prix d'un billet Paris Lisbonne",
+                    "Fais une recherche web sur les nouveautés en physique quantique",
+                    "Search the web for the best pasta recipe",
+                    "Résume la page Wikipedia de Marie Curie",
+                    // explicit web search wins over words that only suggest code
+                    "Search the web for C# async best practices",
+                    "Cherche sur internet comment corriger un bug de projet Visual Studio",
+                })
+                {
+                    var c = Pick(p);
+                    Assert(c.Profile == ModelProfile.Chat && c.Model == "openweight-large", $"'{p}' -> {c.Profile} ({c.Reason})");
+                }
+                var r = Pick("Quelles sont les actualités du jour ?");
+                Assert(r.Reason.StartsWith("web search"), "reason should say web search: " + r.Reason);
+                return 0;
+            });
+            return "ok";
+            await Task.CompletedTask;
+        });
+
+        await T("work signs still beat a search: file names, paths, code and attachments are code", async () =>
+        {
+            Clean(() =>
+            {
+                foreach (var p in new[]
+                {
+                    "Cherche sur internet puis écris le résultat dans notes.md",
+                    "Search the web and save it to C:\\temp\\out.txt",
+                    "Search the web for this error: `NullReferenceException`",
+                    "Actualités du jour, résume-les\n\n[Attached text file: transcripts/x.txt]",
+                })
+                {
+                    var c = Pick(p);
+                    Assert(c.Profile == ModelProfile.Code, $"'{p}' -> {c.Profile} ({c.Reason})");
+                }
+                // but a plain code question with the word "search" is not a web search
+                Assert(Pick("Search for bugs in this function").Profile == ModelProfile.Code, "search for bugs");
+                return 0;
+            });
+            return "ok";
+            await Task.CompletedTask;
+        });
+
+        await T("after a web search, an acknowledgement stays on the chat model; after other tools, on the code model", async () =>
+        {
+            Clean(() =>
+            {
+                var w = ModelRouter.Choose("oui, vas-y", false, null, TurnKind.Web);
+                Assert(w.Profile == ModelProfile.Chat && w.Reason == "follows a web search", $"{w.Profile} ({w.Reason})");
+                var k = ModelRouter.Choose("oui, vas-y", false, null, TurnKind.Work);
+                Assert(k.Profile == ModelProfile.Code && k.Reason == "follows a turn that used tools", $"{k.Profile} ({k.Reason})");
+                var p = ModelRouter.Choose("oui, vas-y", false, null, TurnKind.Plain);
+                Assert(p.Profile == ModelProfile.Chat, "plain: " + p.Profile);
+                return 0;
+            });
+            return "ok";
+            await Task.CompletedTask;
+        });
+
+        await T("LastTurnKind: web tools only is a search; any other tool is work; no tool is plain", async () =>
+        {
+            static JsonObject Call(string tool) => new()
+            {
+                ["role"] = "assistant", ["content"] = "",
+                ["tool_calls"] = new JsonArray { new JsonObject { ["id"] = "1", ["function"] = new JsonObject { ["name"] = tool, ["arguments"] = "{}" } } },
+            };
+            static JsonObject Result() => new() { ["role"] = "tool", ["tool_call_id"] = "1", ["content"] = "..." };
+
+            var web = new JsonArray { JsonHelpers.Message("system", "s"), JsonHelpers.Message("user", "news"),
+                Call("web_search"), Result(), Call("fetch_url"), Result(), JsonHelpers.Message("assistant", "voici"), JsonHelpers.Message("user", "oui") };
+            Assert(ModelRouter.LastTurnKind(web) == TurnKind.Web, "web only");
+
+            var mixed = new JsonArray { JsonHelpers.Message("system", "s"), JsonHelpers.Message("user", "news"),
+                Call("web_search"), Result(), Call("write_file"), Result(), JsonHelpers.Message("user", "oui") };
+            Assert(ModelRouter.LastTurnKind(mixed) == TurnKind.Work, "search then write_file is work");
+
+            var work = new JsonArray { JsonHelpers.Message("system", "s"), JsonHelpers.Message("user", "lis"), Call("read_file"), Result(), JsonHelpers.Message("user", "ok") };
+            Assert(ModelRouter.LastTurnKind(work) == TurnKind.Work, "read_file");
+
+            var plain = new JsonArray { JsonHelpers.Message("system", "s"), JsonHelpers.Message("user", "salut"), JsonHelpers.Message("assistant", "bonjour"), JsonHelpers.Message("user", "ok") };
+            Assert(ModelRouter.LastTurnKind(plain) == TurnKind.Plain, "plain");
             return "ok";
             await Task.CompletedTask;
         });
@@ -156,12 +255,22 @@ static partial class Tests
             await Task.CompletedTask;
         });
 
-        await T("a short follow-up to a turn that used tools stays on the code model; a long new subject does not", async () =>
+        await T("a short acknowledgement after a turn that used tools stays on the code model; a new request does not, however short", async () =>
         {
             Clean(() =>
             {
                 var f = Pick("oui vas-y", tools: true);
                 Assert(f.Profile == ModelProfile.Code, "short follow-up -> " + f.Profile);
+                foreach (var ok in new[] { "ok, continue avec le deuxième", "D'accord", "Merci beaucoup", "yes go ahead", "Fais-le" })
+                    Assert(Pick(ok, tools: true).Profile == ModelProfile.Code, $"'{ok}' should carry on the code turn");
+                // The case seen in real use: a 4-word NEW request after a tool-using turn is not a follow-up.
+                foreach (var fresh in new[] { "fetch latest scientific news", "Quelle est la capitale du Chili ?", "latest news" })
+                {
+                    var c = Pick(fresh, tools: true);
+                    Assert(c.Profile == ModelProfile.Chat && c.Model == "openweight-large", $"'{fresh}' -> {c.Profile} ({c.Reason})");
+                }
+                Assert(Pick("oui, et maintenant explique-moi en détail comment les plantes vertes fabriquent leur énergie", tools: true).Profile == ModelProfile.Chat,
+                    "an acknowledgement followed by a long new subject is a new request");
                 var n = Pick("Maintenant change de sujet : peux-tu m'expliquer comment les plantes vertes transforment la lumière en énergie ?", tools: true);
                 Assert(n.Profile == ModelProfile.Chat, "new general subject -> " + n.Profile);
                 var s = Pick("oui vas-y", tools: false);
@@ -309,6 +418,73 @@ static partial class Tests
             return "ok";
         });
 
+        await T("Label: the requested model, plus the served name when the server reports another one", async () =>
+        {
+            Assert(ModelRouter.Label("openweight-large", null) == "openweight-large", "no served name");
+            Assert(ModelRouter.Label("openweight-large", "") == "openweight-large", "blank served name");
+            Assert(ModelRouter.Label("deepseek-v4-flash", "DeepSeek-V4-Flash") == "deepseek-v4-flash", "same name, other case");
+            Assert(ModelRouter.Label("openweight-large", "openai/gpt-oss-120b") == "openweight-large (served: openai/gpt-oss-120b)", "alias");
+            return "ok";
+            await Task.CompletedTask;
+        });
+
+        await T("every assistant message is followed by the model that wrote it; tool-only steps show nothing", async () =>
+        {
+            var prevCwd = Directory.GetCurrentDirectory();
+            var work = Tmp();
+            Directory.SetCurrentDirectory(work);
+            try
+            {
+                await File.WriteAllTextAsync(Path.Combine(work, "a.txt"), "x");
+                int n = 0;
+                var mock = new MockLlm
+                {
+                    Handler = req =>
+                    {
+                        n++;
+                        JsonNode body = n switch
+                        {
+                            1 => MockLlm.Text("Let me look.", "tool_calls"),
+                            2 => MockLlm.ToolCall("read_file", "{\"path\":\"a.txt\"}"),
+                            _ => MockLlm.Text("Done."),
+                        };
+                        if (n == 1) body["choices"]![0]!["message"]!["tool_calls"] = new JsonArray { new JsonObject {
+                            ["id"] = "c0", ["type"] = "function",
+                            ["function"] = new JsonObject { ["name"] = "list_dir", ["arguments"] = "{\"path\":\".\"}" } } };
+                        body["model"] = n == 3 ? "m" : "served-model-x";   // step 3: the server reports the same name
+                        return (200, body, 0);
+                    }
+                };
+                var obs = new ModelRecorder();
+                var msgs = new JsonArray { CodingAgent.SystemMessage(false), JsonHelpers.Message("user", "go") };
+                using var agent = new CodingAgent("k", mock.BaseUrl, "m", new AgentOptions(Confirm: false), obs, null,
+                    new HybridMemoryManager(new SemanticMemory(), new ExactMemory()));
+                await agent.RunAsync(msgs, "agent_memory.json");
+
+                // step 1: text + tool call, step 2: tool call only (nothing shown), step 3: text
+                Assert(obs.Log.SequenceEqual(new[]
+                {
+                    "thought:Let me look.", "model:m (served: served-model-x)",
+                    "thought:Done.", "model:m",
+                }), "log was:\n" + string.Join("\n", obs.Log));
+                return "ok";
+            }
+            finally { Directory.SetCurrentDirectory(prevCwd); }
+        });
+
+        await T("--quiet keeps the model under each assistant message", async () =>
+        {
+            var rec = new ModelRecorder();
+            var q = QuietObserver.Wrap(rec, quiet: true);
+            await q.OnThought("hello");
+            await q.OnAssistantModel("openweight-large");
+            Assert(rec.Log.SequenceEqual(new[] { "thought:hello", "model:openweight-large" }), string.Join("|", rec.Log));
+            // An observer that does not implement OnAssistantModel is not affected.
+            IAgentObserver silent = new SilentObserver();
+            await silent.OnAssistantModel("x");
+            return "ok";
+        });
+
         await T("ModelChoice.Describe: plain for the default, explained otherwise", async () =>
         {
             Assert(new ModelChoice("m", ModelProfile.Code, "default").Describe() == "[model: m]", "default");
@@ -317,5 +493,21 @@ static partial class Tests
             return "ok";
             await Task.CompletedTask;
         });
+    }
+
+    // Records the order of assistant messages and the model shown under each.
+    sealed class ModelRecorder : IAgentObserver
+    {
+        public List<string> Log { get; } = new();
+        public Task OnStep(int n, int max) => Task.CompletedTask;
+        public Task OnThought(string t) { Log.Add("thought:" + t); return Task.CompletedTask; }
+        public Task OnToolCall(string n, string a) => Task.CompletedTask;
+        public Task OnToolResult(string r, bool e) => Task.CompletedTask;
+        public Task OnDone(string m) => Task.CompletedTask;
+        public Task OnError(string m) { Log.Add("error:" + m); return Task.CompletedTask; }
+        public Task OnWarning(string m) => Task.CompletedTask;
+        public Task OnDanger(string m) => Task.CompletedTask;
+        public Task OnAssistantModel(string model) { Log.Add("model:" + model); return Task.CompletedTask; }
+        public Task<bool> OnConfirm(string t) => Task.FromResult(true);
     }
 }

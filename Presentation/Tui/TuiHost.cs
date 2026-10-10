@@ -63,7 +63,7 @@ public static class TuiHost
 
             var choice = await ModelRouter.ResolveAsync(
                 input, JsonHelpers.HistoryContainsImage(messages), args.ModelOverride,
-                ModelRouter.LastTurnUsedTools(messages), apiKey);
+                ModelRouter.LastTurnKind(messages), apiKey);
             var model = choice.Model;
             Console.WriteLine($"  {choice.Describe()}");
 

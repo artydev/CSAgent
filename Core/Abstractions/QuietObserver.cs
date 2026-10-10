@@ -34,6 +34,9 @@ public sealed class QuietObserver(IAgentObserver inner) : IAgentObserver
     public Task OnWarning(string message) => inner.OnWarning(message);
     public Task OnDanger(string message) => inner.OnDanger(message);
 
+    // The model of each assistant message stays visible in quiet mode: it is part of the message.
+    public Task OnAssistantModel(string model) => inner.OnAssistantModel(model);
+
     public async Task<bool> OnConfirm(string toolName)
     {
         if (_lastCall is { } call && call.Name == toolName)

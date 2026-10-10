@@ -146,6 +146,7 @@ csagent --api --yes --host 0.0.0.0 --port 8080 --api-key s3cret
 |---|---|
 | `step` | `{"n": 1, "m": 30}`: step number / maximum steps |
 | `thought` | The model's text |
+| `model` | The model that wrote the `thought` just sent: `"openweight-large"`, or `"openweight-large (served: openai/gpt-oss-120b)"` when the server reports another name |
 | `call` | `{"n": "<tool>", "a": "<arguments JSON>"}` |
 | `result` | `{"r": "<output>", "e": false}`: `e` is `true` when the tool failed |
 | `confirm` | `{"tool": "<tool>"}`: waiting for `POST /api/confirm` (never sent with `--yes`) |
@@ -185,17 +186,20 @@ CSAgent chooses the model for **each message**, according to what you ask. There
 | Profile | Default model | Used when |
 |---|---|---|
 | **Code** | `deepseek-v4-flash` | Code, files, shell, mail, audio, links... and anything that is not clearly a general question. This is the model that runs the tools |
-| **Chat** | `openweight-large` (Albert alias of `gpt-oss-120b`) | A general conversation with nothing to do with code or files: an explanation, a question of culture, a text to write, advice |
+| **Chat** | `openweight-large` (Albert alias of `gpt-oss-120b`) | Searches (web, news, weather, a link to read) and general conversation with nothing to do with code or files: an explanation, a question of culture, a text to write, advice |
 | **Vision** | `gemma-4-31b-it` | An image is attached or already in the conversation; see [Vision / Image Attachments](#vision--image-attachments) |
 
 How the choice is made (no extra LLM call, no delay):
 
 1. `--model <name>` always wins, for every message.
 2. An image in the conversation selects the vision model.
-3. A message that mentions code, a file or a path (`Program.cs`, `src/Core`), a link, a command, mail, audio, git, tests... selects the code model, and so does a short follow-up (8 words or fewer) to a turn that used tools ("yes, go ahead").
-4. Otherwise it is a general conversation and the chat model answers.
+3. A message with a file name, a path, code (backticks) or an attached file selects the code model, whatever else it says.
+4. An explicit search selects the chat model, even when the message also has code-like words: "search the web for C# async tips", "cherche sur internet...", "fetch latest scientific news", news, weather, Wikipedia, "actualités". A link to read ("résume https://...") is a search too, not work on files.
+5. A message that mentions code, a command, mail, audio, git, tests... selects the code model.
+6. A short reply that carries on the previous turn (it starts with "yes", "ok", "go ahead", "d'accord", "merci"... and has 8 words or fewer) keeps the model of that turn: the chat model after a web search, the code model after any other tool use. A short message that starts differently is a new request and is routed on its own content.
+7. Otherwise it is a general conversation and the chat model answers.
 
-When in doubt the code model is kept, so only clearly general messages change model. The CLI prints the model before each answer, with the reason when it is not the default, for example `[model: openweight-large (chat: general question)]`; the web interfaces show the same line when the chat model answers.
+The code model keeps everything that touches your files, shell, git or mail; the chat model takes searches and general questions. The model is stated in two places. Before each run the CLI prints the choice and its reason, for example `[model: openweight-large (chat: general question)]`; the web interfaces show the same line when the chat model answers. Under **every assistant message**, all interfaces show the model that wrote it (`[model: ...]` in the CLI, a `[model]` line in `--ui` and `--leanui`, a `model` event in `--api`), with the name reported by the server in parentheses when it differs from the alias you asked for.
 
 Before using the chat model, CSAgent checks it against the endpoint's model list (the same list as the `list_models` tool, fetched once and kept for 10 minutes). If the model is unknown, reported unavailable, or not a text model, the code model answers instead and the reason is shown. If the list cannot be fetched, the chat model is used anyway.
 

@@ -42,6 +42,14 @@ public static class UI
         Console.ResetColor();
     }
 
+    /// <summary>The model that wrote the assistant message just shown.</summary>
+    public static void ModelTag(string model)
+    {
+        Console.ForegroundColor = ConsoleColor.DarkGray;
+        Console.WriteLine($"  [model: {model}]");
+        Console.ResetColor();
+    }
+
     public static void ToolCall(string name, string args)
     {
         Console.ForegroundColor = ConsoleColor.Yellow;

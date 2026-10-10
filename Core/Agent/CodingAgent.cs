@@ -152,7 +152,14 @@ public sealed class CodingAgent : IDisposable
 
                 var text = message["content"]?.GetValue<string>();
                 if (!string.IsNullOrWhiteSpace(text))
+                {
                     await _observer.OnThought(text);
+
+                    // Which model wrote this message: the one we asked for, plus the one the server
+                    // says it used when the two differ (an alias such as openweight-large).
+                    var served = response["model"] is JsonValue sv && sv.TryGetValue<string>(out var sm) ? sm : null;
+                    await _observer.OnAssistantModel(ModelRouter.Label(_client.Model, served));
+                }
 
                 messages.Add(message.DeepClone());
 

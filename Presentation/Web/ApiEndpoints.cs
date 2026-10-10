@@ -139,7 +139,7 @@ public static class ApiEndpoints
 
         var needsVision = imageBase64 is not null || JsonHelpers.HistoryContainsImage(msgs);
         var choice = await ModelRouter.ResolveAsync(
-            prompt, needsVision, modelOverride, ModelRouter.LastTurnUsedTools(msgs), apiKey);
+            prompt, needsVision, modelOverride, ModelRouter.LastTurnKind(msgs), apiKey);
         var model = choice.Model;
         // Say so when the default code model is not the one answering (chat, vision, or a fallback).
         if (choice.Profile is ModelProfile.Chat || choice.Reason.StartsWith("chat model", StringComparison.Ordinal))
