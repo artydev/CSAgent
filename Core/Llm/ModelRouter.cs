@@ -74,6 +74,9 @@ public static class ModelRouter
         "fonction", "fonctions", "function", "functions", "directory", "directories", "program", "programs",
         "audio", "email", "emails", "mail", "mails", "outlook", "clipboard", "projet", "project", "skills", "skill",
         "zip", "unzip", "pdf", "csv", "xlsx", "docx", "readme", "stderr", "stdout",
+        "launch", "lance", "lancer", "lancez", "close", "ferme", "fermer", "kill", "delete", "supprime", "supprimer",
+        "efface", "effacer", "rename", "renomme", "renommer", "move", "deplace", "deplacer", "copie", "copier", "copy",
+        "application", "applications", "app", "apps", "fenetre", "window", "windows", "process", "processus",
     };
 
     // Word beginnings that mark the same (so one entry covers conjugations and plurals).
@@ -84,6 +87,15 @@ public static class ModelRouter
         "exception", "fichier", "dossier", "folder", "repertoire", "presse-papier", "pull-request",
         "attach", "piece-jointe", "unitaire", "dependanc", "dependenc", "librairie", "librar", "framework",
         "commande", "command", "pipeline", "base-de-donnee", "database", "stacktrace", "traceback",
+    };
+
+    // Actions on the user's machine: opening or downloading something, and the names of browsers and apps.
+    // They win over a web search ("open the news site in Edge" is an action, not a search).
+    private static readonly HashSet<string> ActionWords = new(StringComparer.Ordinal)
+    {
+        "open", "ouvre", "ouvres", "ouvrir", "ouvrez", "download", "telecharge", "telecharger", "telechargez",
+        "edge", "chrome", "firefox", "safari", "browser", "navigateur", "notepad", "bloc-notes", "excel",
+        "powerpoint", "vscode", "explorateur", "finder",
     };
 
     // Words that mean "search the web / read the news" on their own (the word "web" alone is not enough:
@@ -237,8 +249,8 @@ public static class ModelRouter
     // ───────────────────────────── message analysis ─────────────────────────────
 
     /// <summary>
-    /// Signs that cannot be about anything but the workspace: code in the message, an attached file, a file
-    /// name or a path. They win over everything else. Null when there are none; the text is the reason shown.
+    /// Signs that cannot be about anything but the workspace or the machine: code in the message, an attached
+    /// file, a file name, a path, an action such as "open" or "download", a browser or an app. They win over everything else. Null when there are none; the text is the reason shown.
     /// Links are skipped: reading a web page is a search, not work on files.
     /// </summary>
     internal static string? FindHardSignal(string text)
@@ -258,6 +270,10 @@ public static class ModelRouter
             var dot = c.LastIndexOf('.');
             if (dot > 0 && dot < c.Length - 1 && Extensions.Contains(Fold(c[(dot + 1)..]))) return "file name";
         }
+
+        // An action on the machine: open, download, a browser or an app by name.
+        foreach (var word in Tokens(WithoutLinks(text)))
+            if (ActionWords.Contains(word)) return $"action on your computer ('{word}')";
         return null;
     }
 

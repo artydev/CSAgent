@@ -133,6 +133,15 @@ static partial class Tests
                     "Résume ceci\n\n[Attached text file: transcripts/rec_1.txt]",
                     "Écris une fonction qui trie une liste",
                     "How do I write a C# loop?",
+                    // actions on the machine (seen in real use: "open in Edge browser" went to the chat model)
+                    "open in Edge browser",
+                    "Ouvre Chrome",
+                    "Ouvre la page des actualités dans Edge",
+                    "Open the news site in my browser",
+                    "Télécharge ce document",
+                    "Lance le bloc-notes",
+                    "Ferme la fenêtre",
+                    "Delete the old logs",
                 })
                 {
                     var c = Pick(p);

@@ -193,7 +193,7 @@ How the choice is made (no extra LLM call, no delay):
 
 1. `--model <name>` always wins, for every message.
 2. An image in the conversation selects the vision model.
-3. A message with a file name, a path, code (backticks) or an attached file selects the code model, whatever else it says.
+3. A message with a file name, a path, code (backticks), an attached file, or an action on your computer ("open in Edge", "ouvre Chrome", "télécharge...") selects the code model, whatever else it says.
 4. An explicit search selects the chat model, even when the message also has code-like words: "search the web for C# async tips", "cherche sur internet...", "fetch latest scientific news", news, weather, Wikipedia, "actualités". A link to read ("résume https://...") is a search too, not work on files.
 5. A message that mentions code, a command, mail, audio, git, tests... selects the code model.
 6. A short reply that carries on the previous turn (it starts with "yes", "ok", "go ahead", "d'accord", "merci"... and has 8 words or fewer) keeps the model of that turn: the chat model after a web search, the code model after any other tool use. A short message that starts differently is a new request and is routed on its own content.
