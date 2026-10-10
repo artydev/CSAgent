@@ -20,7 +20,7 @@ public static class Program
 
         var parsed = ArgumentParser.Parse(args);
 
-        LlmConfig.Configure(parsed.Endpoint, parsed.VisionModel);
+        LlmConfig.Configure(parsed.Endpoint, parsed.VisionModel, parsed.CodeModel, parsed.ChatModel, parsed.AutoRoute);
 
         if (parsed.ShowHelp) { HelpDisplay.Show(Version); return 0; }
         if (parsed.ShowVersion) { Console.WriteLine($"CSAgent version {Version}"); return 0; }
