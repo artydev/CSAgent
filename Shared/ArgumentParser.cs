@@ -30,7 +30,10 @@ public sealed record AgentArguments(
     string? ApiKey = null,
     string? Endpoint = null,
     string? VisionModel = null,
-    bool Quiet = false);
+    bool Quiet = false,
+    string? CodeModel = null,
+    string? ChatModel = null,
+    bool AutoRoute = true);
 
 /// <summary>
 /// Pure argument parsing — no side effects, no console output.
@@ -67,11 +70,17 @@ public static class ArgumentParser
         if (string.IsNullOrWhiteSpace(endpoint)) endpoint = null;
         var visionModel = GetValue(args, "--vision-model") ?? Environment.GetEnvironmentVariable("CSAGENT_VISION_MODEL");
         if (string.IsNullOrWhiteSpace(visionModel)) visionModel = null;
+        var codeModel = GetValue(args, "--code-model") ?? Environment.GetEnvironmentVariable("CSAGENT_MODEL_CODE");
+        if (string.IsNullOrWhiteSpace(codeModel)) codeModel = null;
+        var chatModel = GetValue(args, "--chat-model") ?? Environment.GetEnvironmentVariable("CSAGENT_MODEL_CHAT");
+        if (string.IsNullOrWhiteSpace(chatModel)) chatModel = null;
+        var autoRoute = !args.Contains("--no-route") && !RoutingDisabledByEnv();
 
         return new AgentArguments(memFile, modelOverride, mcpUrl, taskSlug,
             port, isUiMode, isLeanUiMode, isNativeMode, isDryRun,
             showHelp, showVersion, showDoc, maxRetries, retryDelayMs, usePropMem, propositionFile, distill,
-            isApiMode, autoApprove, host, apiKey, endpoint, visionModel, quiet);
+            isApiMode, autoApprove, host, apiKey, endpoint, visionModel, quiet,
+            codeModel, chatModel, autoRoute);
     }
 
     private static string GetMemoryFile(string[] args)
@@ -84,7 +93,7 @@ public static class ArgumentParser
             if (args[i] is "--model" or "--mcp" or "--mcp-url" or "--port"
                           or "-p" or "--max-retries" or "--retry-delay"
                           or "--task" or "--prop" or "--host" or "--api-key"
-                          or "--endpoint" or "--vision-model")
+                          or "--endpoint" or "--vision-model" or "--code-model" or "--chat-model")
             { i++; continue; }
 
             if (args[i] != "--ui" && args[i] != "--leanui" && args[i] != "--native"
@@ -95,6 +104,14 @@ public static class ArgumentParser
     }
 
     private static string? GetModelOverride(string[] args) => GetValue(args, "--model");
+
+    /// <summary>CSAGENT_ROUTING=off (or 0, false, no) turns the automatic model choice off.</summary>
+    private static bool RoutingDisabledByEnv()
+    {
+        var v = Environment.GetEnvironmentVariable("CSAGENT_ROUTING")?.Trim();
+        return v is not null && (v.Equals("off", StringComparison.OrdinalIgnoreCase) || v == "0"
+            || v.Equals("false", StringComparison.OrdinalIgnoreCase) || v.Equals("no", StringComparison.OrdinalIgnoreCase));
+    }
 
     private static string? GetValue(string[] args, params string[] names)
     {

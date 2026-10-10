@@ -61,11 +61,11 @@ public static class TuiHost
                 messages.Add(JsonHelpers.Message("user", input));
             }
 
-            var model = args.ModelOverride
-                        ?? (JsonHelpers.HistoryContainsImage(messages)
-                                ? LlmConfig.VisionModel
-                                : LlmSettings.Model);
-            Console.WriteLine($"  [model: {model}]");
+            var choice = await ModelRouter.ResolveAsync(
+                input, JsonHelpers.HistoryContainsImage(messages), args.ModelOverride,
+                ModelRouter.LastTurnUsedTools(messages), apiKey);
+            var model = choice.Model;
+            Console.WriteLine($"  {choice.Describe()}");
 
             TaskTracker? tracker = null;
             if (!string.IsNullOrWhiteSpace(args.TaskSlug) && !args.IsDryRun)

@@ -174,21 +174,44 @@ When an image is attached, CSAgent automatically routes the request to a **visio
 1. The current prompt includes an attached image.
 2. The conversation history already contains an image from a previous exchange (text-only models reject requests whose history contains image content).
 
-You can override the vision model with the `--model` argument, and the default vision model is defined by `LlmSettings.VisionModel`.
+You can change the vision model with `--vision-model` (or `CSAGENT_VISION_MODEL`); `--model` forces one model for every message, images included. The default is defined by `LlmSettings.VisionModel`.
 
 ---
 
 ## LLM Models
 
-CSAgent uses different LLM models depending on the mode of operation. This is intentional — each model is chosen for its strengths in the specific context.
+CSAgent chooses the model for **each message**, according to what you ask. There are three profiles, the same in every mode (CLI, `--ui`, `--leanui`, `--api`):
 
-| Mode | Default Model | Rationale |
+| Profile | Default model | Used when |
 |---|---|---|
-| **CLI** | `deepseek-v4-flash` | Fast, lightweight, ideal for interactive terminal sessions where quick turnarounds matter |
-| **Web UI** | `Qwen/Qwen3-Coder-30B-A3B-Instruct` | More capable for complex multi-step coding tasks; the Web UI is designed for longer, more involved sessions |
-| **Vision (any mode)** | `gemma-4-31b-it` | Used automatically when an image is attached to a prompt (or present in the conversation history); see [Vision / Image Attachments](#vision--image-attachments) |
+| **Code** | `deepseek-v4-flash` | Code, files, shell, mail, audio, links... and anything that is not clearly a general question. This is the model that runs the tools |
+| **Chat** | `openweight-large` (Albert alias of `gpt-oss-120b`) | A general conversation with nothing to do with code or files: an explanation, a question of culture, a text to write, advice |
+| **Vision** | `gemma-4-31b-it` | An image is attached or already in the conversation; see [Vision / Image Attachments](#vision--image-attachments) |
 
-You can override the default model in any mode using the `--model` argument (see [Command-Line Arguments](#command-line-arguments)).
+How the choice is made (no extra LLM call, no delay):
+
+1. `--model <name>` always wins, for every message.
+2. An image in the conversation selects the vision model.
+3. A message that mentions code, a file or a path (`Program.cs`, `src/Core`), a link, a command, mail, audio, git, tests... selects the code model, and so does a short follow-up (8 words or fewer) to a turn that used tools ("yes, go ahead").
+4. Otherwise it is a general conversation and the chat model answers.
+
+When in doubt the code model is kept, so only clearly general messages change model. The CLI prints the model before each answer, with the reason when it is not the default, for example `[model: openweight-large (chat: general question)]`; the web interfaces show the same line when the chat model answers.
+
+Before using the chat model, CSAgent checks it against the endpoint's model list (the same list as the `list_models` tool, fetched once and kept for 10 minutes). If the model is unknown, reported unavailable, or not a text model, the code model answers instead and the reason is shown. If the list cannot be fetched, the chat model is used anyway.
+
+The aliases `openweight-*` are the ones of the Albert API: they stay the same when a model is upgraded to a new version. On a custom `--endpoint` (Ollama...) there is no chat model unless you set one with `--chat-model`, so every message uses the code model, as before.
+
+Settings:
+
+| Setting | Effect |
+|---|---|
+| `--code-model <name>` / `CSAGENT_MODEL_CODE` | Model of the code profile |
+| `--chat-model <name>` / `CSAGENT_MODEL_CHAT` | Model of the chat profile |
+| `--vision-model <name>` / `CSAGENT_VISION_MODEL` | Model of the vision profile |
+| `--no-route` / `CSAGENT_ROUTING=off` | Always use the code model (no automatic choice) |
+| `--model <name>` | One model for everything (beats all of the above) |
+
+The chat model must support **tool calling**, because the agent loop can use tools in any message. Check a model with `csagent --model <name> "list the files here and summarise the README"` before making it your chat model.
 
 ### Local models with Ollama
 
@@ -231,6 +254,9 @@ The following capabilities are planned for future releases:
 | `ALBERT_API_KEY` | Yes, except for a local endpoint | Your API key for the OpenAI-compatible endpoint. Not needed when `--endpoint` points to this machine (localhost, 127.x, ::1) |
 | `CSAGENT_ENDPOINT` | No | Same as `--endpoint` (the argument wins) |
 | `CSAGENT_VISION_MODEL` | No | Same as `--vision-model` |
+| `CSAGENT_MODEL_CODE` | No | Same as `--code-model` (default `deepseek-v4-flash`) |
+| `CSAGENT_MODEL_CHAT` | No | Same as `--chat-model` (default `openweight-large` on the Albert endpoint) |
+| `CSAGENT_ROUTING` | No | `off` (or `0`, `false`, `no`) turns the automatic model choice off, like `--no-route` |
 | `CSAGENT_TRANSCRIBE_MODEL` | No | Speech-to-text model used by `transcribe_audio` (default `openai/whisper-large-v3`) |
 | `CSAGENT_FFMPEG` | No | Path of `ffmpeg` for `transcribe_audio` when it is not in the `PATH` |
 | `CSAGENT_AUDIO_KEEP_DAYS` | No | Web recorder: delete the audio of `recordings/` older than this many days at startup (default: keep everything; transcripts are never deleted) |
@@ -252,7 +278,10 @@ The following capabilities are planned for future releases:
 | `--api-key <key>` | With `--api`: key required on every request (or set `CSAGENT_API_KEY`) |
 | `--mcp <url>`, `--mcp-url <url>` | Connect to an MCP server over Streamable HTTP (see [MCP servers](#mcp-servers)). Or set `CSAGENT_MCP_URL` |
 | `--mem <name>` | Memory folder holding the conversation and the memory files (default: `agent_memory`, see [Memory files](#memory-files)) |
-| `--model <model>` | Override the default LLM model for the current mode |
+| `--model <model>` | Use this model for every message (turns the automatic model choice off, see [LLM Models](#llm-models)) |
+| `--code-model <name>` | Model for code, files and tools (default: `deepseek-v4-flash`) |
+| `--chat-model <name>` | Model for general conversation (default on Albert: `openweight-large`; none on a custom `--endpoint`) |
+| `--no-route` | Always use the code model (no automatic model choice) |
 | `--endpoint <url>` | OpenAI-compatible base URL (default: Albert API). For Ollama: `http://localhost:11434/v1` (see [Local models with Ollama](#local-models-with-ollama)) |
 | `--vision-model <name>` | Model used when the conversation contains an image (default: `gemma-4-31b-it`) |
 | `--port`, `-p <n>` | Web UI port number (default: `5050`) |
@@ -605,6 +634,7 @@ The project compiles the app's `Core/`, `Services/` and `Shared/` sources direct
 | `NoDistillTests.cs` | `--no-distill` parsing and behaviour |
 | `QuietModeTests.cs` | `--quiet`: what the CLI prints (and hides), failed calls, confirmation prompts; the same filter for the web UIs (`QuietObserver`) |
 | `LlmEndpointTests.cs` | `--endpoint`, `--vision-model`, local endpoints and the API key |
+| `ModelRouterTests.cs` | Automatic model choice (code / chat / vision): general vs code messages in French and English, `--model` priority, follow-ups after tools, `--no-route`, custom endpoints, and the check against the endpoint's model list (unknown, unavailable, non-text and offline cases) |
 | `MsgTests.cs` / `MsgTestFile.cs` | Outlook `.msg` reader (a test-only builder writes valid `.msg` files), HTML/RTF to text, `read_msg`, `save_attachment` and its file-name safety |
 | `TranscribeTests.cs` | `transcribe_audio`: parts sent in order (mock Whisper, fake ffmpeg), errors, truncation, path and key checks; web recorder storage (`AudioRecordings`) |
 | `McpTests.cs` | MCP: `mcp_` names (no shadowing of native tools, collisions, 64 characters), calls under the server's own name, confirmation before every MCP call, native tool still wins when a server has the same name (mock MCP server) |

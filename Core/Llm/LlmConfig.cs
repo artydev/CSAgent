@@ -3,11 +3,12 @@ using System.Net;
 namespace CsAgent.Core.Llm;
 
 /// <summary>
-/// Run-time LLM connection settings: endpoint, API key and vision model.
-/// Defaults come from <see cref="LlmSettings"/>; they can be overridden with
-/// <c>--endpoint</c> / <c>--vision-model</c> or the <c>CSAGENT_ENDPOINT</c> /
-/// <c>CSAGENT_VISION_MODEL</c> environment variables. Any OpenAI-compatible
-/// server works (Ollama: <c>http://localhost:11434/v1</c>).
+/// Run-time LLM connection settings: endpoint, API key and the model profiles
+/// (code, chat, vision). Defaults come from <see cref="LlmSettings"/>; they can be
+/// overridden with <c>--endpoint</c> / <c>--vision-model</c> / <c>--code-model</c> /
+/// <c>--chat-model</c> or the <c>CSAGENT_ENDPOINT</c> / <c>CSAGENT_VISION_MODEL</c> /
+/// <c>CSAGENT_MODEL_CODE</c> / <c>CSAGENT_MODEL_CHAT</c> environment variables.
+/// Any OpenAI-compatible server works (Ollama: <c>http://localhost:11434/v1</c>).
 /// </summary>
 public static class LlmConfig
 {
@@ -16,11 +17,32 @@ public static class LlmConfig
     public static string Endpoint { get; private set; } = LlmSettings.Endpoint;
     public static string VisionModel { get; private set; } = LlmSettings.VisionModel;
 
+    private static string? _codeModel;
+    private static string? _chatModel;
+
+    /// <summary>Profile "code": the model for coding tasks (the default model unless overridden).</summary>
+    public static string CodeModel => _codeModel ?? LlmSettings.Model;
+
+    /// <summary>
+    /// Profile "chat": the model for general conversation. Null means "no chat model": on a custom
+    /// endpoint (Ollama...) the built-in Albert alias does not exist, so nothing is routed to it
+    /// unless a chat model is set explicitly.
+    /// </summary>
+    public static string? ChatModel =>
+        _chatModel ?? (Endpoint == LlmSettings.Endpoint ? LlmSettings.ChatModel : null);
+
+    /// <summary>False with <c>--no-route</c> / <c>CSAGENT_ROUTING=off</c>: always use the code model.</summary>
+    public static bool AutoRoute { get; private set; } = true;
+
     /// <summary>Applies the overrides (null/blank keeps the current value).</summary>
-    public static void Configure(string? endpoint, string? visionModel)
+    public static void Configure(string? endpoint, string? visionModel,
+        string? codeModel = null, string? chatModel = null, bool? autoRoute = null)
     {
         if (!string.IsNullOrWhiteSpace(endpoint)) Endpoint = endpoint.Trim().TrimEnd('/');
         if (!string.IsNullOrWhiteSpace(visionModel)) VisionModel = visionModel.Trim();
+        if (!string.IsNullOrWhiteSpace(codeModel)) _codeModel = codeModel.Trim();
+        if (!string.IsNullOrWhiteSpace(chatModel)) _chatModel = chatModel.Trim();
+        if (autoRoute is { } r) AutoRoute = r;
     }
 
     /// <summary>Back to the built-in defaults (used by tests).</summary>
@@ -28,6 +50,9 @@ public static class LlmConfig
     {
         Endpoint = LlmSettings.Endpoint;
         VisionModel = LlmSettings.VisionModel;
+        _codeModel = null;
+        _chatModel = null;
+        AutoRoute = true;
     }
 
     /// <summary>True when the endpoint is this machine (localhost, 127.x, ::1).</summary>

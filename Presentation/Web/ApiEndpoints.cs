@@ -138,7 +138,12 @@ public static class ApiEndpoints
             msgs.Add(JsonHelpers.Message("user", prompt));
 
         var needsVision = imageBase64 is not null || JsonHelpers.HistoryContainsImage(msgs);
-        var model = modelOverride ?? (needsVision ? LlmConfig.VisionModel : LlmSettings.Model);
+        var choice = await ModelRouter.ResolveAsync(
+            prompt, needsVision, modelOverride, ModelRouter.LastTurnUsedTools(msgs), apiKey);
+        var model = choice.Model;
+        // Say so when the default code model is not the one answering (chat, vision, or a fallback).
+        if (choice.Profile is ModelProfile.Chat || choice.Reason.StartsWith("chat model", StringComparison.Ordinal))
+            await observer.OnThought(choice.Describe());
 
         TaskTracker? tracker = null;
         if (!string.IsNullOrWhiteSpace(taskSlug))

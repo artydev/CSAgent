@@ -72,6 +72,11 @@ public static class HelpDisplay
         Console.WriteLine("                       e.g. http://localhost:11434/v1 for Ollama (no key needed)");
         Console.WriteLine("    --vision-model <n> Model used when the conversation contains an image");
         Console.WriteLine($"                       (default: {LlmSettings.VisionModel})");
+        Console.WriteLine("    --code-model <n>  Model for code, files and tools (default: " + LlmSettings.Model + ")");
+        Console.WriteLine("    --chat-model <n>  Model for general conversation without code or files");
+        Console.WriteLine("                       (default on the Albert endpoint: " + LlmSettings.ChatModel + ";");
+        Console.WriteLine("                       none on a custom --endpoint unless you set it)");
+        Console.WriteLine("    --no-route        Always use the code model (no automatic model choice)");
         Console.WriteLine("    --mcp <url>       Connect to an MCP server (Streamable HTTP); its tools are offered");
         Console.WriteLine("                       to the model as mcp_<name> and each call asks for confirmation");
         Console.WriteLine("    --port, -p <n>    Web UI port number (default: 5050)");
