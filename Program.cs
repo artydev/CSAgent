@@ -20,11 +20,21 @@ public static class Program
 
         var parsed = ArgumentParser.Parse(args);
 
+        Loc.Set(parsed.Language);
         LlmConfig.Configure(parsed.Endpoint, parsed.VisionModel, parsed.CodeModel, parsed.ChatModel, parsed.AutoRoute);
+        RoutingRules.FolderOverride = parsed.RulesFolder;
 
         if (parsed.ShowHelp) { HelpDisplay.Show(Version); return 0; }
         if (parsed.ShowVersion) { Console.WriteLine($"CSAgent version {Version}"); return 0; }
         if (parsed.ShowDoc) { DocDisplay.Show(); return 0; }
+        if (parsed.InitRouting) return RoutingCli.Init(Console.Out, parsed.RulesFolder);
+        if (parsed.ExplainRouting is not null) return RoutingCli.Explain(Console.Out, parsed.ExplainRouting);
+
+        if (parsed.Prompt is not null && string.IsNullOrWhiteSpace(parsed.Prompt))
+        {
+            Console.Error.WriteLine(Loc.T("Usage: csagent --prompt \"<text>\"   (runs one request, prints the answer and exits)"));
+            return 2;
+        }
 
         // Headless API mode: no clipboard, no browser, no UI assets.
         if (parsed.IsApiMode)
@@ -38,7 +48,7 @@ public static class Program
         else if (parsed.IsUiMode)
             WebHost.Run(parsed, clipboard);
         else
-            TuiHost.RunAsync(parsed, clipboard).GetAwaiter().GetResult();
+            return TuiHost.RunAsync(parsed, clipboard).GetAwaiter().GetResult();
 
         return 0;
     }

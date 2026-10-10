@@ -241,6 +241,23 @@ csagent --model gpt-4o
 csagent --ui --model deepseek-v4-flash
 ```
 
+### Changing the routing by hand (`LLMRoutingRules/`)
+
+The routing can be adjusted without recompiling. Create the folder with `csagent --init-routing`, then edit the JSON files; changes apply to the next message.
+
+| File | Purpose |
+|---|---|
+| `models.json` | Model for each profile: `{ "code": "...", "chat": "...", "vision": "..." }` |
+| `keywords.json` | Add or remove the words, stems, phrases and file extensions that drive the automatic choice |
+| `rules.json` | Your own rules, tested first-match-wins before the built-in logic (`contains`, `contains_all`, `not_contains`, `starts_with`, `min_words`, `max_words`, `use`) |
+| `keywords.defaults.json` | Reference copy of the built-in lists (never read, refreshed by `--init-routing`) |
+
+- Folder lookup: `--rules <folder>` (or `CSAGENT_ROUTING_RULES`), then `./LLMRoutingRules`, then next to the executable.
+- A mistake in a file never stops the agent: a warning is shown once and the built-in values are kept.
+- `csagent --explain-routing "your message"` shows which model would be chosen and why, without calling any model.
+- Messages are available in English and French: `--lang fr|en`, then `CSAGENT_LANG`, then the system language. `--init-routing` writes the comments and the folder's README in that language.
+- `--no-route` / `CSAGENT_ROUTING=off` disables user rules too. The folder's own README.md has the full reference.
+
 ---
 
 ## Future Features
@@ -274,6 +291,11 @@ The following capabilities are planned for future releases:
 | Argument | Description |
 |---|---|
 | `--ui` | Start in Web UI mode (starts a web server) |
+| `--init-routing` | Create the `LLMRoutingRules/` folder with editable JSON files |
+| `--explain-routing "msg"` | Show which model a message would use, without calling a model |
+| `--prompt "text"` | Terminal mode: run one request, print the answer and exit (`csagent --prompt "hello my name is John"`). The conversation is saved in the memory folder as usual; tools still ask for confirmation unless `--auto-approve` is given. A bare argument without a dash is still the memory folder name. |
+| `--lang <en\|fr>` | Language of the routing messages (reasons, warnings, generated files); default: the system language, or `CSAGENT_LANG` |
+| `--rules <folder>` | Use this routing rules folder (or `CSAGENT_ROUTING_RULES`) |
 | `--leanui` | Start in Lean UI mode (lightweight, terminal-style variant of the Web UI) |
 | `--api` | Start the headless SSE server, without web UI (see [Headless API Mode](#headless-api-mode-for-orchestrators)) |
 | `--quiet`, `-q` | CLI, `--ui` and `--leanui`: show just the assistant's messages (plus warnings, errors and the final line). Steps, tool calls and results are hidden; a failed tool call is reported on one line, and a destructive action shows its tool call right before asking for confirmation. `--api` ignores it (orchestrators need every event) |

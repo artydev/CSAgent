@@ -1,0 +1,36 @@
+{
+  "_comment": "Add words to the built-in lists, or remove some. Words are compared without case or accents. See keywords.defaults.json for the built-in lists. A list can also be a plain array (words to add).",
+  "action_words": {
+    "add": [],
+    "remove": []
+  },
+  "web_words": {
+    "add": [],
+    "remove": []
+  },
+  "web_stems": {
+    "add": [],
+    "remove": []
+  },
+  "web_phrases": {
+    "add": [],
+    "remove": []
+  },
+  "code_words": {
+    "add": [],
+    "remove": []
+  },
+  "code_stems": {
+    "add": [],
+    "remove": []
+  },
+  "file_extensions": {
+    "add": [],
+    "remove": []
+  },
+  "follow_up_starters": {
+    "add": [],
+    "remove": []
+  },
+  "follow_up_max_words": 8
+}

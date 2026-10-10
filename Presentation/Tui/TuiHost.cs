@@ -11,7 +11,7 @@ namespace CsAgent.Presentation.Tui;
 
 public static class TuiHost
 {
-    public static async Task RunAsync(AgentArguments args, WindowsClipboardMonitor clipboard)
+    public static async Task<int> RunAsync(AgentArguments args, WindowsClipboardMonitor clipboard)
     {
         UI.Banner();
         Console.WriteLine($"  CSAgent v{Program.Version}");
@@ -21,7 +21,7 @@ public static class TuiHost
         if (string.IsNullOrEmpty(apiKey))
         {
             Console.WriteLine($"Error: {LlmConfig.MissingKeyMessage}");
-            return;
+            return args.Prompt is null ? 0 : 1;
         }
 
         var messages = await MemoryStore.LoadAsync(MemoryPaths.Resolve(args.MemoryFile).Conversation);
@@ -43,13 +43,9 @@ public static class TuiHost
             new SemanticMemory(),
             new ExactMemory());
 
-        while (true)
+        // One turn: the user's text in, the answer out (shared by the loop and --prompt).
+        async Task<bool> TurnAsync(string input)
         {
-            Console.Write("\n> User (type 'exit' to quit): ");
-            var input = Console.ReadLine();
-            if (string.IsNullOrWhiteSpace(input)) continue;
-            if (input.Trim().Equals("exit", StringComparison.OrdinalIgnoreCase)) break;
-
             var image = clipboard.ConsumeLatest();
             if (image is not null)
             {
@@ -65,6 +61,7 @@ public static class TuiHost
                 input, JsonHelpers.HistoryContainsImage(messages), args.ModelOverride,
                 ModelRouter.LastTurnKind(messages), apiKey);
             var model = choice.Model;
+            foreach (var note in choice.Notes) UI.Warning(note);
             Console.WriteLine($"  {choice.Describe()}");
 
             TaskTracker? tracker = null;
@@ -84,6 +81,31 @@ public static class TuiHost
                 memory);
 
             await agent.RunAsync(messages, args.MemoryFile);
+            return true;
         }
+
+        // --prompt "text": one request, then exit (the conversation is saved in the memory folder as usual).
+        if (!string.IsNullOrWhiteSpace(args.Prompt))
+        {
+            Console.WriteLine($"\n> User: {args.Prompt}");
+            try { await TurnAsync(args.Prompt!); }
+            catch (Exception ex)
+            {
+                Console.Error.WriteLine($"Error: {ex.Message}");
+                return 1;
+            }
+            return 0;
+        }
+
+        while (true)
+        {
+            Console.Write("\n> User (type 'exit' to quit): ");
+            var input = Console.ReadLine();
+            if (input is null) break; // end of input (pipe closed): stop instead of looping forever
+            if (string.IsNullOrWhiteSpace(input)) continue;
+            if (input.Trim().Equals("exit", StringComparison.OrdinalIgnoreCase)) break;
+            await TurnAsync(input);
+        }
+        return 0;
     }
 }

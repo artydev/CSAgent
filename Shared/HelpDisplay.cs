@@ -77,6 +77,14 @@ public static class HelpDisplay
         Console.WriteLine("                       (default on the Albert endpoint: " + LlmSettings.ChatModel + ";");
         Console.WriteLine("                       none on a custom --endpoint unless you set it)");
         Console.WriteLine("    --no-route        Always use the code model (no automatic model choice)");
+        Console.WriteLine("    --init-routing    Create the LLMRoutingRules folder (models.json, keywords.json,");
+        Console.WriteLine("                       rules.json) to adjust the model choice, then exit");
+        Console.WriteLine("    --explain-routing <message>  Show which model a message would get, and why,");
+        Console.WriteLine("                       without calling any model, then exit");
+        Console.WriteLine("    --rules <folder>  Use this folder instead of ./LLMRoutingRules");
+        Console.WriteLine("    --prompt <text>   Run one request, print the answer and exit (no interactive loop)");
+        Console.WriteLine("    --lang <en|fr>    Language of the routing messages (default: the system language;");
+        Console.WriteLine("                       or CSAGENT_LANG)");
         Console.WriteLine("    --mcp <url>       Connect to an MCP server (Streamable HTTP); its tools are offered");
         Console.WriteLine("                       to the model as mcp_<name> and each call asks for confirmation");
         Console.WriteLine("    --port, -p <n>    Web UI port number (default: 5050)");

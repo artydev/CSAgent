@@ -70,10 +70,10 @@ public static class ModelCatalog
         if (catalog is null || catalog.Count == 0) return true;
 
         var e = Find(catalog, model);
-        if (e is null) { why = "not in the endpoint's model list"; return false; }
-        if (e.Status.Equals("unavailable", StringComparison.OrdinalIgnoreCase)) { why = "reported unavailable"; return false; }
+        if (e is null) { why = Loc.T("not in the endpoint's model list"); return false; }
+        if (e.Status.Equals("unavailable", StringComparison.OrdinalIgnoreCase)) { why = Loc.T("reported unavailable"); return false; }
         if (e.Type.Length > 0 && e.Type is not ("text-generation" or "image-text-to-text"))
-        { why = $"type '{e.Type}' cannot chat"; return false; }
+        { why = Loc.F($"type '{e.Type}' cannot chat"); return false; }
         return true;
     }
 

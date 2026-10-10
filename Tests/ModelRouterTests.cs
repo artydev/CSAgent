@@ -22,12 +22,14 @@ static partial class Tests
             foreach (var n in names) Environment.SetEnvironmentVariable(n, null);
             LlmConfig.Reset();
             ModelCatalog.ClearCache();
+            RoutingRules.Provider = () => RoutingRules.Default;   // the built-in rules, whatever is on the disk
             try { return f(); }
             finally
             {
                 for (int i = 0; i < names.Length; i++) Environment.SetEnvironmentVariable(names[i], old[i]);
                 LlmConfig.Reset();
                 ModelCatalog.ClearCache();
+                RoutingRules.ResetProvider();
             }
         }
 

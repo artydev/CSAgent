@@ -33,7 +33,12 @@ public sealed record AgentArguments(
     bool Quiet = false,
     string? CodeModel = null,
     string? ChatModel = null,
-    bool AutoRoute = true);
+    bool AutoRoute = true,
+    bool InitRouting = false,
+    string? ExplainRouting = null,
+    string? RulesFolder = null,
+    string? Language = null,
+    string? Prompt = null);
 
 /// <summary>
 /// Pure argument parsing — no side effects, no console output.
@@ -75,12 +80,22 @@ public static class ArgumentParser
         var chatModel = GetValue(args, "--chat-model") ?? Environment.GetEnvironmentVariable("CSAGENT_MODEL_CHAT");
         if (string.IsNullOrWhiteSpace(chatModel)) chatModel = null;
         var autoRoute = !args.Contains("--no-route") && !RoutingDisabledByEnv();
+        var initRouting = args.Contains("--init-routing");
+        // "" (flag without a message) lets the command print its usage.
+        var explainRouting = args.Contains("--explain-routing") ? GetValue(args, "--explain-routing") ?? "" : null;
+        var rulesFolder = GetValue(args, "--rules") ?? Environment.GetEnvironmentVariable("CSAGENT_ROUTING_RULES");
+        if (string.IsNullOrWhiteSpace(rulesFolder)) rulesFolder = null;
+
+        // "" (flag without a text) lets the program print its usage.
+        var prompt = args.Contains("--prompt") ? GetValue(args, "--prompt") ?? "" : null;
+        var language = GetValue(args, "--lang");
+        if (string.IsNullOrWhiteSpace(language)) language = null;
 
         return new AgentArguments(memFile, modelOverride, mcpUrl, taskSlug,
             port, isUiMode, isLeanUiMode, isNativeMode, isDryRun,
             showHelp, showVersion, showDoc, maxRetries, retryDelayMs, usePropMem, propositionFile, distill,
             isApiMode, autoApprove, host, apiKey, endpoint, visionModel, quiet,
-            codeModel, chatModel, autoRoute);
+            codeModel, chatModel, autoRoute, initRouting, explainRouting, rulesFolder, language, prompt);
     }
 
     private static string GetMemoryFile(string[] args)
@@ -93,7 +108,8 @@ public static class ArgumentParser
             if (args[i] is "--model" or "--mcp" or "--mcp-url" or "--port"
                           or "-p" or "--max-retries" or "--retry-delay"
                           or "--task" or "--prop" or "--host" or "--api-key"
-                          or "--endpoint" or "--vision-model" or "--code-model" or "--chat-model")
+                          or "--endpoint" or "--vision-model" or "--code-model" or "--chat-model"
+                          or "--explain-routing" or "--rules" or "--lang" or "--prompt")
             { i++; continue; }
 
             if (args[i] != "--ui" && args[i] != "--leanui" && args[i] != "--native"

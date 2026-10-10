@@ -1,0 +1,6 @@
+{
+  "_comment": "Which model plays each profile. null = the built-in value (deepseek-v4-flash / openweight-large / gemma-4-31b-it); the chat model is only used on the default endpoint. --code-model / --chat-model / --vision-model (and CSAGENT_MODEL_*) win over this file.",
+  "code": null,
+  "chat": null,
+  "vision": null
+}

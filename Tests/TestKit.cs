@@ -79,7 +79,11 @@ static partial class Tests
         await ApiMode();
         await MemoryFolder();
         await LlmEndpoint();
+        CsAgent.Core.Llm.Loc.Set("en"); // the other tests read the English messages
         await ModelRouting();
+        await RoutingRulesGroup();
+        await RoutingLocalization();
+        await PromptOption();
         await OutlookMsg();
         await TranscribeAudio();
         await AudioRecordingsTests();

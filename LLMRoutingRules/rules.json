@@ -1,0 +1,31 @@
+{
+  "_comment": "Your own rules, checked in order before the built-in logic: the first rule that matches decides. Conditions (all that are present must hold): contains (any of), contains_all, not_contains, starts_with, min_words, max_words. Words are compared without case or accents; \"recherch*\" matches any word that starts with it; a phrase is several words (\"sur le web\"). use: \"code\", \"chat\", \"vision\", or a model name. \"enabled\": false switches a rule off. --model and an image in the conversation win over these rules; --no-route turns them off.",
+  "rules": [],
+  "_examples": [
+    {
+      "name": "tickets go to the code model",
+      "contains": [
+        "jira",
+        "ticket"
+      ],
+      "use": "code"
+    },
+    {
+      "name": "translations to the chat model",
+      "starts_with": [
+        "traduis",
+        "translate"
+      ],
+      "use": "chat"
+    },
+    {
+      "name": "a specific model for long documents",
+      "contains": [
+        "contrat*",
+        "rapport"
+      ],
+      "min_words": 30,
+      "use": "openweight-large"
+    }
+  ]
+}

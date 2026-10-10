@@ -30,146 +30,126 @@ public enum TurnKind
 /// <summary>The model chosen for a run, and why (shown to the user).</summary>
 public sealed record ModelChoice(string Model, ModelProfile Profile, string Reason)
 {
+    /// <summary>Problems found in the LLMRoutingRules files, to show once (see <see cref="RoutingRules.Warnings"/>).</summary>
+    public IReadOnlyList<string> Notes { get; init; } = Array.Empty<string>();
+
     /// <summary>"[model: x]" for the default case, "[model: x (chat: general question)]" otherwise.</summary>
     public string Describe() =>
-        Profile == ModelProfile.Code && Reason == "default" ? $"[model: {Model}]" : $"[model: {Model} ({Profile.ToString().ToLowerInvariant()}: {Reason})]";
+        Profile == ModelProfile.Code && Reason == Loc.T("default") ? $"[model: {Model}]" : $"[model: {Model} ({Profile.ToString().ToLowerInvariant()}: {Reason})]";
 }
 
 /// <summary>
-/// Picks the model for each user message. Deterministic and free (no extra LLM call):
+/// Picks the model for each user message. Deterministic and free (no extra LLM call), in this order:
 /// <list type="number">
 /// <item><c>--model</c> always wins.</item>
 /// <item>An image in the conversation selects the vision model.</item>
+/// <item>The user's own rules (LLMRoutingRules/rules.json): the first that matches decides.</item>
 /// <item>A message about code, files, a shell, mail... selects the code model, the default.</item>
 /// <item>Searches (web, news, a link to read) and general conversation select the chat model, if the
 /// endpoint has one. An explicit "search the web / sur internet" or "news" wins over code words.</item>
 /// <item>A short acknowledgement ("yes, go ahead") continues the previous turn: the chat model after a
 /// web search, the code model after any other tool use.</item>
 /// </list>
+/// The models and the word lists come from <see cref="RoutingRules"/> (built-in values, changed by the
+/// files of the LLMRoutingRules folder).
 /// AOT-safe: no Regex, manual tokenizing.
 /// </summary>
 public static class ModelRouter
 {
-    /// <summary>An acknowledgement of at most this many words after a tool-using turn stays on the code model.</summary>
-    private const int ShortFollowUpWords = 8;
+    // ───────────────────────────── the models ─────────────────────────────
 
-    // First words of a reply that continues the work in progress ("yes, go ahead", "ok continue with the second one").
-    // A short message that starts any other way is a new request, however few words it has.
-    private static readonly HashSet<string> FollowUpStarters = new(StringComparer.Ordinal)
-    {
-        "oui", "non", "ok", "okay", "yes", "no", "yep", "yeah", "sure", "go", "continue", "continues", "continuer",
-        "vas-y", "vasy", "allez", "parfait", "merci", "thanks", "thank", "fais", "do", "proceed", "retry",
-        "reessaie", "reessayer", "encore", "again", "accord",
-    };
+    // Order of precedence for each profile: the command line / environment, then models.json, then the built-in value.
+    internal static string CodeModel(RoutingRules r) => LlmConfig.ExplicitCodeModel ?? r.CodeModel ?? LlmSettings.Model;
 
-    // Whole words that mark a task on code or on the workspace (compared after lower-casing and removing accents).
-    private static readonly HashSet<string> Words = new(StringComparer.Ordinal)
-    {
-        "code", "coder", "coding", "codage", "bug", "bugs", "fix", "test", "tests", "build", "git", "api", "sql",
-        "npm", "pip", "mcp", "json", "xml", "yaml", "yml", "html", "css", "regex", "http", "https", "url",
-        "run", "shell", "bash", "powershell", "cmd", "terminal", "docker", "dotnet", "nuget", "csproj", "sln",
-        "python", "javascript", "typescript", "java", "rust", "golang", "csharp", "sdk", "cli", "ide",
-        "repo", "repos", "merge", "rebase", "diff", "patch", "stash", "lint", "linter", "log", "logs",
-        "classe", "class", "variable", "variables", "script", "scripts", "serveur", "server", "endpoint",
-        "fonction", "fonctions", "function", "functions", "directory", "directories", "program", "programs",
-        "audio", "email", "emails", "mail", "mails", "outlook", "clipboard", "projet", "project", "skills", "skill",
-        "zip", "unzip", "pdf", "csv", "xlsx", "docx", "readme", "stderr", "stdout",
-        "launch", "lance", "lancer", "lancez", "close", "ferme", "fermer", "kill", "delete", "supprime", "supprimer",
-        "efface", "effacer", "rename", "renomme", "renommer", "move", "deplace", "deplacer", "copie", "copier", "copy",
-        "application", "applications", "app", "apps", "fenetre", "window", "windows", "process", "processus",
-    };
+    /// <summary>The chat model, or null when there is none (a custom endpoint where nothing was set).</summary>
+    internal static string? ChatModel(RoutingRules r) =>
+        LlmConfig.ExplicitChatModel ?? r.ChatModel
+        ?? (LlmConfig.Endpoint == LlmSettings.Endpoint ? LlmSettings.ChatModel : null);
 
-    // Word beginnings that mark the same (so one entry covers conjugations and plurals).
-    private static readonly string[] Stems =
-    {
-        "refactor", "compil", "debug", "deboug", "commit", "branch", "depot",
-        "implement", "execut", "install", "transcri", "programmation", "programmer", "programming", "algorithm", "develop", "deploy",
-        "exception", "fichier", "dossier", "folder", "repertoire", "presse-papier", "pull-request",
-        "attach", "piece-jointe", "unitaire", "dependanc", "dependenc", "librairie", "librar", "framework",
-        "commande", "command", "pipeline", "base-de-donnee", "database", "stacktrace", "traceback",
-    };
-
-    // Actions on the user's machine: opening or downloading something, and the names of browsers and apps.
-    // They win over a web search ("open the news site in Edge" is an action, not a search).
-    private static readonly HashSet<string> ActionWords = new(StringComparer.Ordinal)
-    {
-        "open", "ouvre", "ouvres", "ouvrir", "ouvrez", "download", "telecharge", "telecharger", "telechargez",
-        "edge", "chrome", "firefox", "safari", "browser", "navigateur", "notepad", "bloc-notes", "excel",
-        "powerpoint", "vscode", "explorateur", "finder",
-    };
-
-    // Words that mean "search the web / read the news" on their own (the word "web" alone is not enough:
-    // it is also "web UI"). "actualit*" is matched as a stem.
-    private static readonly HashSet<string> WebWords = new(StringComparer.Ordinal)
-    {
-        "news", "actu", "actus", "wikipedia", "meteo", "weather", "google", "bing", "duckduckgo", "browse",
-    };
-
-    // Phrases that mean the same, as consecutive words.
-    private static readonly string[][] WebPhrases =
-    {
-        new[] { "sur", "internet" }, new[] { "sur", "le", "web" }, new[] { "on", "the", "web" },
-        new[] { "on", "the", "internet" }, new[] { "web", "search" }, new[] { "search", "web" },
-        new[] { "search", "the", "web" }, new[] { "search", "internet" }, new[] { "search", "online" },
-        new[] { "recherche", "web" }, new[] { "recherche", "internet" }, new[] { "recherche", "en", "ligne" },
-        new[] { "recherches", "web" }, new[] { "recherche", "sur", "le", "web" }, new[] { "cherche", "sur", "le", "web" },
-        new[] { "cherche", "sur", "internet" }, new[] { "cherche", "en", "ligne" },
-    };
-
-    // File extensions: a word such as "Program.cs" or "notes.md" is a file.
-    private static readonly HashSet<string> Extensions = new(StringComparer.Ordinal)
-    {
-        "cs", "csproj", "sln", "py", "js", "ts", "tsx", "jsx", "json", "yaml", "yml", "xml", "html", "css", "md",
-        "sh", "ps1", "bat", "go", "rs", "java", "kt", "c", "cpp", "h", "sql", "toml", "ini", "txt", "log", "zip",
-        "pdf", "docx", "xlsx", "csv", "pptx", "msg", "eml", "mp3", "wav", "m4a", "ogg", "flac", "webm", "mp4",
-        "png", "jpg", "jpeg", "gif", "webp", "svg", "dll", "exe", "env", "lock",
-    };
+    internal static string VisionModel(RoutingRules r) =>
+        LlmConfig.VisionIsExplicit ? LlmConfig.VisionModel : r.VisionModel ?? LlmConfig.VisionModel;
 
     // ───────────────────────────── choice ─────────────────────────────
 
     /// <summary>Same as the <see cref="TurnKind"/> overload; true means the previous turn did work with tools.</summary>
-    public static ModelChoice Choose(string prompt, bool needsVision, string? modelOverride, bool previousTurnUsedTools) =>
-        Choose(prompt, needsVision, modelOverride, previousTurnUsedTools ? TurnKind.Work : TurnKind.Plain);
+    public static ModelChoice Choose(string prompt, bool needsVision, string? modelOverride, bool previousTurnUsedTools,
+        RoutingRules? rules = null) =>
+        Choose(prompt, needsVision, modelOverride, previousTurnUsedTools ? TurnKind.Work : TurnKind.Plain, rules);
 
     /// <summary>
     /// The model for this message. <paramref name="previousTurn"/> is what the turn before this one did
-    /// (see <see cref="LastTurnKind"/>).
+    /// (see <see cref="LastTurnKind"/>). <paramref name="rules"/> defaults to <see cref="RoutingRules.Current"/>.
     /// </summary>
-    public static ModelChoice Choose(string prompt, bool needsVision, string? modelOverride, TurnKind previousTurn)
+    public static ModelChoice Choose(string prompt, bool needsVision, string? modelOverride, TurnKind previousTurn,
+        RoutingRules? rules = null)
     {
         if (!string.IsNullOrWhiteSpace(modelOverride))
             return new ModelChoice(modelOverride, ModelProfile.Explicit, "--model");
 
-        if (needsVision)
-            return new ModelChoice(LlmConfig.VisionModel, ModelProfile.Vision, "image in the conversation");
+        rules ??= RoutingRules.Current();
+        var code = CodeModel(rules);
+        var chat = ChatModel(rules);
 
-        var code = LlmConfig.CodeModel;
-        var chat = LlmConfig.ChatModel;
-        if (!LlmConfig.AutoRoute || chat is null || chat.Equals(code, StringComparison.OrdinalIgnoreCase))
-            return new ModelChoice(code, ModelProfile.Code, "default");
+        if (needsVision)
+            return new ModelChoice(VisionModel(rules), ModelProfile.Vision, Loc.T("image in the conversation"));
+
+        if (!LlmConfig.AutoRoute)
+            return new ModelChoice(code, ModelProfile.Code, Loc.T("default"));
 
         var text = prompt ?? "";
-        if (previousTurn != TurnKind.Plain && IsFollowUp(text))
-            return previousTurn == TurnKind.Web
-                ? new ModelChoice(chat, ModelProfile.Chat, "follows a web search")
-                : new ModelChoice(code, ModelProfile.Code, "follows a turn that used tools");
 
-        if (FindHardSignal(text) is { } hard)
+        if (FindUserRule(text, rules, code, chat) is { } custom)
+            return custom;
+
+        if (chat is null || chat.Equals(code, StringComparison.OrdinalIgnoreCase))
+            return new ModelChoice(code, ModelProfile.Code, Loc.T("default"));
+
+        if (previousTurn != TurnKind.Plain && IsFollowUp(text, rules))
+            return previousTurn == TurnKind.Web
+                ? new ModelChoice(chat, ModelProfile.Chat, Loc.T("follows a web search"))
+                : new ModelChoice(code, ModelProfile.Code, Loc.T("follows a turn that used tools"));
+
+        if (FindHardSignal(text, rules) is { } hard)
             return new ModelChoice(code, ModelProfile.Code, hard);
 
-        if (FindWebIntent(text) is { } web)
+        if (FindWebIntent(text, rules) is { } web)
             return new ModelChoice(chat, ModelProfile.Chat, web);
 
-        if (FindSoftSignal(text) is { } soft)
+        if (FindSoftSignal(text, rules) is { } soft)
             return new ModelChoice(code, ModelProfile.Code, soft);
 
-        return new ModelChoice(chat, ModelProfile.Chat, "general question");
+        return new ModelChoice(chat, ModelProfile.Chat, Loc.T("general question"));
+    }
+
+    /// <summary>The first rule of rules.json that matches the message, as a choice; null when none does.</summary>
+    private static ModelChoice? FindUserRule(string text, RoutingRules rules, string code, string? chat)
+    {
+        if (rules.Rules.Count == 0) return null;
+        var tokens = RoutingText.MessageTokens(text);
+
+        foreach (var rule in rules.Rules)
+        {
+            if (!rule.Matches(tokens)) continue;
+            var why = Loc.F($"rule '{rule.Name}'");
+            switch (rule.Use.ToLowerInvariant())
+            {
+                case "code": return new ModelChoice(code, ModelProfile.Code, why);
+                case "chat":
+                    return chat is null
+                        ? new ModelChoice(code, ModelProfile.Code, why + Loc.T(" (no chat model on this endpoint)"))
+                        : new ModelChoice(chat, ModelProfile.Chat, why);
+                case "vision": return new ModelChoice(VisionModel(rules), ModelProfile.Vision, why);
+                default: return new ModelChoice(rule.Use, ModelProfile.Explicit, why);
+            }
+        }
+        return null;
     }
 
     /// <summary>
     /// Like <see cref="Choose"/>, then checks the chat model against the endpoint's model list: if it is
     /// unknown, down or not a text model, the code model is used instead and the reason says so.
     /// The list is fetched only for a chat choice (one cached call); with no information the choice stands.
+    /// Problems found in the LLMRoutingRules files are returned once, in <see cref="ModelChoice.Notes"/>.
     /// </summary>
     public static Task<ModelChoice> ResolveAsync(string prompt, bool needsVision, string? modelOverride,
         bool previousTurnUsedTools, string apiKey,
@@ -182,7 +162,10 @@ public static class ModelRouter
         TurnKind previousTurn, string apiKey,
         Func<Task<IReadOnlyList<CatalogEntry>?>>? loadCatalog = null)
     {
-        var choice = Choose(prompt, needsVision, modelOverride, previousTurn);
+        var rules = RoutingRules.Current();
+        var choice = Choose(prompt, needsVision, modelOverride, previousTurn, rules);
+        var notes = rules.TakeNewWarnings();
+        if (notes.Count > 0) choice = choice with { Notes = notes };
         if (choice.Profile != ModelProfile.Chat) return choice;
 
         loadCatalog ??= () => ModelCatalog.GetCachedAsync(LlmConfig.Endpoint, apiKey);
@@ -191,7 +174,7 @@ public static class ModelRouter
         catch { catalog = null; }
 
         if (ModelCatalog.IsUsable(catalog, choice.Model, out var why)) return choice;
-        return new ModelChoice(LlmConfig.CodeModel, ModelProfile.Code, $"chat model '{choice.Model}' {why}");
+        return new ModelChoice(CodeModel(rules), ModelProfile.Code, Loc.F($"chat model '{choice.Model}' {why}")) { Notes = notes };
     }
 
     // ───────────────────────────── display ─────────────────────────────
@@ -250,13 +233,15 @@ public static class ModelRouter
 
     /// <summary>
     /// Signs that cannot be about anything but the workspace or the machine: code in the message, an attached
-    /// file, a file name, a path, an action such as "open" or "download", a browser or an app. They win over everything else. Null when there are none; the text is the reason shown.
+    /// file, a file name, a path, an action such as "open" or "download", a browser or an app. They win over
+    /// everything else. Null when there are none; the text is the reason shown.
     /// Links are skipped: reading a web page is a search, not work on files.
     /// </summary>
-    internal static string? FindHardSignal(string text)
+    internal static string? FindHardSignal(string text, RoutingRules? rules = null)
     {
-        if (text.Contains("```") || text.Contains('`')) return "code in the message";
-        if (text.Contains("[Attached", StringComparison.OrdinalIgnoreCase)) return "attached file";
+        rules ??= RoutingRules.Current();
+        if (text.Contains("```") || text.Contains('`')) return Loc.T("code in the message");
+        if (text.Contains("[Attached", StringComparison.OrdinalIgnoreCase)) return Loc.T("attached file");
 
         // Split on whitespace first, so that file names, paths and URLs stay in one piece.
         foreach (var chunk in text.Split((char[]?)null, StringSplitOptions.RemoveEmptyEntries))
@@ -264,16 +249,16 @@ public static class ModelRouter
             var c = chunk.Trim('(', ')', '[', ']', '"', '\'', ',', ';', ':', '?', '!', '.', '<', '>', '*');
             if (c.Length == 0 || c.Contains("://")) continue;
 
-            if (c.Contains('\\')) return "file path";
-            if (IsUnixPath(c)) return "file path";
+            if (c.Contains('\\')) return Loc.T("file path");
+            if (IsUnixPath(c)) return Loc.T("file path");
 
             var dot = c.LastIndexOf('.');
-            if (dot > 0 && dot < c.Length - 1 && Extensions.Contains(Fold(c[(dot + 1)..]))) return "file name";
+            if (dot > 0 && dot < c.Length - 1 && rules.FileExtensions.Contains(RoutingText.Fold(c[(dot + 1)..]))) return Loc.T("file name");
         }
 
         // An action on the machine: open, download, a browser or an app by name.
-        foreach (var word in Tokens(WithoutLinks(text)))
-            if (ActionWords.Contains(word)) return $"action on your computer ('{word}')";
+        foreach (var word in RoutingText.Tokens(RoutingText.WithoutLinks(text)))
+            if (rules.ActionWords.Contains(word)) return Loc.F($"action on your computer ('{word}')");
         return null;
     }
 
@@ -283,18 +268,21 @@ public static class ModelRouter
     /// ("search the web for C# async tips" is a search), but not over <see cref="FindHardSignal"/>.
     /// Null when there is none; the text is the reason shown.
     /// </summary>
-    internal static string? FindWebIntent(string text)
+    internal static string? FindWebIntent(string text, RoutingRules? rules = null)
     {
-        var t = new List<string>();
-        foreach (var w in Tokens(WithoutLinks(text))) t.Add(w);
+        rules ??= RoutingRules.Current();
+        var t = RoutingText.MessageTokens(text);
 
         foreach (var w in t)
-            if (WebWords.Contains(w) || w.StartsWith("actualit", StringComparison.Ordinal))
-                return $"web search ('{w}')";
+        {
+            if (rules.WebWords.Contains(w)) return Loc.F($"web search ('{w}')");
+            foreach (var stem in rules.WebStems)
+                if (w.StartsWith(stem, StringComparison.Ordinal)) return Loc.F($"web search ('{w}')");
+        }
 
-        foreach (var phrase in WebPhrases)
-            if (ContainsSequence(t, phrase))
-                return $"web search ('{string.Join(' ', phrase)}')";
+        foreach (var phrase in rules.WebPhrases)
+            if (phrase.IsIn(t))
+                return Loc.F($"web search ('{phrase}')");
         return null;
     }
 
@@ -302,40 +290,20 @@ public static class ModelRouter
     /// Words that suggest a task on code or on the workspace (git, tests, shell, mail, audio...).
     /// Null for a general message; the text is the reason shown.
     /// </summary>
-    internal static string? FindSoftSignal(string text)
+    internal static string? FindSoftSignal(string text, RoutingRules? rules = null)
     {
-        text = WithoutLinks(text);
+        rules ??= RoutingRules.Current();
+        text = RoutingText.WithoutLinks(text);
         if (text.Contains("c#", StringComparison.OrdinalIgnoreCase) || text.Contains(".net", StringComparison.OrdinalIgnoreCase))
-            return "mentions code";
+            return Loc.T("mentions code");
 
-        foreach (var word in Tokens(text))
+        foreach (var word in RoutingText.Tokens(text))
         {
-            if (Words.Contains(word)) return $"mentions '{word}'";
-            foreach (var stem in Stems)
+            if (rules.CodeWords.Contains(word)) return $"mentions '{word}'";
+            foreach (var stem in rules.CodeStems)
                 if (word.StartsWith(stem, StringComparison.Ordinal)) return $"mentions '{word}'";
         }
         return null;
-    }
-
-    /// <summary>The text without its links, so that "https" and the host name do not look like code words.</summary>
-    private static string WithoutLinks(string text)
-    {
-        if (!text.Contains("://")) return text;
-        var kept = new List<string>();
-        foreach (var chunk in text.Split((char[]?)null, StringSplitOptions.RemoveEmptyEntries))
-            if (!chunk.Contains("://")) kept.Add(chunk);
-        return string.Join(' ', kept);
-    }
-
-    private static bool ContainsSequence(List<string> tokens, string[] seq)
-    {
-        for (var i = 0; i + seq.Length <= tokens.Count; i++)
-        {
-            var ok = true;
-            for (var k = 0; k < seq.Length && ok; k++) ok = tokens[i + k] == seq[k];
-            if (ok) return true;
-        }
-        return false;
     }
 
     private static bool IsUnixPath(string c)
@@ -356,58 +324,21 @@ public static class ModelRouter
     /// ("oui", "ok", "vas-y", "d'accord", "yes"...) and has few words. "fetch latest scientific news"
     /// is short too, but it is a new request, so it is not a follow-up.
     /// </summary>
-    internal static bool IsFollowUp(string text)
+    internal static bool IsFollowUp(string text, RoutingRules? rules = null)
     {
+        rules ??= RoutingRules.Current();
         var n = 0;
         string? first = null, second = null;
-        foreach (var t in Tokens(text))
+        foreach (var t in RoutingText.Tokens(text))
         {
             if (n == 0) first = t; else if (n == 1) second = t;
             n++;
-            if (n > ShortFollowUpWords) return false;
+            if (n > rules.FollowUpMaxWords) return false;
         }
         if (first is null) return false;
-        if (FollowUpStarters.Contains(first)) return true;
+        if (rules.FollowUpStarters.Contains(first)) return true;
         var dash = first.IndexOf('-');
-        if (dash > 0 && FollowUpStarters.Contains(first[..dash])) return true; // "fais-le", "vas-y", "ok-go"
+        if (dash > 0 && rules.FollowUpStarters.Contains(first[..dash])) return true; // "fais-le", "vas-y", "ok-go"
         return first == "d" && second == "accord"; // d'accord
     }
-
-    /// <summary>Lower-case words made of letters, digits and "_" or "-", without accents.</summary>
-    private static IEnumerable<string> Tokens(string text)
-    {
-        var sb = new StringBuilder();
-        foreach (var ch in text)
-        {
-            if (char.IsLetterOrDigit(ch) || ch == '_' || ch == '-')
-            {
-                sb.Append(FoldChar(char.ToLowerInvariant(ch)));
-            }
-            else if (sb.Length > 0)
-            {
-                yield return sb.ToString().Trim('-');
-                sb.Clear();
-            }
-        }
-        if (sb.Length > 0) yield return sb.ToString().Trim('-');
-    }
-
-    private static string Fold(string s)
-    {
-        var sb = new StringBuilder(s.Length);
-        foreach (var ch in s) sb.Append(FoldChar(char.ToLowerInvariant(ch)));
-        return sb.ToString();
-    }
-
-    /// <summary>Removes the accents of the French letters, without relying on ICU (works in invariant mode).</summary>
-    private static char FoldChar(char c) => c switch
-    {
-        'é' or 'è' or 'ê' or 'ë' => 'e',
-        'à' or 'â' or 'ä' => 'a',
-        'î' or 'ï' => 'i',
-        'ô' or 'ö' => 'o',
-        'ù' or 'û' or 'ü' => 'u',
-        'ç' => 'c',
-        _ => c,
-    };
 }

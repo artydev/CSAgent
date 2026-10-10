@@ -141,6 +141,7 @@ public static class ApiEndpoints
         var choice = await ModelRouter.ResolveAsync(
             prompt, needsVision, modelOverride, ModelRouter.LastTurnKind(msgs), apiKey);
         var model = choice.Model;
+        foreach (var note in choice.Notes) await observer.OnWarning(note);
         // Say so when the default code model is not the one answering (chat, vision, or a fallback).
         if (choice.Profile is ModelProfile.Chat || choice.Reason.StartsWith("chat model", StringComparison.Ordinal))
             await observer.OnThought(choice.Describe());

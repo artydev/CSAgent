@@ -19,6 +19,16 @@ public static class LlmConfig
 
     private static string? _codeModel;
     private static string? _chatModel;
+    private static bool _visionExplicit;
+
+    /// <summary>The code model set with --code-model / CSAGENT_MODEL_CODE, or null.</summary>
+    public static string? ExplicitCodeModel => _codeModel;
+
+    /// <summary>The chat model set with --chat-model / CSAGENT_MODEL_CHAT, or null.</summary>
+    public static string? ExplicitChatModel => _chatModel;
+
+    /// <summary>True when the vision model was set with --vision-model / CSAGENT_VISION_MODEL.</summary>
+    public static bool VisionIsExplicit => _visionExplicit;
 
     /// <summary>Profile "code": the model for coding tasks (the default model unless overridden).</summary>
     public static string CodeModel => _codeModel ?? LlmSettings.Model;
@@ -39,7 +49,7 @@ public static class LlmConfig
         string? codeModel = null, string? chatModel = null, bool? autoRoute = null)
     {
         if (!string.IsNullOrWhiteSpace(endpoint)) Endpoint = endpoint.Trim().TrimEnd('/');
-        if (!string.IsNullOrWhiteSpace(visionModel)) VisionModel = visionModel.Trim();
+        if (!string.IsNullOrWhiteSpace(visionModel)) { VisionModel = visionModel.Trim(); _visionExplicit = true; }
         if (!string.IsNullOrWhiteSpace(codeModel)) _codeModel = codeModel.Trim();
         if (!string.IsNullOrWhiteSpace(chatModel)) _chatModel = chatModel.Trim();
         if (autoRoute is { } r) AutoRoute = r;
@@ -52,6 +62,7 @@ public static class LlmConfig
         VisionModel = LlmSettings.VisionModel;
         _codeModel = null;
         _chatModel = null;
+        _visionExplicit = false;
         AutoRoute = true;
     }
 
