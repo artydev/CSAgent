@@ -72,6 +72,8 @@
 	<ItemGroup>
 		<EmbeddedResource Include="Presentation\Web\assets\**" />
 		<EmbeddedResource Include="Presentation\LeanUI\assets\**" />
+		<!-- Shown by the doc command (DocDisplay, StaticAssets.ReadmeMd). -->
+		<EmbeddedResource Include="README.md" LogicalName="CsAgent.README.md" />
 	</ItemGroup>
 
 </Project>
