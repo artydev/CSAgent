@@ -603,6 +603,171 @@ async function handleWipeAllSessionsConfirmation() {
     }
 }
 
+/* ──────────────────────────────────────────────────────────────
+   <cs-menu> — a tiny selectable list (web component, no dependency)
+   Shadow DOM keeps its styles apart from the rest of the page; the colours
+   come from the page's CSS variables. Focus stays in the text input: the
+   input forwards its keys to handleKey(), the mouse works directly.
+     menu.show([{ section, key, desc, value? }])   items with a value are selectable
+     menu.hide()
+     menu.handleKey(event) -> true when the key was consumed
+     event "cs-choose"  (detail = the chosen item)
+────────────────────────────────────────────────────────────── */
+class CsMenu extends HTMLElement {
+    constructor() {
+        super();
+        this.attachShadow({ mode: "open" }).innerHTML = `
+<style>
+  :host { position: absolute; left: 14px; bottom: 100%; margin-bottom: 6px; z-index: 50;
+          min-width: 380px; max-width: calc(100% - 28px); }
+  :host([hidden]) { display: none; }
+  .box { max-height: 300px; overflow-y: auto; padding: 4px 0;
+         background: var(--bg-darker, #191a24); border: 1px solid var(--border, #44475a);
+         border-radius: var(--radius, 4px); box-shadow: 0 6px 24px rgba(0,0,0,.45);
+         font-family: var(--font-mono, monospace); font-size: 12px; }
+  .sec { padding: 6px 12px 2px; color: var(--comment, #6272a4); font-size: 10px;
+         text-transform: uppercase; letter-spacing: .08em; }
+  .row { display: flex; gap: 14px; padding: 4px 12px; color: var(--fg-dim, #c8c8c0); }
+  .row .key  { flex: 0 0 130px; color: var(--cyan, #8be9fd); }
+  .row .desc { color: var(--comment, #6272a4); }
+  .row.pick { cursor: pointer; }
+  .row.pick .key { color: var(--green, #50fa7b); }
+  .row.sel { background: var(--accent-glow, rgba(189,147,249,.25)); }
+  .row.sel .desc { color: var(--fg, #f8f8f2); }
+</style>
+<div class="box" role="listbox"></div>`;
+        this._box = this.shadowRoot.querySelector(".box");
+        this._items = [];
+        this._sel = -1;
+        // pointerdown must not steal the focus from the text input
+        this._box.addEventListener("pointerdown", (e) => e.preventDefault());
+        this._box.addEventListener("click", (e) => {
+            const i = this._indexOf(e.target);
+            if (i >= 0) this._choose(i);
+        });
+        this._box.addEventListener("pointermove", (e) => {
+            const i = this._indexOf(e.target);
+            if (i >= 0 && i !== this._sel) this._select(i);
+        });
+    }
+
+    connectedCallback() { if (!this.hasAttribute("hidden")) this.hidden = true; }
+
+    get isOpen() { return !this.hidden; }
+
+    show(items) {
+        this._items = items;
+        this._box.innerHTML = "";
+        let section = null;
+        items.forEach((it, i) => {
+            if (it.section !== section) {
+                section = it.section;
+                const h = document.createElement("div");
+                h.className = "sec";
+                h.textContent = section;
+                this._box.appendChild(h);
+            }
+            const row = document.createElement("div");
+            row.className = "row" + (it.value ? " pick" : "");
+            row.dataset.i = String(i);
+            if (it.value) { row.setAttribute("role", "option"); }
+            const k = document.createElement("span"); k.className = "key";  k.textContent = it.key;
+            const d = document.createElement("span"); d.className = "desc"; d.textContent = it.desc;
+            row.append(k, d);
+            this._box.appendChild(row);
+        });
+        this._sel = -1;
+        const first = items.findIndex((it) => it.value);
+        if (first >= 0) this._select(first);
+        this.hidden = items.length === 0;
+    }
+
+    hide() { this.hidden = true; this._sel = -1; }
+
+    handleKey(e) {
+        if (this.hidden) return false;
+        if (e.key === "Escape") { this.hide(); e.preventDefault(); return true; }
+        if (e.key === "ArrowDown" || e.key === "ArrowUp") {
+            e.preventDefault();
+            this._move(e.key === "ArrowDown" ? 1 : -1);
+            return true;
+        }
+        if ((e.key === "Enter" || e.key === "Tab") && this._sel >= 0) {
+            e.preventDefault();
+            this._choose(this._sel);
+            return true;
+        }
+        return false;
+    }
+
+    _indexOf(target) {
+        const row = target.closest?.(".row.pick");
+        return row ? Number(row.dataset.i) : -1;
+    }
+
+    _move(dir) {
+        const idx = this._items.map((it, i) => (it.value ? i : -1)).filter((i) => i >= 0);
+        if (idx.length === 0) return;
+        const at = idx.indexOf(this._sel);
+        this._select(idx[(at + dir + idx.length) % idx.length]);
+    }
+
+    _select(i) {
+        this._sel = i;
+        this._box.querySelectorAll(".row").forEach((r) => {
+            const on = Number(r.dataset.i) === i;
+            r.classList.toggle("sel", on);
+            r.setAttribute("aria-selected", String(on));
+            if (on) r.scrollIntoView({ block: "nearest" });
+        });
+    }
+
+    _choose(i) {
+        this.dispatchEvent(new CustomEvent("cs-choose", { detail: this._items[i] }));
+    }
+}
+customElements.define("cs-menu", CsMenu);
+
+const menu = document.getElementById("menu");
+
+// What /help shows: the commands.
+const SLASH_ITEMS = [
+    { section: "commands", key: "/new [name]", desc: "create a new session tab", value: "/new ", run: false },
+    { section: "commands", key: "/clear",      desc: "clear the terminal output", value: "/clear", run: true },
+    { section: "commands", key: "/help",       desc: "show this menu",            value: "/help",  run: true },
+];
+
+async function runSlash(value) {
+    print(`client:[cmd]~$ ${value}`, "user");
+    await handleSlashCommand(value);
+}
+
+menu.addEventListener("cs-choose", async (e) => {
+    const item = e.detail;
+    menu.hide();
+    if (item.run) {
+        input.value = "";
+        await runSlash(item.value);
+    } else {          // a command that takes an argument: complete it, let the user finish
+        input.value = item.value;
+    }
+    input.focus();
+});
+
+// Typing "/" suggests the commands, narrowed as you type; anything else closes the menu.
+input.addEventListener("input", () => {
+    const v = input.value.toLowerCase();
+    if (v.startsWith("/") && !v.includes(" ")) {
+        const items = SLASH_ITEMS.filter((it) => it.value && it.value.trim().startsWith(v));
+        if (items.length) { menu.show(items); return; }
+    }
+    menu.hide();
+});
+
+document.addEventListener("pointerdown", (e) => {
+    if (menu.isOpen && !menu.contains(e.target) && e.target !== input) menu.hide();
+});
+
 async function handleSlashCommand(raw) {
     const parts = raw.trim().split(" ");
     const cmd = parts[0].toLowerCase();
@@ -614,21 +779,8 @@ async function handleSlashCommand(raw) {
         log.innerHTML = "";
         printBanner();
     } else if (cmd === "/help") {
-        const cmds = [
-            ["  /new [name]", "create a new session tab"],
-            ["  /clear", "clear the terminal output"],
-            ["  /help", "show this help message"],
-        ];
-        const keys = [
-            ["  ↑ / ↓", "cycle through command history"],
-            ["  Esc", "stop current generation"],
-            ["  Enter", "send prompt"],
-        ];
-        print("── commands ──────────────────────────────────", "sys");
-        cmds.forEach(([c, d]) => print(`${c.padEnd(18)} — ${d}`, "sys"));
-        print("── keyboard shortcuts ────────────────────────", "sys");
-        keys.forEach(([c, d]) => print(`${c.padEnd(18)} — ${d}`, "sys"));
-        print("──────────────────────────────────────────────", "sys");
+        menu.show(SLASH_ITEMS);
+        input.focus();
     } else {
         print(`unknown command: ${cmd}  (try /help)`, "err");
     }
@@ -1077,6 +1229,10 @@ stopBtn.addEventListener("click", stopGeneration);
 ────────────────────────────────────────────────────────────── */
 input.addEventListener("keydown", async (e) => {
 
+    // A fully typed command ("/new", "/help"...) is sent as it is, not completed.
+    if (e.key === "Enter" && /^\/\S+$/.test(input.value.trim())) menu.hide();
+    if (menu.handleKey(e)) return;
+
     if (e.key === "Escape") {
         stopGeneration();
         return;
@@ -1127,8 +1283,7 @@ input.addEventListener("keydown", async (e) => {
     }
 
     if (value.startsWith("/")) {
-        print(`client:[cmd]~$ ${value}`, "user");
-        await handleSlashCommand(value);
+        await runSlash(value);
     } else {
         if (!registry.currentActiveId) {
             print("No active session. Type /new to start one.", "err");
