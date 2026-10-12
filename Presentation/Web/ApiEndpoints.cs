@@ -43,6 +43,13 @@ public static class ApiEndpoints
             await ctx.Response.WriteAsync(resolved ? "ok" : "no pending confirmation");
         });
 
+        // The skill library (skills/INDEX.md of the working directory), for the UIs' /skills menu.
+        app.MapGet("/api/skills", async (HttpContext ctx) =>
+        {
+            ctx.Response.ContentType = "application/json; charset=utf-8";
+            await ctx.Response.WriteAsync(SkillIndex.ToJson(SkillIndex.Load()));
+        });
+
         app.MapGet("/api/chat", async (HttpContext ctx, string prompt) =>
         {
             var slug = ctx.Request.Query["task"].ToString();

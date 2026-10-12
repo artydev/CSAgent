@@ -83,6 +83,7 @@ static partial class Tests
         await ModelRouting();
         await RoutingRulesGroup();
         await VisionHistoryGroup();
+        await SkillIndexGroup();
         await RoutingLocalization();
         await PromptOption();
         await OutlookMsg();

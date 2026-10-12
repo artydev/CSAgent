@@ -608,7 +608,7 @@ async function handleWipeAllSessionsConfirmation() {
    Shadow DOM keeps its styles apart from the rest of the page; the colours
    come from the page's CSS variables. Focus stays in the text input: the
    input forwards its keys to handleKey(), the mouse works directly.
-     menu.show([{ section, key, desc, value? }])   items with a value are selectable
+     menu.show([{ section, key, desc, value?, title? }], { keyWidth? })   items with a value are selectable
      menu.hide()
      menu.handleKey(event) -> true when the key was consumed
      event "cs-choose"  (detail = the chosen item)
@@ -628,8 +628,8 @@ class CsMenu extends HTMLElement {
   .sec { padding: 6px 12px 2px; color: var(--comment, #6272a4); font-size: 10px;
          text-transform: uppercase; letter-spacing: .08em; }
   .row { display: flex; gap: 14px; padding: 4px 12px; color: var(--fg-dim, #c8c8c0); }
-  .row .key  { flex: 0 0 130px; color: var(--cyan, #8be9fd); }
-  .row .desc { color: var(--comment, #6272a4); }
+  .row .key  { flex: 0 0 var(--kw, 130px); color: var(--cyan, #8be9fd); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .row .desc { flex: 1; min-width: 0; color: var(--comment, #6272a4); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
   .row.pick { cursor: pointer; }
   .row.pick .key { color: var(--green, #50fa7b); }
   .row.sel { background: var(--accent-glow, rgba(189,147,249,.25)); }
@@ -655,7 +655,8 @@ class CsMenu extends HTMLElement {
 
     get isOpen() { return !this.hidden; }
 
-    show(items) {
+    show(items, opts = {}) {
+        this.style.setProperty("--kw", (opts.keyWidth ?? 130) + "px");
         this._items = items;
         this._box.innerHTML = "";
         let section = null;
@@ -670,6 +671,7 @@ class CsMenu extends HTMLElement {
             const row = document.createElement("div");
             row.className = "row" + (it.value ? " pick" : "");
             row.dataset.i = String(i);
+            if (it.title) row.title = it.title;
             if (it.value) { row.setAttribute("role", "option"); }
             const k = document.createElement("span"); k.className = "key";  k.textContent = it.key;
             const d = document.createElement("span"); d.className = "desc"; d.textContent = it.desc;
@@ -734,8 +736,37 @@ const menu = document.getElementById("menu");
 const SLASH_ITEMS = [
     { section: "commands", key: "/new [name]", desc: "create a new session tab", value: "/new ", run: false },
     { section: "commands", key: "/clear",      desc: "clear the terminal output", value: "/clear", run: true },
+    { section: "commands", key: "/skills",     desc: "list the skills (skills/INDEX.md)", value: "/skills", run: true },
     { section: "commands", key: "/help",       desc: "show this menu",            value: "/help",  run: true },
 ];
+
+// ── /skills: the skills/INDEX.md of the working directory, served by GET /api/skills ──
+let skillsCache = null;
+
+async function loadSkills(force = false) {
+    if (skillsCache && !force) return skillsCache;
+    try {
+        const r = await fetch("/api/skills");
+        skillsCache = r.ok ? await r.json() : [];
+    } catch { skillsCache = []; }
+    return skillsCache;
+}
+
+function skillItems(list, query) {
+    const q = query.trim().toLowerCase();
+    const hit = list.filter((k) => !q || k.name.toLowerCase().includes(q) || k.description.toLowerCase().includes(q));
+    if (hit.length === 0) {
+        return [{ section: "skills", key: list.length ? "(no match)" : "(no skills)",
+                  desc: list.length ? `nothing matches "${query.trim()}"` : "no skills/INDEX.md in the working directory" }];
+    }
+    // Choosing a skill only writes the instruction in the input: the user completes it, then sends.
+    return hit.map((k) => ({ section: "skills", key: k.name, desc: `v${k.version} — ${k.description}`,
+                             title: k.description, value: `Use the skill "${k.name}" (${k.file}): `, run: false }));
+}
+
+async function showSkills(query = "", force = false) {
+    menu.show(skillItems(await loadSkills(force), query), { keyWidth: 270 });
+}
 
 async function runSlash(value) {
     print(`client:[cmd]~$ ${value}`, "user");
@@ -756,7 +787,13 @@ menu.addEventListener("cs-choose", async (e) => {
 
 // Typing "/" suggests the commands, narrowed as you type; anything else closes the menu.
 input.addEventListener("input", () => {
-    const v = input.value.toLowerCase();
+    const raw = input.value;
+    const v = raw.toLowerCase();
+    const sk = /^\/skills\s(.*)$/i.exec(raw);          // "/skills fail": the skills, narrowed
+    if (sk) {
+        loadSkills().then((list) => { if (input.value === raw) menu.show(skillItems(list, sk[1]), { keyWidth: 270 }); });
+        return;
+    }
     if (v.startsWith("/") && !v.includes(" ")) {
         const items = SLASH_ITEMS.filter((it) => it.value && it.value.trim().startsWith(v));
         if (items.length) { menu.show(items); return; }
@@ -780,6 +817,9 @@ async function handleSlashCommand(raw) {
         printBanner();
     } else if (cmd === "/help") {
         menu.show(SLASH_ITEMS);
+        input.focus();
+    } else if (cmd === "/skills") {
+        await showSkills(args, true);
         input.focus();
     } else {
         print(`unknown command: ${cmd}  (try /help)`, "err");
@@ -1229,8 +1269,8 @@ stopBtn.addEventListener("click", stopGeneration);
 ────────────────────────────────────────────────────────────── */
 input.addEventListener("keydown", async (e) => {
 
-    // A fully typed command ("/new", "/help"...) is sent as it is, not completed.
-    if (e.key === "Enter" && /^\/\S+$/.test(input.value.trim())) menu.hide();
+    // A fully typed command ("/new", "/help"...) is sent as it is; a prefix ("/ne") is completed by the menu.
+    if (e.key === "Enter" && SLASH_ITEMS.some((it) => it.value?.trim() === input.value.trim().toLowerCase())) menu.hide();
     if (menu.handleKey(e)) return;
 
     if (e.key === "Escape") {
