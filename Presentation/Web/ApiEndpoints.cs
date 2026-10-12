@@ -137,7 +137,8 @@ public static class ApiEndpoints
         else
             msgs.Add(JsonHelpers.Message("user", prompt));
 
-        var needsVision = imageBase64 is not null || JsonHelpers.HistoryContainsImage(msgs);
+        var needsVision = JsonHelpers.LastUserMessageHasImage(msgs);
+        if (!needsVision) JsonHelpers.DropImages(msgs);
         var choice = await ModelRouter.ResolveAsync(
             prompt, needsVision, modelOverride, ModelRouter.LastTurnKind(msgs), apiKey);
         var model = choice.Model;

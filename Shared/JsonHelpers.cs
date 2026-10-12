@@ -97,6 +97,56 @@ public static class JsonHelpers
         return false;
     }
 
+    /// <summary>Text that stands in for an image once it is no longer sent to the model.</summary>
+    public const string OldImagePlaceholder = "[image omitted: sent earlier in the conversation]";
+
+    static bool HasImageBlock(JsonNode? msg)
+    {
+        if (msg?["content"] is not JsonArray blocks) return false;
+        foreach (var block in blocks)
+            if (block?["type"]?.GetValue<string>() == "image_url") return true;
+        return false;
+    }
+
+    /// <summary>
+    /// True when the most recent user message carries an image. This is what makes a turn a
+    /// vision turn: an image sent earlier in the conversation no longer does.
+    /// </summary>
+    public static bool LastUserMessageHasImage(JsonArray msgs)
+    {
+        for (int i = msgs.Count - 1; i >= 0; i--)
+        {
+            var m = msgs[i];
+            if (m?["role"]?.GetValue<string>() == "user") return HasImageBlock(m);
+        }
+        return false;
+    }
+
+    /// <summary>
+    /// Replace every image in the history by <see cref="OldImagePlaceholder"/> (the message keeps
+    /// its text and becomes a plain string), so a non-vision model never receives image blocks.
+    /// Returns the number of messages changed. AOT-safe: JsonNode only.
+    /// </summary>
+    public static int DropImages(JsonArray msgs)
+    {
+        int changed = 0;
+        for (int i = 0; i < msgs.Count; i++)
+        {
+            var m = msgs[i];
+            if (!HasImageBlock(m)) continue;
+            var parts = new List<string>();
+            foreach (var block in (JsonArray)m!["content"]!)
+            {
+                var type = block?["type"]?.GetValue<string>();
+                if (type == "text") parts.Add(block?["text"]?.GetValue<string>() ?? "");
+                else if (type == "image_url") parts.Add(OldImagePlaceholder);
+            }
+            m["content"] = JsonValue.Create(string.Join("\n", parts));
+            changed++;
+        }
+        return changed;
+    }
+
     /// <summary>
     /// Trim conversation history to stay under the character threshold.
     /// Keeps the system message (index 0) and at least 3 messages.

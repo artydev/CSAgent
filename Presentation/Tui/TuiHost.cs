@@ -57,8 +57,13 @@ public static class TuiHost
                 messages.Add(JsonHelpers.Message("user", input));
             }
 
+            // Only an image sent with THIS message makes it a vision turn. Older images are
+            // replaced by a short text so the code/chat models never receive image blocks.
+            var needsVision = JsonHelpers.LastUserMessageHasImage(messages);
+            if (!needsVision) JsonHelpers.DropImages(messages);
+
             var choice = await ModelRouter.ResolveAsync(
-                input, JsonHelpers.HistoryContainsImage(messages), args.ModelOverride,
+                input, needsVision, args.ModelOverride,
                 ModelRouter.LastTurnKind(messages), apiKey);
             var model = choice.Model;
             foreach (var note in choice.Notes) UI.Warning(note);

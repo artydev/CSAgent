@@ -82,6 +82,7 @@ static partial class Tests
         CsAgent.Core.Llm.Loc.Set("en"); // the other tests read the English messages
         await ModelRouting();
         await RoutingRulesGroup();
+        await VisionHistoryGroup();
         await RoutingLocalization();
         await PromptOption();
         await OutlookMsg();
