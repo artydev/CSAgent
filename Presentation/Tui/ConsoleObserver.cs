@@ -20,6 +20,15 @@ public class ConsoleObserver : IAgentObserver
     public Task OnThought(string t) { UI.AssistantText(t); return Task.CompletedTask; }
     public Task OnAssistantModel(string model) { UI.ModelTag(model); return Task.CompletedTask; }
 
+    // Tokens of this run and of the session, so a quota is seen going down before it is empty.
+    public Task OnUsage(long p, long c, long sp, long sc)
+    {
+        static string N(long n) => n.ToString("N0", System.Globalization.CultureInfo.InvariantCulture);
+        string a = N(p), b = N(c), x = N(sp), y = N(sc);
+        UI.Usage(CsAgent.Core.Llm.Loc.F($"tokens: this turn in {a} / out {b} · session in {x} / out {y}"));
+        return Task.CompletedTask;
+    }
+
     public Task OnToolCall(string n, string a)
     {
         var pretty = JsonHelpers.PrettyJson(a);

@@ -50,6 +50,13 @@ public static class UI
         Console.ResetColor();
     }
 
+    public static void Usage(string text)
+    {
+        Console.ForegroundColor = ConsoleColor.DarkGray;
+        Console.WriteLine($"  [{text}]");
+        Console.ResetColor();
+    }
+
     public static void ToolCall(string name, string args)
     {
         Console.ForegroundColor = ConsoleColor.Yellow;
