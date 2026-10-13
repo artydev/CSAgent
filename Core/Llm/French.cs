@@ -14,6 +14,10 @@ internal static class French
             "Le quota de jetons du jour est épuisé : réessayer ne sert à rien avant sa remise à zéro. Attends la remise à zéro, ou utilise un autre modèle (--model) ou un autre serveur (--endpoint).",
         ["The API still answers 429 (rate limit) after the retries. Wait a little and try again, or send less text per request."] =
             "L'API répond encore 429 (limite de débit) après les nouvelles tentatives. Attends un peu et réessaie, ou envoie moins de texte par requête.",
+        ["The daily quota of '{0}' is used up: switching to '{1}' and carrying on."] =
+            "Le quota du jour de « {0} » est épuisé : bascule sur « {1} » et poursuite.",
+        ["The daily quota of '{0}' was used up earlier: using '{1}'."] =
+            "Le quota du jour de « {0} » a été épuisé plus tôt : utilisation de « {1} ».",
         ["Session summary not updated (rate limit); the previous one is kept."] =
             "Résumé de session non mis à jour (limite de débit) ; le précédent est conservé.",
         ["tokens: this turn in {0} / out {1} · session in {2} / out {3}"] =

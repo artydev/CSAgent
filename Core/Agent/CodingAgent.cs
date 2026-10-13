@@ -13,6 +13,7 @@ namespace CsAgent.Core.Agent;
 public sealed class CodingAgent : IDisposable
 {
     private readonly LlmClient _client;
+    private readonly string _endpoint;
     private readonly AgentOptions _opts;
     private readonly IAgentObserver _observer;
     private readonly McpClient? _mcp;
@@ -33,6 +34,7 @@ public sealed class CodingAgent : IDisposable
         _opts = opts;
         _observer = observer;
         _client = new LlmClient(apiKey, endpoint, model, opts.Retry);
+        _endpoint = endpoint;
         _tracker = opts.Tracker;
         _memory = memory;                 // ← add this line
 
@@ -93,6 +95,15 @@ public sealed class CodingAgent : IDisposable
         };
 
         bool rateLimited = false;                       // the API answered 429 and the retries did not help
+        int switches = 0;                               // models given up for a used-up daily quota, in this run
+
+        // A model whose daily quota ran out earlier (this process): do not try it again, go straight to the other one.
+        if (QuotaFallback.IsExhausted(_client.Model) && !JsonHelpers.HistoryContainsImage(messages)
+            && QuotaFallback.Target(_client.Model, _endpoint) is { } already)
+        {
+            await _observer.OnWarning(Loc.F($"The daily quota of '{_client.Model}' was used up earlier: using '{already}'."));
+            _client.Model = already;
+        }
         long promptAtStart = _client.PromptTokens, completionAtStart = _client.CompletionTokens;
 
         try
@@ -141,6 +152,21 @@ public sealed class CodingAgent : IDisposable
                 catch (OperationCanceledException) { throw; }
                 catch (Exception ex)
                 {
+                    if (ex is RateLimitException { Kind: RateLimitKind.Day } && switches < 2)
+                    {
+                        // Daily quota used up: carry on with the other model (not when the conversation holds an
+                        // image: that model may not read it).
+                        var from = _client.Model;
+                        QuotaFallback.MarkExhausted(from);
+                        if (!JsonHelpers.HistoryContainsImage(messages) && QuotaFallback.Target(from, _endpoint) is { } to)
+                        {
+                            await _observer.OnWarning(Loc.F($"The daily quota of '{from}' is used up: switching to '{to}' and carrying on."));
+                            _client.Model = to;
+                            switches++;
+                            step--;                 // the request that was refused is sent again, to the new model
+                            continue;
+                        }
+                    }
                     await _observer.OnError($"API error: {ex.Message}");
                     if (ex is RateLimitException limit)
                     {
