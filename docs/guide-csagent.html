@@ -87,7 +87,7 @@ body { background: var(--bg); color: var(--fg); font-family: var(--font-body); f
 <div class="app">
   <header class="topbar">
     <h1>CsAgent</h1>
-    <p>Guide de l'utilisateur · version 0.9.4</p>
+    <p>Guide de l'utilisateur · version 0.9.5</p>
   </header>
 
   <nav class="side" aria-label="Sommaire">
@@ -262,7 +262,7 @@ csagent --endpoint http://localhost:11434/v1 --model qwen2.5-coder:14b</code></p
 └── summary.json        résumé de session : décisions, contraintes, en attente, approches échouées</code></pre>
   <ul>
     <li><b>Une tâche, un dossier.</b> Pour continuer une tâche, garde le même nom. Pour en commencer une sans rapport, utilise un autre nom avec <code>--mem &lt;nom&gt;</code> (ou en argument seul), ou supprime le dossier.</li>
-    <li><b>Contexte borné.</b> Les plus anciens messages sont élagués au-delà d'environ 96 000 caractères. La mémoire hybride rappelle à l'agent ce qu'il a déjà essayé, pour qu'il ne répète pas ses erreurs.</li>
+    <li><b>Contexte borné.</b> Les plus anciens messages sont élagués au-delà d'environ 96 000 caractères (réglable avec <code>--context-chars</code>). Les résultats d'outils plus anciens que les 6 derniers sont aussi coupés à 1 500 caractères : l'agent relit le fichier s'il en a besoin (<code>--no-compact</code> garde tout). La mémoire hybride rappelle à l'agent ce qu'il a déjà essayé, pour qu'il ne répète pas ses erreurs.</li>
     <li><b>Résumé de session.</b> À la fin d'une exécution, un dernier appel au modèle condense la conversation en quatre listes, relues au démarrage suivant. <code>--no-distill</code> évite cet appel : un résumé existant est toujours lu, mais il n'est ni créé ni modifié. Supprime <code>summary.json</code> pour l'oublier.</li>
     <li><b>Fichiers sûrs.</b> Ils sont écrits de façon atomique. Un fichier illisible est renommé en <code>.bad</code> et l'agent repart avec une mémoire vide, sans s'arrêter.</li>
   </ul>
@@ -287,6 +287,8 @@ csagent --endpoint http://localhost:11434/v1 --model qwen2.5-coder:14b</code></p
   </ul>
   <p>En fin de tour, la console affiche les jetons consommés : <code>[tokens: this turn in 23,412 / out 310 · session in … / out …]</code>. Les jetons d'entrée sont ceux qui comptent pour le quota, car chaque étape renvoie tout l'historique.</p>
   <p>Réglages : <code>--max-retries &lt;n&gt;</code> (6 par défaut) et <code>--retry-delay &lt;ms&gt;</code> (1000 par défaut).</p>
+  <h3>Consommer moins de jetons</h3>
+  <p>Chaque étape renvoie toute la conversation au modèle, donc le quota se dépense surtout sur l'historique. Par défaut, les anciens résultats d'outils sont raccourcis. Pour réduire davantage, baisse la taille de l'historique : <code>csagent --leanui --context-chars 48000</code>. L'agent se souvient alors de moins de messages.</p>
 </section>
 
 <section id="scenarios" data-title="Scénarios">
@@ -331,6 +333,8 @@ csagent --mem projet_b</code></pre>
       <tr><td><code>--lang en|fr</code></td><td>Langue des messages (ou <code>CSAGENT_LANG</code>)</td></tr>
       <tr><td><code>--mem &lt;nom&gt;</code></td><td>Dossier de mémoire (<code>agent_memory</code>)</td></tr>
       <tr><td><code>--no-distill</code></td><td>Pas de résumé de session en fin d'exécution</td></tr>
+      <tr><td><code>--context-chars &lt;n&gt;</code></td><td>Taille de l'historique renvoyé à chaque étape (96 000 par défaut, 8 000 au minimum) : plus petite, moins de jetons consommés</td></tr>
+      <tr><td><code>--no-compact</code></td><td>Garde les anciens résultats d'outils en entier</td></tr>
       <tr><td><code>--task &lt;slug&gt;</code></td><td>Suit le travail dans <code>.csagent/tasks/</code></td></tr>
       <tr><td><code>--mcp &lt;url&gt;</code></td><td>Connecte un serveur MCP</td></tr>
       <tr><td><code>--yes</code>, <code>-y</code></td><td>Approuve tous les appels d'outils</td></tr>
