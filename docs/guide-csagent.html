@@ -1,0 +1,441 @@
+<!doctype html><html><head><meta charset=utf8><meta name=viewport content="width=device-width,initial-scale=1,viewport-fit=cover"><style>:root{color-scheme:light;box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}html{scroll-padding-top:env(safe-area-inset-top,0px)}body{margin:0;padding:0;font:14px -apple-system,BlinkMacSystemFont,sans-serif;background:#fff;color:#000}img{max-width:100%}[hidden]:not([hidden=until-found i]){display:none!important}</style></head><body>
+<title>Guide CsAgent</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=IBM+Plex+Sans:wght@400;500;600&display=swap">
+<style>
+/* Layout: topbar / sidebar (sommaire, suit la lecture) / main (guide) / footer. Même identité que la page des releases. */
+:root {
+  --bg: #f6f7f6;
+  --surface: #ffffff;
+  --fg: #1c2321;
+  --muted: #5d6b67;
+  --line: #d9dfdc;
+  --accent: #0e6a5c;
+  --accent-soft: #dff0ec;
+  --warn: #8a5a00;
+  --warn-soft: #fbf0d6;
+  --code-bg: #eef2f0;
+  --bar: #13302b;
+  --bar-fg: #eaf4f1;
+  --font-body: "IBM Plex Sans", system-ui, -apple-system, "Segoe UI", sans-serif;
+  --font-mono: "IBM Plex Mono", ui-monospace, "SFMono-Regular", Consolas, monospace;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: #101514; --surface: #171e1c; --fg: #e4ebe8; --muted: #94a39e; --line: #2a3532;
+    --accent: #5cc8b4; --accent-soft: #1b3a34; --warn: #e6b450; --warn-soft: #33290f; --code-bg: #1d2623;
+    --bar: #0a0f0e; --bar-fg: #e4ebe8;
+    color-scheme: dark;
+  }
+}
+:root[data-theme="dark"] {
+  --bg: #101514; --surface: #171e1c; --fg: #e4ebe8; --muted: #94a39e; --line: #2a3532;
+  --accent: #5cc8b4; --accent-soft: #1b3a34; --warn: #e6b450; --warn-soft: #33290f; --code-bg: #1d2623;
+  --bar: #0a0f0e; --bar-fg: #e4ebe8;
+  color-scheme: dark;
+}
+* { box-sizing: border-box; }
+body { background: var(--bg); color: var(--fg); font-family: var(--font-body); font-size: 15px; line-height: 1.6; }
+.app { min-height: 100vh; display: grid; grid-template-columns: 17rem minmax(0, 1fr); grid-template-rows: auto 1fr auto; grid-template-areas: "top top" "side main" "foot foot"; }
+.topbar { grid-area: top; background: var(--bar); color: var(--bar-fg); padding: 0.9rem 1.25rem; display: flex; align-items: baseline; gap: 0.9rem; flex-wrap: wrap; }
+.topbar h1 { margin: 0; font-size: 1.25rem; font-weight: 600; letter-spacing: 0.01em; }
+.topbar p { margin: 0; font-size: 0.85rem; opacity: 0.75; }
+.side { grid-area: side; border-right: 1px solid var(--line); }
+.side-in { position: sticky; top: env(safe-area-inset-top, 0px); max-height: 100vh; overflow-y: auto; padding: 1rem 0.75rem; }
+.side h2 { margin: 0 0 0.5rem; padding: 0 0.5rem; font-size: 0.72rem; font-weight: 600; text-transform: uppercase; letter-spacing: 0.08em; color: var(--muted); }
+.side ul { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 2px; }
+.side a { display: block; color: inherit; text-decoration: none; border-radius: 4px; padding: 0.4rem 0.6rem; font-size: 0.92rem; }
+.side a:hover { background: var(--accent-soft); }
+.side a:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
+.side a[aria-current="true"] { background: var(--accent-soft); box-shadow: inset 3px 0 0 var(--accent); font-weight: 500; }
+.main { grid-area: main; padding: 1.5rem 1.5rem 3rem; min-width: 0; }
+.doc { max-width: 50rem; }
+.doc section { padding-bottom: 1.5rem; margin-bottom: 1.75rem; border-bottom: 1px solid var(--line); scroll-margin-top: 1rem; }
+.doc section:last-child { border-bottom: 0; }
+.doc h2 { margin: 0 0 0.5rem; font-size: 1.55rem; line-height: 1.25; text-wrap: balance; }
+.doc h3 { margin: 1.5rem 0 0.4rem; font-size: 1.02rem; font-weight: 600; }
+.doc p { margin: 0.5rem 0; }
+.doc .lead { font-size: 1.05rem; color: var(--muted); margin-bottom: 1rem; }
+.doc ul, .doc ol { margin: 0.5rem 0; padding-left: 1.3rem; display: flex; flex-direction: column; gap: 0.35rem; }
+.doc a { color: var(--accent); }
+.doc code { font-family: var(--font-mono); font-size: 0.86em; background: var(--code-bg); padding: 0.05em 0.35em; border-radius: 3px; overflow-wrap: anywhere; }
+.doc pre { margin: 0.7rem 0; padding: 0.75rem 0.9rem; background: var(--code-bg); border: 1px solid var(--line); border-radius: 6px; overflow-x: auto; font-size: 0.84rem; line-height: 1.5; }
+.doc pre code { background: none; padding: 0; overflow-wrap: normal; }
+.tw { overflow-x: auto; margin: 0.7rem 0; }
+.doc table { border-collapse: collapse; width: 100%; font-size: 0.9rem; }
+.doc th { text-align: left; font-size: 0.74rem; text-transform: uppercase; letter-spacing: 0.06em; color: var(--muted); font-weight: 600; }
+.doc th, .doc td { padding: 0.45rem 0.8rem 0.45rem 0; border-bottom: 1px solid var(--line); vertical-align: top; }
+.doc td:first-child { white-space: nowrap; }
+.callout { margin: 0.9rem 0; padding: 0.6rem 0.9rem; background: var(--accent-soft); border-radius: 6px; font-size: 0.93rem; }
+.callout.warn { background: var(--warn-soft); }
+.callout b { font-weight: 600; }
+.steps { counter-reset: s; list-style: none; padding-left: 0; }
+.steps li { counter-increment: s; display: grid; grid-template-columns: 1.7rem minmax(0, 1fr); gap: 0.6rem; }
+.steps li::before { content: counter(s); font-family: var(--font-mono); font-weight: 500; color: var(--accent); background: var(--accent-soft); width: 1.6rem; height: 1.6rem; border-radius: 50%; display: grid; place-items: center; font-size: 0.82rem; margin-top: 0.1rem; }
+.foot { grid-area: foot; border-top: 1px solid var(--line); padding: 0.9rem 1.25rem; font-size: 0.82rem; color: var(--muted); display: flex; flex-wrap: wrap; gap: 0.25rem 1rem; justify-content: space-between; }
+@media (max-width: 720px) {
+  .app { grid-template-columns: minmax(0, 1fr); grid-template-areas: "top" "side" "main" "foot"; }
+  .side { border-right: 0; border-bottom: 1px solid var(--line); position: sticky; top: env(safe-area-inset-top, 0px); z-index: 2; background: var(--bg); }
+  .side-in { position: static; max-height: none; padding: 0.5rem 1rem; }
+  .side h2 { display: none; }
+  .side ul { flex-direction: row; overflow-x: auto; gap: 0.4rem; padding-bottom: 0.2rem; }
+  .side a { white-space: nowrap; border: 1px solid var(--line); }
+  .main { padding: 1.25rem 1rem 2rem; }
+  .doc section { scroll-margin-top: 4rem; }
+}
+</style>
+
+<div class="app">
+  <header class="topbar">
+    <h1>CsAgent</h1>
+    <p>Guide de l'utilisateur · version 0.9.4</p>
+  </header>
+
+  <nav class="side" aria-label="Sommaire">
+    <div class="side-in">
+      <h2>Sommaire</h2>
+      <ul id="toc"></ul>
+    </div>
+  </nav>
+
+  <main class="main"><article class="doc" id="doc">
+
+<section id="demarrer" data-title="Démarrer">
+  <h2>Démarrer</h2>
+  <p class="lead">CsAgent est un agent de codage autonome. Tu lui décris une tâche en langage naturel ; il lit et écrit des fichiers, lance des commandes et te rend compte, étape par étape. Il fonctionne sous Windows, Linux et macOS avec n'importe quel serveur de modèles compatible OpenAI, par exemple l'API Albert.</p>
+  <h3>Première session</h3>
+  <ol class="steps">
+    <li><div><b>Définis ta clé d'API.</b> Sous Windows (cmd) : <code>set ALBERT_API_KEY=ta-clé</code>. Sous Linux et macOS : <code>export ALBERT_API_KEY=ta-clé</code>. Elle est inutile avec un serveur local comme Ollama.</div></li>
+    <li><div><b>Place-toi dans le dossier de ton projet.</b> L'agent ne peut lire et écrire que dans ce dossier et ses sous-dossiers.</div></li>
+    <li><div><b>Lance CsAgent.</b> <code>csagent --leanui</code> ouvre l'interface web légère sur <code>http://localhost:5050</code>. Sans option, tu travailles dans la console.</div></li>
+    <li><div><b>Décris la tâche.</b> Par exemple : <code>Crée un projet console C# qui affiche Hello, World!</code> L'agent réfléchit, exécute des outils, puis rend compte.</div></li>
+    <li><div><b>Réponds aux demandes de confirmation.</b> Avant de modifier un fichier, l'agent demande ton accord. Dans la console, tape <code>exit</code> pour quitter.</div></li>
+  </ol>
+  <div class="callout"><b>Une seule demande.</b> <code>csagent --prompt "liste les fichiers ici"</code> exécute la demande, affiche la réponse et quitte. C'est la forme à utiliser dans un script.</div>
+  <div class="callout warn"><b>Attention.</b> <code>csagent "du texte"</code> ne lance pas de demande : un argument seul, sans tiret, est le nom du dossier de mémoire. Utilise toujours <code>--prompt</code>.</div>
+</section>
+
+<section id="modes" data-title="Les modes">
+  <h2>Les modes de fonctionnement</h2>
+  <p class="lead">Le travail de l'agent est le même partout. Seule change la façon dont tu le suis.</p>
+  <div class="tw"><table>
+    <thead><tr><th>Mode</th><th>Lancement</th><th>Pour quoi faire</th></tr></thead>
+    <tbody>
+      <tr><td>Console</td><td><code>csagent</code></td><td>Session interactive en texte ; <code>exit</code> pour quitter</td></tr>
+      <tr><td>Web UI</td><td><code>csagent --ui</code></td><td>Interface sombre avec le flux des réflexions, des appels d'outils et des résultats en temps réel, et la coloration du code</td></tr>
+      <tr><td>Lean UI</td><td><code>csagent --leanui</code></td><td>Variante légère, dans le style d'un terminal, avec les commandes <code>/help</code> et <code>/skills</code></td></tr>
+      <tr><td>API</td><td><code>csagent --api --yes</code></td><td>Serveur sans interface, piloté par un autre programme (orchestrateur)</td></tr>
+      <tr><td>Une demande</td><td><code>csagent --prompt "…"</code></td><td>Une requête, une réponse, puis fin</td></tr>
+    </tbody>
+  </table></div>
+  <p>Les interfaces web écoutent sur le port <strong>5050</strong>. Change-le avec <code>--port</code> (ou <code>-p</code>).</p>
+
+  <h3>Joindre une image</h3>
+  <p>Dans les interfaces web, le bouton 📎 joint une image à ta demande (PNG, JPEG, GIF ou WebP, 10 Mo au maximum). CsAgent envoie alors la demande à un modèle capable de vision (<code>gemma-4-31b-it</code> par défaut).</p>
+  <div class="callout warn"><b>Une question de suivi sur une image demande l'image.</b> Seule l'image envoyée avec le message courant fait choisir le modèle de vision. Au tour suivant, le modèle ne voit plus que la description donnée avant : colle de nouveau l'image pour qu'il la revoie.</div>
+
+  <h3>Dicter une demande</h3>
+  <p>Le bouton 🎙 enregistre depuis le navigateur. L'audio est transcrit par le serveur (Whisper), puis tu choisis :</p>
+  <ul>
+    <li><b>Use as instruction</b> : le texte est placé dans la zone de saisie ;</li>
+    <li><b>Keep as text</b> : la transcription est gardée dans <code>transcripts/</code> et jointe à ta prochaine demande.</li>
+  </ul>
+  <p>À côté du bouton, <b>FR / EN / Auto</b> indique la langue que tu parles. Au-delà de quelques minutes d'enregistrement, <code>ffmpeg</code> doit être installé (ou indiqué par <code>CSAGENT_FFMPEG</code>). Pour supprimer les anciens enregistrements, définis <code>CSAGENT_AUDIO_KEEP_DAYS</code> ; les transcriptions ne sont jamais supprimées.</p>
+
+  <h3>Mode API pour orchestrateurs</h3>
+  <p><code>--api</code> démarre le serveur SSE sans aucune interface. Une adresse non locale (<code>--host 0.0.0.0</code>) exige une clé : <code>--api-key</code>, ou mieux la variable <code>CSAGENT_API_KEY</code>, car un argument est visible dans la liste des processus. Les clients envoient <code>Authorization: Bearer &lt;clé&gt;</code> ou <code>X-API-Key: &lt;clé&gt;</code>.</p>
+  <pre><code>csagent --api --yes --host 0.0.0.0 --port 8080 --api-key s3cret
+curl -N -H "Authorization: Bearer s3cret" "http://localhost:8080/api/chat?prompt=create+hello.txt+containing+hi"</code></pre>
+  <p>Le serveur parle en HTTP simple : au-delà de ta machine, place-le derrière un proxy TLS. Il garde <strong>une conversation</strong> : envoie une requête à la fois, ou lance une instance par tâche avec son propre <code>--mem</code> et son propre <code>--port</code>.</p>
+</section>
+
+<section id="commandes" data-title="Commandes Lean UI">
+  <h2>Les commandes de la Lean UI</h2>
+  <p class="lead">Tape <code>/</code> dans la zone de saisie : un menu propose les commandes, filtrées au fur et à mesure.</p>
+  <div class="tw"><table>
+    <thead><tr><th>Commande</th><th>Effet</th></tr></thead>
+    <tbody>
+      <tr><td><code>/new [nom]</code></td><td>Crée un nouvel onglet de session, avec un nom si tu en donnes un</td></tr>
+      <tr><td><code>/clear</code></td><td>Efface la sortie du terminal</td></tr>
+      <tr><td><code>/skills [filtre]</code></td><td>Liste les skills de <code>skills/INDEX.md</code> ; <code>/skills fail</code> filtre sur le nom ou la description</td></tr>
+      <tr><td><code>/help</code></td><td>Ouvre le menu des commandes</td></tr>
+    </tbody>
+  </table></div>
+  <p>Dans le menu : ↑ et ↓ déplacent la sélection, Entrée ou Tab choisissent, Échap ferme, et la souris fonctionne (survol, clic). Une commande tapée en entier est envoyée telle quelle ; un début de commande (<code>/ne</code>) est complété par le menu.</p>
+  <div class="callout"><b>Choisir un skill n'envoie rien.</b> Le champ de saisie reçoit une instruction, par exemple <code>Use the skill "Failure Recovery" (skills/failure-recovery.md): </code>. Complète-la avec ta demande, puis Entrée. L'agent lit alors le fichier du skill. Pour ajouter un skill, mets un fichier dans <code>skills/</code> et une ligne dans <code>skills/INDEX.md</code> ; il apparaît au prochain <code>/skills</code>.</div>
+</section>
+
+<section id="modeles" data-title="Choisir le modèle">
+  <h2>Les modèles</h2>
+  <p class="lead">CsAgent choisit le modèle pour chaque message, sans appel supplémentaire ni délai. Trois profils existent, identiques dans tous les modes.</p>
+  <div class="tw"><table>
+    <thead><tr><th>Profil</th><th>Par défaut</th><th>Utilisé quand</th></tr></thead>
+    <tbody>
+      <tr><td>Code</td><td><code>deepseek-v4-flash</code></td><td>Code, fichiers, shell, e-mails, audio, liens, et tout ce qui n'est pas clairement une question générale. C'est lui qui exécute les outils</td></tr>
+      <tr><td>Chat</td><td><code>openweight-large</code></td><td>Recherches (web, actualités, météo, un lien à lire) et conversation générale : explication, culture, rédaction, conseil</td></tr>
+      <tr><td>Vision</td><td><code>gemma-4-31b-it</code></td><td>Le message courant contient une image</td></tr>
+    </tbody>
+  </table></div>
+  <h3>Comment le choix est fait</h3>
+  <ol>
+    <li><code>--model &lt;nom&gt;</code> l'emporte toujours.</li>
+    <li>Une image dans ton message choisit le modèle de vision.</li>
+    <li>Tes propres règles de <code>LLMRoutingRules/rules.json</code>, testées dans l'ordre.</li>
+    <li>Une réponse courte qui poursuit le tour précédent (8 mots ou moins, comme « ok » ou « merci ») garde le modèle de ce tour.</li>
+    <li>Un nom de fichier, un chemin, du code ou une action sur ton ordinateur choisit le modèle de code.</li>
+    <li>Une recherche explicite choisit le modèle de chat.</li>
+    <li>Un message qui parle de code, de commande, d'e-mail, d'audio, de git ou de tests choisit le modèle de code.</li>
+    <li>Sinon, c'est une conversation générale : le modèle de chat répond.</li>
+  </ol>
+  <p>Le modèle utilisé est indiqué sous chaque réponse (<code>[model: …]</code>). Pour comprendre un choix sans appeler de modèle :</p>
+  <pre><code>csagent --explain-routing "ouvre Chrome"</code></pre>
+
+  <h3>Régler le choix</h3>
+  <div class="tw"><table>
+    <thead><tr><th>Réglage</th><th>Effet</th></tr></thead>
+    <tbody>
+      <tr><td><code>--code-model</code>, <code>--chat-model</code>, <code>--vision-model</code></td><td>Change le modèle d'un profil (variables <code>CSAGENT_MODEL_CODE</code>, <code>CSAGENT_MODEL_CHAT</code>, <code>CSAGENT_VISION_MODEL</code>)</td></tr>
+      <tr><td><code>--no-route</code></td><td>Toujours le modèle de code (ou <code>CSAGENT_ROUTING=off</code>)</td></tr>
+      <tr><td><code>--model</code></td><td>Un seul modèle pour tout</td></tr>
+      <tr><td><code>--init-routing</code></td><td>Crée le dossier <code>LLMRoutingRules/</code> avec <code>models.json</code>, <code>keywords.json</code> et <code>rules.json</code> ; les modifications s'appliquent au message suivant</td></tr>
+      <tr><td><code>--rules &lt;dossier&gt;</code></td><td>Utilise un autre dossier de règles</td></tr>
+    </tbody>
+  </table></div>
+  <p>Une erreur dans un de ces fichiers n'arrête jamais l'agent : un avertissement s'affiche une fois et les valeurs intégrées sont conservées.</p>
+
+  <h3>Utiliser un modèle local avec Ollama</h3>
+  <pre><code>ollama pull qwen2.5-coder:14b
+csagent --endpoint http://localhost:11434/v1 --model qwen2.5-coder:14b</code></pre>
+  <ul>
+    <li>Aucune clé n'est nécessaire pour un serveur local (<code>localhost</code>, <code>127.x</code>, <code>::1</code>).</li>
+    <li>Choisis un modèle qui gère l'<b>appel d'outils</b> : l'agent en dépend (par exemple <code>qwen2.5-coder</code>, <code>qwen3</code>, <code>llama3.1</code>).</li>
+    <li>Pour les images, ajoute <code>--vision-model llava</code>.</li>
+    <li>Sur un serveur personnalisé, il n'y a pas de modèle de chat tant que tu n'en définis pas un : tous les messages utilisent le modèle de code.</li>
+    <li>Définis <code>CSAGENT_ENDPOINT</code> pour ne pas retaper l'URL.</li>
+  </ul>
+</section>
+
+<section id="securite" data-title="Sécurité">
+  <h2>Travailler en sécurité</h2>
+  <p class="lead">Quatre garde-fous limitent les dégâts possibles d'une erreur de l'agent.</p>
+  <ul>
+    <li><b>Confirmation des actions destructrices.</b> Ces outils demandent ton accord : <code>write_file</code>, <code>edit_file</code>, <code>move_file</code>, <code>delete_file</code>, <code>unzip</code>, <code>git_commit</code>, <code>write_clipboard</code>, <code>send_email</code> et <code>save_attachment</code>. Chaque appel à un outil d'un serveur MCP en demande un aussi.</li>
+    <li><b>Périmètre.</b> Les opérations sur les fichiers sont limitées au dossier courant et à ses sous-dossiers.</li>
+    <li><b>Filtre des commandes shell.</b> Les motifs dangereux sont refusés : <code>sudo</code>, <code>chmod</code>, <code>shutdown</code>, <code>mkfs</code>, <code>/etc/</code> sous Linux et macOS ; <code>format</code>, <code>del /f</code>, <code>reg delete</code>, <code>diskpart</code>, <code>shutdown</code>, <code>\windows\system32\</code> sous Windows.</li>
+    <li><b>Limites.</b> Une commande est arrêtée après 60 secondes. La lecture d'un fichier de plus de 500 Ko est refusée ; l'agent utilise alors <code>grep</code> ou <code>head</code>.</li>
+  </ul>
+  <div class="callout"><b>Sans surveillance.</b> <code>--yes</code> (ou <code>-y</code>) approuve tous les appels d'outils sans demander. Il ne supprime que les questions : le périmètre et le filtre shell restent actifs. Pour essayer sans rien modifier, lance <code>--dry-run</code> : les outils sont simulés.</div>
+  <p>Avec <code>--quiet</code> (<code>-q</code>), la sortie se réduit aux messages de l'assistant, aux avertissements et aux erreurs ; une action qui demande ta confirmation reste visible.</p>
+</section>
+
+<section id="outils" data-title="Les outils">
+  <h2>Ce que l'agent sait faire</h2>
+  <p class="lead">Tu n'appelles pas les outils toi-même : l'agent choisit ceux dont il a besoin pour ta demande.</p>
+  <div class="tw"><table>
+    <thead><tr><th>Domaine</th><th>Outils</th></tr></thead>
+    <tbody>
+      <tr><td>Fichiers</td><td><code>read_file</code>, <code>read_json</code>, <code>write_file</code>, <code>edit_file</code>, <code>list_dir</code>, <code>tree</code>, <code>search_files</code>, <code>copy_file</code>, <code>move_file</code>, <code>delete_file</code>, <code>zip</code>, <code>unzip</code></td></tr>
+      <tr><td>Commandes</td><td><code>sh</code>, <code>run_terminal</code>, <code>close_terminal</code>, <code>parse_output</code></td></tr>
+      <tr><td>Git</td><td><code>git_status</code>, <code>git_diff</code>, <code>git_log</code>, <code>git_branch</code>, <code>git_commit</code></td></tr>
+      <tr><td>Web</td><td><code>web_search</code>, <code>fetch_url</code>, <code>http_request</code></td></tr>
+      <tr><td>Courrier</td><td><code>read_msg</code> (fichiers Outlook <code>.msg</code>), <code>save_attachment</code>, <code>send_email</code></td></tr>
+      <tr><td>Audio</td><td><code>transcribe_audio</code> (Whisper ; <code>ffmpeg</code> pour les longs fichiers, 100 Mo au maximum)</td></tr>
+      <tr><td>Bureau</td><td><code>read_clipboard</code>, <code>write_clipboard</code>, <code>excel_command</code>, <code>close_excel</code></td></tr>
+      <tr><td>Modèles</td><td><code>list_models</code>, <code>switch_model</code></td></tr>
+    </tbody>
+  </table></div>
+  <h3>Connecter un serveur MCP</h3>
+  <p><code>--mcp &lt;url&gt;</code> (ou <code>CSAGENT_MCP_URL</code>) connecte un serveur MCP en HTTP, par exemple <code>csagent --mcp http://localhost:8000/mcp</code>. Ses outils sont proposés au modèle sous le nom <code>mcp_&lt;nom&gt;</code>, ce qui empêche un serveur de remplacer un outil intégré.</p>
+  <ul>
+    <li>Chaque appel MCP demande confirmation, sauf avec <code>--yes</code>.</li>
+    <li>Ce qu'envoie le serveur est traité comme une donnée, jamais comme une instruction. Ne connecte que des serveurs de confiance.</li>
+    <li>Limites : un seul serveur, HTTP seulement, pas d'en-tête d'authentification, outils uniquement.</li>
+  </ul>
+</section>
+
+<section id="memoire" data-title="Mémoire">
+  <h2>La mémoire</h2>
+  <p class="lead">CsAgent garde le contexte d'une session à l'autre dans un dossier de mémoire, <code>agent_memory/</code> par défaut.</p>
+  <pre><code>agent_memory/
+├── conversation.json   historique complet, envoyé au modèle
+├── exact.json          les 50 dernières étapes, mot pour mot
+├── semantic.json       schémas erreur / solution déjà rencontrés
+└── summary.json        résumé de session : décisions, contraintes, en attente, approches échouées</code></pre>
+  <ul>
+    <li><b>Une tâche, un dossier.</b> Pour continuer une tâche, garde le même nom. Pour en commencer une sans rapport, utilise un autre nom avec <code>--mem &lt;nom&gt;</code> (ou en argument seul), ou supprime le dossier.</li>
+    <li><b>Contexte borné.</b> Les plus anciens messages sont élagués au-delà d'environ 96 000 caractères. La mémoire hybride rappelle à l'agent ce qu'il a déjà essayé, pour qu'il ne répète pas ses erreurs.</li>
+    <li><b>Résumé de session.</b> À la fin d'une exécution, un dernier appel au modèle condense la conversation en quatre listes, relues au démarrage suivant. <code>--no-distill</code> évite cet appel : un résumé existant est toujours lu, mais il n'est ni créé ni modifié. Supprime <code>summary.json</code> pour l'oublier.</li>
+    <li><b>Fichiers sûrs.</b> Ils sont écrits de façon atomique. Un fichier illisible est renommé en <code>.bad</code> et l'agent repart avec une mémoire vide, sans s'arrêter.</li>
+  </ul>
+</section>
+
+<section id="limites-api" data-title="Limites de l'API">
+  <h2>Limites de débit et quota du jour</h2>
+  <p class="lead">Quand le serveur répond par une erreur 429, CsAgent lit le message pour savoir de quelle limite il s'agit.</p>
+  <div class="tw"><table>
+    <thead><tr><th>Limite</th><th>Ce que fait CsAgent</th></tr></thead>
+    <tbody>
+      <tr><td>Par minute</td><td>Réessaie avec un délai croissant et l'en-tête <code>Retry-After</code> : 6 essais par défaut</td></tr>
+      <tr><td>Par jour</td><td>Ne réessaie pas : essayer ne servirait à rien avant la remise à zéro. Il bascule sur un autre modèle s'il y en a un, sinon il s'arrête avec une explication</td></tr>
+    </tbody>
+  </table></div>
+  <h3>La bascule automatique</h3>
+  <p>Quand le quota du jour d'un modèle est épuisé, CsAgent renvoie la même requête au modèle de code (<code>deepseek-v4-flash</code>) sur le serveur Albert par défaut, affiche un avertissement et poursuit. Le modèle épuisé est écarté pendant 1 heure. Il n'y a pas de bascule pour une limite par minute, ni quand la conversation contient une image, et au plus 2 fois par exécution.</p>
+  <ul>
+    <li><code>CSAGENT_FALLBACK_MODEL=&lt;modèle&gt;</code> choisit le modèle de remplacement, sur n'importe quel serveur.</li>
+    <li><code>CSAGENT_FALLBACK_MODEL=off</code> désactive la bascule : l'agent s'arrête au premier 429 du jour.</li>
+    <li>Sur un autre <code>--endpoint</code> sans cette variable, il n'y a pas de bascule.</li>
+  </ul>
+  <p>En fin de tour, la console affiche les jetons consommés : <code>[tokens: this turn in 23,412 / out 310 · session in … / out …]</code>. Les jetons d'entrée sont ceux qui comptent pour le quota, car chaque étape renvoie tout l'historique.</p>
+  <p>Réglages : <code>--max-retries &lt;n&gt;</code> (6 par défaut) et <code>--retry-delay &lt;ms&gt;</code> (1000 par défaut).</p>
+</section>
+
+<section id="scenarios" data-title="Scénarios">
+  <h2>Scénarios courants</h2>
+  <h3>Travailler sans confirmations ni bruit</h3>
+  <pre><code>csagent --leanui --yes --quiet</code></pre>
+  <h3>Lancer une tâche dans un script</h3>
+  <pre><code>csagent mon_projet --prompt "liste les fichiers ici et résume le README" --yes</code></pre>
+  <h3>Essayer sans rien modifier</h3>
+  <pre><code>csagent --dry-run</code></pre>
+  <h3>Suivre une tâche dans un dossier dédié</h3>
+  <pre><code>csagent --task migration-db</code></pre>
+  <p>L'hôte crée <code>.csagent/tasks/migration-db-&lt;date&gt;/</code> avec un plan et un suivi d'avancement. Ces fichiers sont créés par CsAgent, jamais par le modèle.</p>
+  <h3>Utiliser un autre serveur de modèles</h3>
+  <pre><code>csagent --endpoint http://localhost:11434/v1 --model qwen2.5-coder:14b</code></pre>
+  <h3>Comprendre pourquoi un modèle a été choisi</h3>
+  <pre><code>csagent --explain-routing "résume https://exemple.fr"</code></pre>
+  <h3>Séparer deux projets</h3>
+  <pre><code>csagent --mem projet_a
+csagent --mem projet_b</code></pre>
+</section>
+
+<section id="arguments" data-title="Arguments">
+  <h2>Les arguments</h2>
+  <div class="tw"><table>
+    <thead><tr><th>Argument</th><th>Effet</th></tr></thead>
+    <tbody>
+      <tr><td><code>--ui</code></td><td>Interface web complète</td></tr>
+      <tr><td><code>--leanui</code></td><td>Interface web légère</td></tr>
+      <tr><td><code>--api</code></td><td>Serveur SSE sans interface</td></tr>
+      <tr><td><code>--prompt "&lt;texte&gt;"</code></td><td>Une requête, la réponse, puis fin</td></tr>
+      <tr><td><code>--port</code>, <code>-p &lt;n&gt;</code></td><td>Port des interfaces web (5050)</td></tr>
+      <tr><td><code>--host &lt;adresse&gt;</code></td><td>Avec <code>--api</code> : adresse d'écoute (localhost) ; une adresse non locale exige une clé</td></tr>
+      <tr><td><code>--api-key &lt;clé&gt;</code></td><td>Avec <code>--api</code> : clé exigée sur chaque requête</td></tr>
+      <tr><td><code>--model &lt;nom&gt;</code></td><td>Un seul modèle pour tout</td></tr>
+      <tr><td><code>--code-model</code>, <code>--chat-model</code>, <code>--vision-model</code></td><td>Modèle de chaque profil</td></tr>
+      <tr><td><code>--endpoint &lt;url&gt;</code></td><td>Serveur compatible OpenAI (Albert par défaut)</td></tr>
+      <tr><td><code>--no-route</code></td><td>Toujours le modèle de code</td></tr>
+      <tr><td><code>--init-routing</code></td><td>Crée <code>LLMRoutingRules/</code> puis quitte</td></tr>
+      <tr><td><code>--explain-routing "&lt;msg&gt;"</code></td><td>Montre le modèle qu'aurait ce message, puis quitte</td></tr>
+      <tr><td><code>--rules &lt;dossier&gt;</code></td><td>Autre dossier de règles</td></tr>
+      <tr><td><code>--lang en|fr</code></td><td>Langue des messages (ou <code>CSAGENT_LANG</code>)</td></tr>
+      <tr><td><code>--mem &lt;nom&gt;</code></td><td>Dossier de mémoire (<code>agent_memory</code>)</td></tr>
+      <tr><td><code>--no-distill</code></td><td>Pas de résumé de session en fin d'exécution</td></tr>
+      <tr><td><code>--task &lt;slug&gt;</code></td><td>Suit le travail dans <code>.csagent/tasks/</code></td></tr>
+      <tr><td><code>--mcp &lt;url&gt;</code></td><td>Connecte un serveur MCP</td></tr>
+      <tr><td><code>--yes</code>, <code>-y</code></td><td>Approuve tous les appels d'outils</td></tr>
+      <tr><td><code>--dry-run</code></td><td>Simule les outils sans rien modifier</td></tr>
+      <tr><td><code>--quiet</code>, <code>-q</code></td><td>Sortie réduite à l'essentiel</td></tr>
+      <tr><td><code>--max-retries</code>, <code>--retry-delay</code></td><td>Réessais pour les limites par minute (6 essais, 1000 ms)</td></tr>
+      <tr><td><code>--help</code>, <code>-h</code>, <code>/?</code></td><td>Affiche l'aide</td></tr>
+      <tr><td><code>--version</code></td><td>Affiche la version</td></tr>
+      <tr><td><code>--doc</code></td><td>Affiche la documentation dans le terminal</td></tr>
+    </tbody>
+  </table></div>
+
+  <h3>Variables d'environnement</h3>
+  <div class="tw"><table>
+    <thead><tr><th>Variable</th><th>Rôle</th></tr></thead>
+    <tbody>
+      <tr><td><code>ALBERT_API_KEY</code></td><td>Clé d'API (inutile pour un serveur local)</td></tr>
+      <tr><td><code>CSAGENT_ENDPOINT</code></td><td>Comme <code>--endpoint</code></td></tr>
+      <tr><td><code>CSAGENT_MODEL_CODE</code>, <code>CSAGENT_MODEL_CHAT</code>, <code>CSAGENT_VISION_MODEL</code></td><td>Comme les arguments de même nom</td></tr>
+      <tr><td><code>CSAGENT_ROUTING</code></td><td><code>off</code> désactive le choix automatique</td></tr>
+      <tr><td><code>CSAGENT_ROUTING_RULES</code></td><td>Comme <code>--rules</code></td></tr>
+      <tr><td><code>CSAGENT_LANG</code></td><td>Comme <code>--lang</code></td></tr>
+      <tr><td><code>CSAGENT_FALLBACK_MODEL</code></td><td>Modèle de la bascule de quota ; <code>off</code> la désactive</td></tr>
+      <tr><td><code>CSAGENT_API_KEY</code></td><td>Clé du mode <code>--api</code></td></tr>
+      <tr><td><code>CSAGENT_MCP_URL</code></td><td>Comme <code>--mcp</code></td></tr>
+      <tr><td><code>CSAGENT_TRANSCRIBE_MODEL</code></td><td>Modèle de transcription (<code>openai/whisper-large-v3</code>)</td></tr>
+      <tr><td><code>CSAGENT_FFMPEG</code></td><td>Chemin de <code>ffmpeg</code></td></tr>
+      <tr><td><code>CSAGENT_AUDIO_KEEP_DAYS</code></td><td>Supprime les enregistrements plus vieux que ce nombre de jours</td></tr>
+    </tbody>
+  </table></div>
+  <p>Un argument l'emporte toujours sur la variable équivalente.</p>
+</section>
+
+<section id="depannage" data-title="Dépannage">
+  <h2>Dépannage</h2>
+  <div class="tw"><table>
+    <thead><tr><th>Message ou symptôme</th><th>Cause et solution</th></tr></thead>
+    <tbody>
+      <tr><td>« API Key not set »</td><td>Définis <code>ALBERT_API_KEY</code> avant de lancer l'agent.</td></tr>
+      <tr><td>« API 401 »</td><td>La clé est invalide ou a expiré.</td></tr>
+      <tr><td>« API 429 »</td><td>Limite de débit : voir la section sur les limites. Un quota du jour épuisé bascule sur un autre modèle ou s'arrête.</td></tr>
+      <tr><td>« command timed out (60s) »</td><td>La commande a duré plus de 60 secondes. Découpe la tâche en étapes plus petites.</td></tr>
+      <tr><td>« file too large »</td><td>Le fichier dépasse 500 Ko. L'agent doit utiliser <code>grep</code>, <code>head</code> ou <code>find</code>.</td></tr>
+      <tr><td>« Path is not allowed »</td><td>Le chemin est hors du dossier courant. Lance l'agent depuis le bon dossier.</td></tr>
+      <tr><td>Le navigateur ne s'ouvre pas</td><td>Va à <code>http://localhost:5050</code> (ou le port de <code>--port</code>).</td></tr>
+      <tr><td>L'image ne se joint pas</td><td>Formats acceptés : PNG, JPEG, GIF, WebP, 10 Mo au maximum.</td></tr>
+      <tr><td>Mauvais modèle choisi</td><td>Lance <code>csagent --explain-routing "ton message"</code>. Tes règles passent avant la logique intégrée ; <code>--model</code> ou une image les devancent.</td></tr>
+      <tr><td>« LLMRoutingRules : … »</td><td>Un fichier du dossier contient une erreur. Les valeurs intégrées sont gardées ; corrige le fichier, il est relu dès qu'il change.</td></tr>
+      <tr><td><code>csagent "texte"</code> ne fait rien</td><td>Un argument seul est un nom de mémoire. Utilise <code>--prompt</code>.</td></tr>
+      <tr><td>« Session summary not updated »</td><td>Le modèle n'a pas répondu en 60 secondes ou a répondu autre chose que le JSON attendu. Ta tâche n'est pas touchée et le résumé précédent est conservé.</td></tr>
+      <tr><td>Fichier <code>.bad</code> dans la mémoire</td><td>Le fichier n'était pas du JSON valide. Corrige-le ou supprime-le.</td></tr>
+      <tr><td>« Expected multipart/form-data »</td><td>Un <code>POST /api/chat</code> doit être en <code>multipart/form-data</code>. Les interfaces web le font seules.</td></tr>
+    </tbody>
+  </table></div>
+</section>
+
+<section id="licence" data-title="Licence">
+  <h2>Licence</h2>
+  <p>CsAgent est distribué sous licence MIT. Copyright (c) 2026 Salvatore DI DIO. Il est construit sur la bibliothèque de base de .NET, sans aucune dépendance NuGet. Le code source est sur <a href="https://github.com/artydev/csagent">github.com/artydev/csagent</a>.</p>
+</section>
+
+  </article></main>
+
+  <footer class="foot">
+    <span>© 2026 salvatore.didio@gmail.com</span>
+    <span>github.com/artydev/csagent</span>
+  </footer>
+</div>
+
+<script>
+const secs = Array.from(document.querySelectorAll("#doc section"));
+const toc = document.getElementById("toc");
+toc.innerHTML = secs.map((s) => '<li><a href="#' + s.id + '" data-id="' + s.id + '">' + s.dataset.title + "</a></li>").join("");
+const links = Array.from(toc.querySelectorAll("a"));
+
+function mark(id) {
+  links.forEach((a) => a.setAttribute("aria-current", String(a.dataset.id === id)));
+  const cur = links.find((a) => a.dataset.id === id);
+  if (cur && window.matchMedia("(max-width: 720px)").matches) cur.scrollIntoView({ inline: "center", block: "nearest" });
+}
+function go(id) {
+  const el = document.getElementById(id);
+  if (!el) return;
+  el.scrollIntoView({ block: "start" });
+  mark(id);
+  try { history.replaceState(null, "", "#" + id); } catch (e) {}
+}
+toc.addEventListener("click", (e) => {
+  const a = e.target.closest("a");
+  if (!a) return;
+  e.preventDefault();
+  go(a.dataset.id);
+});
+
+function spy() {
+  let id = secs[0].id;
+  for (const s of secs) { if (s.getBoundingClientRect().top <= window.innerHeight * 0.3) id = s.id; }
+  if (window.innerHeight + window.scrollY >= document.body.scrollHeight - 4) id = secs[secs.length - 1].id;
+  mark(id);
+}
+let tick = false;
+window.addEventListener("scroll", () => { if (!tick) { tick = true; requestAnimationFrame(() => { tick = false; spy(); }); } }, { passive: true });
+
+const start = location.hash.slice(1);
+if (start && document.getElementById(start)) go(start); else spy();
+</script>
+
+</body></html>
