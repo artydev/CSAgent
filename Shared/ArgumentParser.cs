@@ -14,7 +14,6 @@ public sealed record AgentArguments(
     int Port,
     bool IsUiMode,
     bool IsLeanUiMode,
-    bool IsNativeMode,
     bool IsDryRun,
     bool ShowHelp,
     bool ShowVersion,
@@ -49,7 +48,6 @@ public static class ArgumentParser
     {
         var isUiMode = args.Contains("--ui");
         var isLeanUiMode = args.Contains("--leanui");
-        var isNativeMode = args.Contains("--native");
         var isDryRun = args.Contains("--dry-run");
         var showHelp = args.Contains("--help") || args.Contains("-h") || args.Contains("/?");
         var showVersion = args.Contains("--version");
@@ -92,7 +90,7 @@ public static class ArgumentParser
         if (string.IsNullOrWhiteSpace(language)) language = null;
 
         return new AgentArguments(memFile, modelOverride, mcpUrl, taskSlug,
-            port, isUiMode, isLeanUiMode, isNativeMode, isDryRun,
+            port, isUiMode, isLeanUiMode, isDryRun,
             showHelp, showVersion, showDoc, maxRetries, retryDelayMs, usePropMem, propositionFile, distill,
             isApiMode, autoApprove, host, apiKey, endpoint, visionModel, quiet,
             codeModel, chatModel, autoRoute, initRouting, explainRouting, rulesFolder, language, prompt);
@@ -112,7 +110,7 @@ public static class ArgumentParser
                           or "--explain-routing" or "--rules" or "--lang" or "--prompt")
             { i++; continue; }
 
-            if (args[i] != "--ui" && args[i] != "--leanui" && args[i] != "--native"
+            if (args[i] != "--ui" && args[i] != "--leanui"
                 && args[i] != "--dry-run" && !args[i].StartsWith("-"))
                 return args[i];
         }

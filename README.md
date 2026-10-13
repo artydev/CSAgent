@@ -326,8 +326,9 @@ Les fonctionnalités suivantes sont prévues pour de prochaines versions :
 | `--endpoint <url>` | URL de base compatible OpenAI (par défaut : API Albert). Pour Ollama : `http://localhost:11434/v1` (voir [Modèles locaux avec Ollama](#modèles-locaux-avec-ollama)) |
 | `--vision-model <nom>` | Modèle utilisé quand la conversation contient une image (par défaut : `gemma-4-31b-it`) |
 | `--port`, `-p <n>` | Numéro de port de la Web UI (par défaut : `5050`) |
+| `--task <slug>` | Suit le travail dans `.csagent/tasks/<slug>-<date>/` (fichiers de plan et de progression créés par l'hôte, jamais par le modèle) |
 | `--dry-run` | Simule l'exécution des outils sans rien modifier |
-| `--max-retries <n>` | Nombre maximal de tentatives pour les erreurs HTTP 429 (limite de débit) (par défaut : `3`) |
+| `--max-retries <n>` | Nombre maximal de tentatives pour les erreurs HTTP 429 (limite de débit) (par défaut : `6`) |
 | `--retry-delay <ms>` | Délai de base (en ms) avant la première nouvelle tentative (par défaut : `1000`) |
 | `--no-distill` | Ne résume pas la session à la fin d'une exécution (économise un appel LLM ; voir [Distillation de session](#distillation-de-session-entre-les-sessions)) |
 | `--help`, `-h`, `/?` | Affiche l'aide et quitte |
