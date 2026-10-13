@@ -329,6 +329,8 @@ Les fonctionnalités suivantes sont prévues pour de prochaines versions :
 | `--dry-run` | Simule l'exécution des outils sans rien modifier |
 | `--max-retries <n>` | Nombre maximal de tentatives pour les erreurs HTTP 429 (limite de débit) (par défaut : `6`) |
 | `--retry-delay <ms>` | Délai de base (en ms) avant la première nouvelle tentative (par défaut : `1000`) |
+| `--context-chars <n>` | Taille au-delà de laquelle les plus anciens messages sont retirés de l'historique renvoyé à chaque étape (par défaut : `96000`, minimum `8000`). Plus elle est petite, moins on consomme de jetons d'entrée |
+| `--no-compact` | Garde les anciens résultats d'outils en entier (par défaut, ceux au-delà des 6 derniers sont coupés à 1 500 caractères dans l'historique, et l'agent peut relancer l'outil) |
 | `--no-distill` | Ne résume pas la session à la fin d'une exécution (économise un appel LLM ; voir [Distillation de session](#distillation-de-session-entre-les-sessions)) |
 | `--help`, `-h`, `/?` | Affiche l'aide et quitte |
 | `--version` | Affiche la version de CSAgent et quitte |
