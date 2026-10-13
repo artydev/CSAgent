@@ -774,6 +774,10 @@ Cette erreur apparaît quand le point d'accès `/api/chat` est appelé avec un `
 
 ## Licence
 
-Ce projet est fourni tel quel. Il est entièrement construit sur la bibliothèque de classes de base de .NET, sans aucune dépendance NuGet.
+CsAgent est distribué sous **licence MIT** (voir le fichier [LICENSE](LICENSE)).
+
+Copyright (c) 2026 Salvatore DI DIO
+
+Il est entièrement construit sur la bibliothèque de classes de base de .NET, sans aucune dépendance NuGet.
 
 ---
