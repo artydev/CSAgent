@@ -9,6 +9,15 @@ internal static class French
     internal static readonly Dictionary<string, string> Messages = new()
     {
         // ── reasons shown after [model: ...] and by --explain-routing ──
+        // ── API limits and token use ──
+        ["The daily token quota is used up: retrying is useless until it resets. Wait for the reset, or use another model (--model) or endpoint (--endpoint)."] =
+            "Le quota de jetons du jour est épuisé : réessayer ne sert à rien avant sa remise à zéro. Attends la remise à zéro, ou utilise un autre modèle (--model) ou un autre serveur (--endpoint).",
+        ["The API still answers 429 (rate limit) after the retries. Wait a little and try again, or send less text per request."] =
+            "L'API répond encore 429 (limite de débit) après les nouvelles tentatives. Attends un peu et réessaie, ou envoie moins de texte par requête.",
+        ["Session summary not updated (rate limit); the previous one is kept."] =
+            "Résumé de session non mis à jour (limite de débit) ; le précédent est conservé.",
+        ["tokens: this turn in {0} / out {1} · session in {2} / out {3}"] =
+            "jetons : ce tour entrée {0} / sortie {1} · session entrée {2} / sortie {3}",
         ["default"] = "par défaut",
         ["image in the conversation"] = "image dans la conversation",
         ["follows a web search"] = "fait suite à une recherche web",

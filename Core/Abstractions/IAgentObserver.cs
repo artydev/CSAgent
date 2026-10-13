@@ -19,6 +19,12 @@ public interface IAgentObserver
     Task OnAssistantModel(string model) => Task.CompletedTask;
 
     /// <summary>
+    /// Called once when a run ends, with the tokens the API reported for it and the running total of the
+    /// process. Optional: observers that do not care can ignore it. Not called when the server sends no usage.
+    /// </summary>
+    Task OnUsage(long promptTokens, long completionTokens, long sessionPromptTokens, long sessionCompletionTokens) => Task.CompletedTask;
+
+    /// <summary>
     /// Ask the user whether a destructive tool call should be allowed.
     /// Returns true to proceed, false to decline.
     /// </summary>

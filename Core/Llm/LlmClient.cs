@@ -63,10 +63,21 @@ public sealed class LlmClient : IDisposable
             var raw = await res.Content.ReadAsStringAsync(ct);
 
             if (res.IsSuccessStatusCode)
-                return JsonNode.Parse(raw) ?? throw new InvalidDataException("Empty API response");
+            {
+                var ok = JsonNode.Parse(raw) ?? throw new InvalidDataException("Empty API response");
+                CountUsage(ok);
+                return ok;
+            }
 
-            // Only retry 429 (rate limit). Other errors fail fast.
-            if ((int)res.StatusCode != 429 || attempt == _retry.MaxAttempts)
+            // Only retry 429 (rate limit). Other errors fail fast. A daily limit is not retried either:
+            // it will not clear before it resets, so waiting only delays the message.
+            if ((int)res.StatusCode == 429)
+            {
+                var kind = RateLimit.Classify(raw);
+                if (kind == RateLimitKind.Day || attempt == _retry.MaxAttempts)
+                    throw new RateLimitException($"API 429: {raw}", kind);
+            }
+            else
                 throw new HttpRequestException($"API {(int)res.StatusCode}: {raw}");
 
             var delay = ComputeDelay(res, attempt);
@@ -74,6 +85,21 @@ public sealed class LlmClient : IDisposable
         }
 
         throw new HttpRequestException("API retry loop exhausted unexpectedly.");
+    }
+
+    /// <summary>Tokens the API reported for the requests of this client (0 when the server sends no usage).</summary>
+    public long PromptTokens { get; private set; }
+    public long CompletionTokens { get; private set; }
+
+    private void CountUsage(JsonNode response)
+    {
+        var u = response["usage"];
+        if (u is null) return;
+        long p = u["prompt_tokens"] is JsonValue pv && pv.TryGetValue<long>(out var pl) ? pl : 0;
+        long c = u["completion_tokens"] is JsonValue cv && cv.TryGetValue<long>(out var cl) ? cl : 0;
+        PromptTokens += p;
+        CompletionTokens += c;
+        TokenMeter.Add(p, c);
     }
 
     /// <summary>

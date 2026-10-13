@@ -92,6 +92,9 @@ public sealed class CodingAgent : IDisposable
             return $"OK: model switched to '{model}'.";
         };
 
+        bool rateLimited = false;                       // the API answered 429 and the retries did not help
+        long promptAtStart = _client.PromptTokens, completionAtStart = _client.CompletionTokens;
+
         try
         {
             for (int step = 1; step <= _opts.MaxSteps; step++)
@@ -139,6 +142,13 @@ public sealed class CodingAgent : IDisposable
                 catch (Exception ex)
                 {
                     await _observer.OnError($"API error: {ex.Message}");
+                    if (ex is RateLimitException limit)
+                    {
+                        rateLimited = true;
+                        await _observer.OnWarning(limit.Kind == RateLimitKind.Day
+                            ? Loc.T("The daily token quota is used up: retrying is useless until it resets. Wait for the reset, or use another model (--model) or endpoint (--endpoint).")
+                            : Loc.T("The API still answers 429 (rate limit) after the retries. Wait a little and try again, or send less text per request."));
+                    }
                     return;
                 }
 
@@ -258,7 +268,7 @@ public sealed class CodingAgent : IDisposable
             {
                 RemoveSessionContext(messages);   // do not summarise the summary
 
-                if (_opts.Distill)
+                if (_opts.Distill && !rateLimited)
                 {
                     // Bounded so a slow or unreachable API cannot hang shutdown.
                     // Not _cts.Token: it may already be cancelled.
@@ -270,10 +280,18 @@ public sealed class CodingAgent : IDisposable
                 }
                 else
                 {
-                    // --no-distill: keep saving the two memory layers, skip the LLM call.
+                    // --no-distill, or the API just refused with 429 (the summary call would be refused too
+                    // and would only use more of the quota): keep saving the two memory layers, skip the LLM call.
                     await _memory.SaveAsync(paths);
+                    if (rateLimited && _opts.Distill)
+                        await _observer.OnWarning(Loc.T("Session summary not updated (rate limit); the previous one is kept."));
                 }
             }
+
+            // What this run cost, from the API's own counts (summary call included).
+            long usedPrompt = _client.PromptTokens - promptAtStart, usedCompletion = _client.CompletionTokens - completionAtStart;
+            if (usedPrompt + usedCompletion > 0)
+                await _observer.OnUsage(usedPrompt, usedCompletion, TokenMeter.Prompt, TokenMeter.Completion);
         }
 
 
