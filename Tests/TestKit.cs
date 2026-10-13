@@ -85,6 +85,7 @@ static partial class Tests
         await VisionHistoryGroup();
         await SkillIndexGroup();
         await RateLimitGroup();
+        await QuotaFallbackGroup();
         await RoutingLocalization();
         await PromptOption();
         await OutlookMsg();

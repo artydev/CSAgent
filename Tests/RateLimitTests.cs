@@ -122,8 +122,17 @@ static partial class Tests
         async Task<T> InTmp<T>(Func<Task<T>> body)
         {
             var prev = Directory.GetCurrentDirectory();
+            var oldFallback = Environment.GetEnvironmentVariable(QuotaFallback.EnvName);
+            Environment.SetEnvironmentVariable(QuotaFallback.EnvName, "off");   // these tests are about stopping, not switching
+            QuotaFallback.Reset();
             Directory.SetCurrentDirectory(Tmp());
-            try { return await body(); } finally { Directory.SetCurrentDirectory(prev); }
+            try { return await body(); }
+            finally
+            {
+                Directory.SetCurrentDirectory(prev);
+                Environment.SetEnvironmentVariable(QuotaFallback.EnvName, oldFallback);
+                QuotaFallback.Reset();
+            }
         }
 
         await T("agent: a daily 429 stops at once, says why, and does not call the summary model", async () =>
