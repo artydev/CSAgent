@@ -1,3 +1,4 @@
+using CsAgent.Core.Agent;
 using CsAgent.Core.Llm;
 using CsAgent.Core.Memory;
 
@@ -37,7 +38,9 @@ public sealed record AgentArguments(
     string? ExplainRouting = null,
     string? RulesFolder = null,
     string? Language = null,
-    string? Prompt = null);
+    string? Prompt = null,
+    int ContextChars = 96_000,
+    bool CompactToolResults = true);
 
 /// <summary>
 /// Pure argument parsing — no side effects, no console output.
@@ -60,6 +63,7 @@ public static class ArgumentParser
         var port = GetPort(args);
         var maxRetries = GetInt(args, "--max-retries", RetryPolicy.Default.MaxAttempts);
         var retryDelayMs = GetInt(args, "--retry-delay", RetryPolicy.Default.BaseDelayMs);
+        var contextChars = GetInt(args, "--context-chars", ContextBudget.DefaultMaxChars);
         var usePropMem = !args.Contains("--no-propmem");
         var propositionFile = GetValue(args, "--prop") ?? "agent_propositions.json";
         var distill = !args.Contains("--no-distill");
@@ -93,7 +97,8 @@ public static class ArgumentParser
             port, isUiMode, isLeanUiMode, isDryRun,
             showHelp, showVersion, showDoc, maxRetries, retryDelayMs, usePropMem, propositionFile, distill,
             isApiMode, autoApprove, host, apiKey, endpoint, visionModel, quiet,
-            codeModel, chatModel, autoRoute, initRouting, explainRouting, rulesFolder, language, prompt);
+            codeModel, chatModel, autoRoute, initRouting, explainRouting, rulesFolder, language, prompt,
+            contextChars, !args.Contains("--no-compact"));
     }
 
     private static string GetMemoryFile(string[] args)
@@ -107,7 +112,7 @@ public static class ArgumentParser
                           or "-p" or "--max-retries" or "--retry-delay"
                           or "--task" or "--prop" or "--host" or "--api-key"
                           or "--endpoint" or "--vision-model" or "--code-model" or "--chat-model"
-                          or "--explain-routing" or "--rules" or "--lang" or "--prompt")
+                          or "--explain-routing" or "--rules" or "--lang" or "--prompt" or "--context-chars")
             { i++; continue; }
 
             if (args[i] != "--ui" && args[i] != "--leanui"

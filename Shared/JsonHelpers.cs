@@ -148,6 +148,32 @@ public static class JsonHelpers
     }
 
     /// <summary>
+    /// Shortens old tool results: all but the last <paramref name="keepRecent"/> tool messages are cut to
+    /// <paramref name="maxChars"/> characters, followed by a line saying how much was left out. Only the text of
+    /// the result changes (never the message order or the tool call ids), so the conversation stays valid.
+    /// Running it again changes nothing. Returns how many results were shortened.
+    /// </summary>
+    public static int CompactToolResults(JsonArray msgs, int keepRecent, int maxChars)
+    {
+        int seen = 0, changed = 0;
+        for (int i = msgs.Count - 1; i >= 1; i--)
+        {
+            var m = msgs[i];
+            if (m?["role"]?.GetValue<string>() != "tool") continue;
+            if (++seen <= keepRecent) continue;
+            if (m["content"] is not JsonValue v || !v.TryGetValue<string>(out var s)) continue;
+            if (s.Length <= maxChars + 200) continue;   // small, or already shortened (the note is under 200 chars)
+
+            int cut = maxChars;
+            if (cut > 0 && char.IsHighSurrogate(s[cut - 1])) cut--;
+            m["content"] = JsonValue.Create(
+                s[..cut] + $"\n[… {s.Length - cut:N0} of {s.Length:N0} characters left out: older tool result, run the tool again if you need it]");
+            changed++;
+        }
+        return changed;
+    }
+
+    /// <summary>
     /// Trim conversation history to stay under the character threshold.
     /// Keeps the system message (index 0) and at least 3 messages.
     /// Multimodal messages (those containing image_url blocks) are never evicted:

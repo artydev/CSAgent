@@ -1,3 +1,4 @@
+using CsAgent.Core.Agent;
 using CsAgent.Core.Llm;
 using System.Text;
 using CsAgent.Infrastructure.Clipboard;
@@ -23,6 +24,7 @@ public static class Program
         Loc.Set(parsed.Language);
         LlmConfig.Configure(parsed.Endpoint, parsed.VisionModel, parsed.CodeModel, parsed.ChatModel, parsed.AutoRoute);
         RoutingRules.FolderOverride = parsed.RulesFolder;
+        ContextBudget.Configure(parsed.ContextChars, parsed.CompactToolResults);
 
         if (parsed.ShowHelp) { HelpDisplay.Show(Version); return 0; }
         if (parsed.ShowVersion) { Console.WriteLine($"CSAgent version {Version}"); return 0; }

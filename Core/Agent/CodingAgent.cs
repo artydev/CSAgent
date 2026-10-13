@@ -276,6 +276,11 @@ public sealed class CodingAgent : IDisposable
                     _tracker?.LogStep(isError ? "failed" : "done", $"{funcName}: {Truncate(result)}");
                 }
 
+                // Old tool results are the bulk of the history. Keep this step's results whole, however many there are.
+                if (ContextBudget.Compact)
+                    JsonHelpers.CompactToolResults(messages,
+                        Math.Max(ContextBudget.KeepRecentToolResults, toolCalls.Count), ContextBudget.OldToolResultChars);
+
                 await MemoryStore.SaveAsync(paths.Conversation, messages);
 
                 if (_memory != null)
@@ -284,7 +289,7 @@ public sealed class CodingAgent : IDisposable
 
 
 
-                JsonHelpers.TrimHistory(messages);
+                JsonHelpers.TrimHistory(messages, ContextBudget.MaxChars);
             }
         }
         finally

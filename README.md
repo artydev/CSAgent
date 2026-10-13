@@ -181,12 +181,11 @@ curl -N -H "Authorization: Bearer s3cret" \
 CSAgent gère les **demandes multimodales (vision)** : vous pouvez joindre une image à une demande et l'agent l'analysera. Cela fonctionne dans la Web UI, dans la Lean UI et en CLI/TUI.
 
 - **Web UI / Lean UI :** cliquez sur le bouton **📎** (trombone) à côté de la zone de saisie pour joindre une image. Un petit aperçu apparaît ; cliquez sur **✕** pour le retirer avant l'envoi. Formats acceptés : **PNG, JPEG, GIF, WebP** (**10 Mo** au maximum).
-- **CLI / TUI :** la pièce jointe passe par l'historique de la conversation : une fois qu'un échange avec image a eu lieu, l'agent continue automatiquement à utiliser le modèle de vision pour le reste de la session.
+- **CLI / TUI :** la pièce jointe passe par l'historique de la conversation. Seule la demande qui contient l'image utilise le modèle de vision ; les demandes suivantes reprennent le routage habituel.
 
-Quand une image est jointe, CSAgent envoie automatiquement la demande à un **modèle capable de vision** (`gemma-4-31b-it` par défaut) à la place du modèle de texte habituel. Ce routage est automatique et se produit dans deux cas :
+Quand une image est jointe, CSAgent envoie automatiquement la demande à un **modèle capable de vision** (`gemma-4-31b-it` par défaut) à la place du modèle de texte habituel. Ce routage est automatique et ne concerne que la **demande en cours** : elle part vers le modèle de vision si, et seulement si, le dernier message de l'utilisateur contient une image jointe.
 
-1. La demande en cours contient une image jointe.
-2. L'historique de la conversation contient déjà une image d'un échange précédent (les modèles texte seul rejettent les requêtes dont l'historique contient une image).
+Les images des échanges précédents ne sont pas renvoyées : avant l'envoi à un modèle de code ou de chat, elles sont remplacées par le court texte `[image omitted: sent earlier in the conversation]` (le texte du message est conservé). **Pour poser une question de suivi sur une image, joignez-la de nouveau** : sinon le modèle ne dispose que de la description donnée au tour précédent.
 
 Vous pouvez changer le modèle de vision avec `--vision-model` (ou `CSAGENT_VISION_MODEL`) ; `--model` impose un seul modèle pour tous les messages, images comprises. La valeur par défaut est définie par `LlmSettings.VisionModel`.
 
@@ -200,12 +199,12 @@ CSAgent choisit le modèle **pour chaque message**, selon ce que vous demandez. 
 |---|---|---|
 | **Code** | `deepseek-v4-flash` | Code, fichiers, shell, e-mails, audio, liens… et tout ce qui n'est pas clairement une question générale. C'est le modèle qui exécute les outils |
 | **Chat** | `openweight-large` (alias Albert de `gpt-oss-120b`) | Recherches (web, actualités, météo, un lien à lire) et conversation générale sans rapport avec le code ou les fichiers : une explication, une question de culture, un texte à rédiger, un conseil |
-| **Vision** | `gemma-4-31b-it` | Une image est jointe ou déjà présente dans la conversation ; voir [Vision et images jointes](#vision-et-images-jointes) |
+| **Vision** | `gemma-4-31b-it` | Le message en cours contient une image jointe ; voir [Vision et images jointes](#vision-et-images-jointes) |
 
 Comment le choix est fait (aucun appel LLM supplémentaire, aucun délai) :
 
 1. `--model <nom>` l'emporte toujours, pour chaque message.
-2. Une image dans la conversation sélectionne le modèle de vision.
+2. Une image jointe au message en cours sélectionne le modèle de vision.
 3. Un message qui contient un nom de fichier, un chemin, du code (accents graves), un fichier joint ou une action sur votre ordinateur (« open in Edge », « ouvre Chrome », « télécharge… ») sélectionne le modèle de code, quoi qu'il dise d'autre.
 4. Une recherche explicite sélectionne le modèle de chat, même quand le message contient aussi des mots qui ressemblent à du code : « search the web for C# async tips », « cherche sur internet… », « fetch latest scientific news », actualités, météo, Wikipédia, « actualités ». Un lien à lire (« résume https://... ») est aussi une recherche, et non un travail sur des fichiers.
 5. Un message qui parle de code, d'une commande, d'e-mail, d'audio, de git, de tests… sélectionne le modèle de code.
@@ -324,7 +323,7 @@ Les fonctionnalités suivantes sont prévues pour de prochaines versions :
 | `--chat-model <nom>` | Modèle pour la conversation générale (par défaut sur Albert : `openweight-large` ; aucun sur un `--endpoint` personnalisé) |
 | `--no-route` | Utilise toujours le modèle de code (pas de choix automatique du modèle) |
 | `--endpoint <url>` | URL de base compatible OpenAI (par défaut : API Albert). Pour Ollama : `http://localhost:11434/v1` (voir [Modèles locaux avec Ollama](#modèles-locaux-avec-ollama)) |
-| `--vision-model <nom>` | Modèle utilisé quand la conversation contient une image (par défaut : `gemma-4-31b-it`) |
+| `--vision-model <nom>` | Modèle utilisé quand le message en cours contient une image (par défaut : `gemma-4-31b-it`) |
 | `--port`, `-p <n>` | Numéro de port de la Web UI (par défaut : `5050`) |
 | `--task <slug>` | Suit le travail dans `.csagent/tasks/<slug>-<date>/` (fichiers de plan et de progression créés par l'hôte, jamais par le modèle) |
 | `--dry-run` | Simule l'exécution des outils sans rien modifier |
@@ -461,7 +460,73 @@ Error: file too large (1024 KB). Use sh to grep/head.
 
 ## Outils disponibles
 
-L'agent dispose de quatre outils intégrés :
+L'agent dispose de **34 outils intégrés**. Vous ne les appelez pas vous-même : l'agent choisit ceux dont il a besoin pour votre demande. Dans les tableaux, `*` marque un paramètre obligatoire et **Confirmation** indique que l'outil demande votre accord avant de s'exécuter (sauf avec `--yes`).
+
+#### Fichiers
+
+| Outil | Rôle | Paramètres | Confirmation |
+|---|---|---|---|
+| `read_file` | Lit un fichier texte | `path`* | non |
+| `read_json` | Lit un fichier JSON, ou une partie | `path`*, `query` (chemin pointé, par exemple `a.b[0].c`) | non |
+| `write_file` | Écrit ou écrase un fichier texte | `path`*, `content`* | **oui** |
+| `edit_file` | Remplace des morceaux exacts d'un fichier, tout ou rien | `path`*, `edits`* (liste de `old_string` / `new_string`) | **oui** |
+| `list_dir` | Liste un répertoire | `path`, `recursive` | non |
+| `tree` | Arborescence indentée (ignore les dossiers cachés, `bin/` et `obj/`) | `path`, `depth` (`-1` : illimité) | non |
+| `search_files` | Cherche un texte (sans tenir compte de la casse) dans les fichiers | `pattern`*, `path`, `glob` (par exemple `*.cs`) | non |
+| `copy_file` | Copie un fichier | `source`*, `destination`* | non |
+| `move_file` | Déplace ou renomme un fichier | `source`*, `destination`* | **oui** |
+| `delete_file` | Supprime définitivement un fichier | `path`* | **oui** |
+| `zip` | Crée une archive zip d'un fichier ou d'un dossier | `source`*, `destination`* | non |
+| `unzip` | Extrait une archive zip (écrase les fichiers existants) | `archive`*, `destination`* | **oui** |
+
+#### Commandes
+
+| Outil | Rôle | Paramètres | Confirmation |
+|---|---|---|---|
+| `sh` | Exécute une commande shell (`cmd.exe` sous Windows, `/bin/sh` ailleurs) | `cmd`* | non (mais filtrée) |
+| `run_terminal` | Commande dans un shell persistant : le dossier et les variables sont conservés entre les appels | `cmd`*, `session`, `timeoutMs` (60 000 par défaut, 300 000 au maximum) | non (mais filtrée) |
+| `close_terminal` | Ferme une session de `run_terminal` | `session` | non |
+| `parse_output` | Transforme une sortie de commande en JSON | `output`*, `format` (`json`, `keyvalue`, `csv`, `auto`), `query` | non |
+
+#### Git
+
+| Outil | Rôle | Paramètres | Confirmation |
+|---|---|---|---|
+| `git_status` | État du dépôt | `path` | non |
+| `git_diff` | Modifications non validées (ou indexées) | `path`, `staged` | non |
+| `git_log` | Historique récent | `path`, `count` (20 par défaut) | non |
+| `git_branch` | Branche courante et branches locales | `path` | non |
+| `git_commit` | Indexe tout et crée un commit | `path`, `message`* | **oui** |
+
+#### Web
+
+| Outil | Rôle | Paramètres | Confirmation |
+|---|---|---|---|
+| `web_search` | Recherche sur le web | `query`*, `maxResults` (5 par défaut, 10 au maximum) | non |
+| `fetch_url` | Lit une page web en texte | `url`*, `maxChars` (20 000 par défaut, 100 000 au maximum) | non |
+| `http_request` | Requête HTTP quelconque | `url`*, `method`, `headers`, `body`, `timeoutMs` (30 000 par défaut, 120 000 au maximum) | non |
+
+#### Courrier, audio, presse-papier et Excel
+
+| Outil | Rôle | Paramètres | Confirmation |
+|---|---|---|---|
+| `read_msg` | Lit un e-mail Outlook `.msg` (détails plus bas) | `path`*, `max_chars` | non |
+| `save_attachment` | Enregistre les pièces jointes d'un `.msg` | `path`*, `index`, `destination` | **oui** |
+| `send_email` | Compose un e-mail avec Outlook (Windows, Outlook classique) : brouillon affiché par défaut | `to`*, `subject`*, `cc`, `bcc`, `body`, `bodyHtml`, `attachments`, `send`, `saveToDrafts` | **oui** |
+| `transcribe_audio` | Transcrit un enregistrement avec Whisper (détails plus bas) | `path`*, `language`, `max_chars` | non |
+| `read_clipboard` | Lit le texte du presse-papier | aucun | non |
+| `write_clipboard` | Remplace le contenu du presse-papier | `content`* | **oui** |
+| `excel_command` | Commande PowerShell dans une session Excel persistante (Windows) | `command`*, `session`, `timeoutMs` | non |
+| `close_excel` | Ferme la session d'automatisation Excel (Excel reste ouvert) | `session` | non |
+
+#### Modèles
+
+| Outil | Rôle | Paramètres | Confirmation |
+|---|---|---|---|
+| `list_models` | Liste les modèles disponibles sur l'endpoint | aucun | non |
+| `switch_model` | Change de modèle pour la session | `model`* | non |
+
+Les outils d'un serveur MCP s'ajoutent à cette liste sous le nom `mcp_<nom>` (voir [Serveurs MCP](#serveurs-mcp)). Les sept outils suivants sont décrits en détail.
 
 ### `write_file`
 Écrit (ou écrase) un fichier texte. Les répertoires parents sont créés automatiquement.
@@ -743,7 +808,7 @@ Allez manuellement sur **http://localhost:5050** dans votre navigateur (ou sur l
 Seules les images **PNG, JPEG, GIF et WebP** sont prises en charge, et le fichier doit faire **10 Mo ou moins**. Si vous joignez un autre format (par exemple BMP, TIFF, SVG), convertissez-le d'abord dans un format pris en charge.
 
 ### Mon message a été envoyé à un autre modèle que prévu
-Lancez `csagent --explain-routing "votre message"` : il indique le modèle choisi et la raison, sans appeler de modèle. Les règles de `LLMRoutingRules/rules.json` sont testées avant la logique intégrée ; `--model` ou une image dans la conversation les devancent, et `--no-route` les désactive.
+Lancez `csagent --explain-routing "votre message"` : il indique le modèle choisi et la raison, sans appeler de modèle. Les règles de `LLMRoutingRules/rules.json` sont testées avant la logique intégrée ; `--model` ou une image jointe au message les devancent, et `--no-route` les désactive.
 
 ### « LLMRoutingRules : … ; les valeurs intégrées sont utilisées »
 Un fichier du dossier `LLMRoutingRules/` contient une erreur (JSON invalide, clé inconnue…). L'agent n'est pas arrêté : l'avertissement s'affiche une fois et les valeurs intégrées sont conservées pour ce fichier. Corrigez le fichier ; il est relu dès qu'il change.
@@ -751,8 +816,8 @@ Un fichier du dossier `LLMRoutingRules/` contient une erreur (JSON invalide, cl�
 ### `csagent "du texte"` ne lance pas ma demande
 Un argument seul, sans tiret, est le nom du dossier de mémoire. Pour envoyer une demande depuis la ligne de commande, utilisez `csagent --prompt "du texte"`.
 
-### Les fichiers de mémoire hybride (`exact.json`, `semantic.json`) ne sont pas créés
-Vérifiez qu'un `HybridMemoryManager` est créé dans `TuiHost.cs` / `ApiEndpoints.cs` et transmis au constructeur de `CodingAgent` (sinon la mémoire vaut `null` et est ignorée en silence). L'enregistrement se fait dans un bloc `finally`, donc quelle que soit la façon dont l'exécution se termine.
+### Les fichiers de mémoire (`exact.json`, `semantic.json`) ne sont pas créés
+Les fichiers sont écrits dans le dossier de mémoire (`agent_memory/` par défaut, ou le nom donné avec `--mem`), créé au premier enregistrement, à la fin de chaque étape puis à la fin de l'exécution, quelle que soit la façon dont elle se termine. Vérifiez le nom du dossier et que vous avez le droit d'écrire dans le répertoire de travail. Si `semantic.json` reste vide, c'est normal tant qu'aucune erreur n'a été rencontrée : seules les erreurs et leurs solutions y sont retenues.
 
 ### « Session summary not updated » / « unchanged »
 *not updated (timed out / API error)* : le modèle n'a pas répondu en 60 secondes, ou a répondu autre chose que le JSON attendu. Votre tâche n'est pas affectée et le résumé précédent est conservé ; une nouvelle tentative aura lieu à la fin de la prochaine exécution. Si cela arrive à chaque fois, vérifiez le modèle et l'API, ou utilisez `--no-distill`.

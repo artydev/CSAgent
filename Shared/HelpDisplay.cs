@@ -94,6 +94,11 @@ public static class HelpDisplay
         Console.WriteLine($"                       (default: {RetryPolicy.Default.MaxAttempts})");
         Console.WriteLine("    --retry-delay <ms> Base backoff delay in ms for 429 retries");
         Console.WriteLine($"                       (default: {RetryPolicy.Default.BaseDelayMs})");
+        Console.WriteLine("    --context-chars <n> Size above which the oldest messages are dropped from the");
+        Console.WriteLine("                       history sent at every step (default: 96000, minimum 8000).");
+        Console.WriteLine("                       Lower it to spend fewer input tokens");
+        Console.WriteLine("    --no-compact      Keep old tool results whole (by default, results older than the");
+        Console.WriteLine("                       last 6 are cut to 1500 characters in the history)");
         Console.WriteLine("    --no-distill      Do not summarise the session at the end of a run");
         Console.WriteLine("                       (saves one LLM call; an existing summary is still used)");
         Console.WriteLine("    --quiet, -q       CLI, --ui, --leanui: show only the assistant's messages, warnings");
