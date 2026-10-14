@@ -94,6 +94,7 @@ static partial class Tests
         await AudioRecordingsTests();
         await McpTests();
         await QuietMode();
+        await ScriptMode();
         await AgentEndToEnd();
     }
 

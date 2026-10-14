@@ -87,7 +87,7 @@ body { background: var(--bg); color: var(--fg); font-family: var(--font-body); f
 <div class="app">
   <header class="topbar">
     <h1>CsAgent</h1>
-    <p>Guide de l'utilisateur · version 0.9.5</p>
+    <p>Guide de l'utilisateur · version 0.9.6</p>
   </header>
 
   <nav class="side" aria-label="Sommaire">
@@ -110,7 +110,7 @@ body { background: var(--bg); color: var(--fg); font-family: var(--font-body); f
     <li><div><b>Décris la tâche.</b> Par exemple : <code>Crée un projet console C# qui affiche Hello, World!</code> L'agent réfléchit, exécute des outils, puis rend compte.</div></li>
     <li><div><b>Réponds aux demandes de confirmation.</b> Avant de modifier un fichier, l'agent demande ton accord. Dans la console, tape <code>exit</code> pour quitter.</div></li>
   </ol>
-  <div class="callout"><b>Une seule demande.</b> <code>csagent --prompt "liste les fichiers ici"</code> exécute la demande, affiche la réponse et quitte. C'est la forme à utiliser dans un script.</div>
+  <div class="callout"><b>Une seule demande.</b> <code>csagent --prompt "liste les fichiers ici"</code> exécute la demande, affiche la réponse et quitte. C'est la forme à utiliser dans un script : <b>mode script</b>, seule la réponse finale est écrite sur la sortie standard (sans bannière, étapes, appels d'outils ni jetons), donc <code>csagent --prompt "…" --yes | clip</code> fonctionne. Avertissements et erreurs vont sur la sortie d'erreur, code de sortie 1 en cas d'erreur. Si l'entrée est redirigée, un outil qui demande confirmation est refusé : ajoute <code>--yes</code>. <code>--verbose</code> rend l'affichage complet.</div>
   <div class="callout warn"><b>Attention.</b> <code>csagent "du texte"</code> ne lance pas de demande : un argument seul, sans tiret, est le nom du dossier de mémoire. Utilise toujours <code>--prompt</code>.</div>
 </section>
 
@@ -319,7 +319,8 @@ csagent --mem projet_b</code></pre>
       <tr><td><code>--ui</code></td><td>Interface web complète</td></tr>
       <tr><td><code>--leanui</code></td><td>Interface web légère</td></tr>
       <tr><td><code>--api</code></td><td>Serveur SSE sans interface</td></tr>
-      <tr><td><code>--prompt "&lt;texte&gt;"</code></td><td>Une requête, la réponse, puis fin</td></tr>
+      <tr><td><code>--prompt "&lt;texte&gt;"</code></td><td>Une requête, seule la réponse est affichée (redirigeable), puis fin</td></tr>
+      <tr><td><code>--verbose</code></td><td>Avec <code>--prompt</code> : affichage complet (bannière, étapes, outils, jetons)</td></tr>
       <tr><td><code>--port</code>, <code>-p &lt;n&gt;</code></td><td>Port des interfaces web (5050)</td></tr>
       <tr><td><code>--host &lt;adresse&gt;</code></td><td>Avec <code>--api</code> : adresse d'écoute (localhost) ; une adresse non locale exige une clé</td></tr>
       <tr><td><code>--api-key &lt;clé&gt;</code></td><td>Avec <code>--api</code> : clé exigée sur chaque requête</td></tr>
@@ -407,14 +408,17 @@ csagent --mem projet_b</code></pre>
 <script>
 const secs = Array.from(document.querySelectorAll("#doc section"));
 const toc = document.getElementById("toc");
-toc.innerHTML = secs.map((s) => '<li><a href="#' + s.id + '" data-id="' + s.id + '">' + s.dataset.title + "</a></li>").join("");
+if (!toc) throw new Error("toc not found");
+toc.innerHTML = secs.map((s) => '<li><a href="#' + s.id + '" data-id="' + s.id + '">' + s.getAttribute("data-title") + "</a></li>").join("");
 const links = Array.from(toc.querySelectorAll("a"));
 
+/** @param {string} id */
 function mark(id) {
-  links.forEach((a) => a.setAttribute("aria-current", String(a.dataset.id === id)));
-  const cur = links.find((a) => a.dataset.id === id);
+  links.forEach((a) => a.setAttribute("aria-current", String(a.getAttribute("data-id") === id)));
+  const cur = links.find((a) => a.getAttribute("data-id") === id);
   if (cur && window.matchMedia("(max-width: 720px)").matches) cur.scrollIntoView({ inline: "center", block: "nearest" });
 }
+/** @param {string} id */
 function go(id) {
   const el = document.getElementById(id);
   if (!el) return;
@@ -423,10 +427,12 @@ function go(id) {
   try { history.replaceState(null, "", "#" + id); } catch (e) {}
 }
 toc.addEventListener("click", (e) => {
-  const a = e.target.closest("a");
+  const t = e.target;
+  if (!(t instanceof Element)) return;
+  const a = t.closest("a");
   if (!a) return;
   e.preventDefault();
-  go(a.dataset.id);
+  go(a.getAttribute("data-id") || "");
 });
 
 function spy() {

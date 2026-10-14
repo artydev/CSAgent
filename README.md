@@ -305,13 +305,14 @@ Les fonctionnalités suivantes sont prévues pour de prochaines versions :
 | Argument | Description |
 |---|---|
 | `--ui` | Démarre en mode Web UI (lance un serveur web) |
-| `--prompt "texte"` | Mode terminal : exécute une seule demande, affiche la réponse puis quitte (`csagent --prompt "hello my name is John"`). La conversation est enregistrée comme d'habitude dans le dossier de mémoire ; les outils demandent toujours confirmation, sauf avec `--yes`. Un argument seul, sans tiret, reste le nom du dossier de mémoire. Sans texte, affiche l'usage (code de sortie 2) ; code de sortie 1 en cas d'erreur |
+| `--prompt "texte"` | Mode terminal : exécute une seule demande, affiche la réponse puis quitte (`csagent --prompt "hello my name is John"`). **Mode script** : seule la réponse finale est écrite sur la sortie standard, sans bannière, étapes, appels d'outils, modèle ni jetons, de sorte qu'elle peut être redirigée vers une autre commande (`csagent --prompt "liste les fichiers ici" --yes | clip`). Avertissements et erreurs vont sur la sortie d'erreur ; code de sortie 1 en cas d'erreur. Si l'entrée est redirigée, un outil qui demande confirmation est refusé (utilisez `--yes`). La conversation est enregistrée comme d'habitude dans le dossier de mémoire ; les outils demandent confirmation, sauf avec `--yes`. Ajoutez `--verbose` pour retrouver l'affichage complet. Un argument seul, sans tiret, reste le nom du dossier de mémoire. Sans texte, affiche l'usage (code de sortie 2) ; code de sortie 1 en cas d'erreur |
 | `--init-routing` | Crée le dossier `LLMRoutingRules/` avec des fichiers JSON modifiables |
 | `--explain-routing "msg"` | Montre quel modèle serait utilisé pour un message, sans appeler de modèle |
 | `--rules <dossier>` | Utilise ce dossier de règles de routage (ou `CSAGENT_ROUTING_RULES`) |
 | `--lang <en\|fr>` | Langue des messages de routage (raisons, avertissements, fichiers générés) ; par défaut la langue du système, ou `CSAGENT_LANG` |
 | `--leanui` | Démarre en mode Lean UI (variante légère de la Web UI, dans le style d'un terminal) |
 | `--api` | Démarre le serveur SSE sans interface (voir [Mode API sans interface](#mode-api-sans-interface-pour-orchestrateurs)) |
+| `--verbose` | Avec `--prompt` : affiche la bannière, les étapes, les appels d'outils et les jetons comme en mode interactif (par défaut, seule la réponse est affichée) |
 | `--quiet`, `-q` | CLI, `--ui` et `--leanui` : n'affiche que les messages de l'assistant (plus les avertissements, les erreurs et la ligne finale). Les étapes, appels d'outils et résultats sont masqués ; un appel d'outil en échec est signalé sur une ligne, et une action destructive montre son appel d'outil juste avant de demander confirmation. `--api` l'ignore (les orchestrateurs ont besoin de tous les événements) |
 | `--yes`, `-y` | Approuve automatiquement chaque appel d'outil (aucune demande de confirmation ; le filtre des commandes shell reste actif) |
 | `--host <adresse>` | Avec `--api` : adresse d'écoute (par défaut `localhost` ; une adresse non locale exige une clé d'API) |
@@ -693,7 +694,7 @@ src/
 │   ├── SessionSummary.cs           # Les quatre listes d'une session distillée
 │   └── SummaryMemory.cs            # Distille, enregistre et charge le résumé de session
 ├── Presentation/
-│   ├── Tui/TuiHost.cs              # Crée et transmet le gestionnaire de mémoire ; mode --prompt
+│   ├── Tui/TuiHost.cs              # Crée et transmet le gestionnaire de mémoire ; mode --prompt (ScriptObserver : sortie réduite à la réponse)
 │   └── Web/
 │       ├── ApiEndpoints.cs         # Idem, pour la Web / Lean UI
 │       └── ApiHost.cs              # Serveur --api sans interface (contrôle de la clé, pas d'UI)
@@ -752,6 +753,7 @@ Le projet compile directement les sources `Core/`, `Services/` et `Shared/` de l
 | `ConcurrencyTests.cs` | Un gestionnaire de mémoire partagé par de nombreuses requêtes parallèles |
 | `DistillationTests.cs` | Résumé de session : enregistrement, cas d'échec, nettoyage, injection à chaque étape |
 | `NoDistillTests.cs` | Analyse et comportement de `--no-distill` |
+| `ScriptModeTests.cs` | `--prompt` : seule la réponse finale sur la sortie standard, erreurs et avertissements sur la sortie d'erreur, confirmation refusée si l'entrée est redirigée, `--verbose` |
 | `QuietModeTests.cs` | `--quiet` : ce que la CLI affiche (et masque), appels en échec, demandes de confirmation ; le même filtre pour les interfaces web (`QuietObserver`) |
 | `LlmEndpointTests.cs` | `--endpoint`, `--vision-model`, serveurs locaux et clé d'API |
 | `ModelRouterTests.cs` | Choix automatique du modèle (code / chat / vision) : messages généraux ou de code en français et en anglais, priorité de `--model`, suites après des outils, `--no-route`, serveurs personnalisés, et vérification dans la liste des modèles du serveur (cas inconnu, indisponible, non texte et hors ligne) |

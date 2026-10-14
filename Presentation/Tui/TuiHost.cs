@@ -1,3 +1,4 @@
+using CsAgent.Core.Abstractions;
 using CsAgent.Core.Agent;
 using CsAgent.Core.Llm;
 using CsAgent.Core.Memory;
@@ -13,14 +14,22 @@ public static class TuiHost
 {
     public static async Task<int> RunAsync(AgentArguments args, WindowsClipboardMonitor clipboard)
     {
-        UI.Banner();
-        Console.WriteLine($"  CSAgent v{Program.Version}");
-        Console.WriteLine();
+        // --prompt without --verbose: script mode. Only the final answer goes to stdout (it can be piped);
+        // no banner, no status lines, no steps; failures go to stderr and set the exit code.
+        bool script = args.Prompt is not null && !args.Verbose;
+
+        if (!script)
+        {
+            UI.Banner();
+            Console.WriteLine($"  CSAgent v{Program.Version}");
+            Console.WriteLine();
+        }
 
         var apiKey = LlmConfig.ResolveApiKey();
         if (string.IsNullOrEmpty(apiKey))
         {
-            Console.WriteLine($"Error: {LlmConfig.MissingKeyMessage}");
+            if (script) Console.Error.WriteLine($"error: {LlmConfig.MissingKeyMessage}");
+            else Console.WriteLine($"Error: {LlmConfig.MissingKeyMessage}");
             return args.Prompt is null ? 0 : 1;
         }
 
@@ -28,15 +37,22 @@ public static class TuiHost
         if (messages.Count == 0)
             messages.Add(CodingAgent.SystemMessage(OperatingSystem.IsWindows()));
 
-        if (!string.IsNullOrWhiteSpace(args.McpUrl))
-            Console.WriteLine($"  MCP: {args.McpUrl}");
-        if (args.IsDryRun)
-            Console.WriteLine("  Dry-run: ON (no changes will be made)");
-        if (args.AutoApprove)
-            Console.WriteLine("  Auto-approve: ON (tools run without confirmation)");
-        if (!string.IsNullOrWhiteSpace(args.TaskSlug))
-            Console.WriteLine($"  Task: {args.TaskSlug}");
-        Console.WriteLine();
+        if (!script)
+        {
+            if (!string.IsNullOrWhiteSpace(args.McpUrl))
+                Console.WriteLine($"  MCP: {args.McpUrl}");
+            if (args.IsDryRun)
+                Console.WriteLine("  Dry-run: ON (no changes will be made)");
+            if (args.AutoApprove)
+                Console.WriteLine("  Auto-approve: ON (tools run without confirmation)");
+            if (!string.IsNullOrWhiteSpace(args.TaskSlug))
+                Console.WriteLine($"  Task: {args.TaskSlug}");
+            Console.WriteLine();
+        }
+
+        ScriptObserver? scriptObserver = script
+            ? new ScriptObserver(Console.Out, Console.Error, canAsk: !Console.IsInputRedirected)
+            : null;
 
         // Created once — accumulates patterns across all turns in this session
         var memory = new HybridMemoryManager(
@@ -66,8 +82,13 @@ public static class TuiHost
                 input, needsVision, args.ModelOverride,
                 ModelRouter.LastTurnKind(messages), apiKey);
             var model = choice.Model;
-            foreach (var note in choice.Notes) UI.Warning(note);
-            Console.WriteLine($"  {choice.Describe()}");
+            if (script)
+                foreach (var note in choice.Notes) Console.Error.WriteLine($"warning: {note}");
+            else
+            {
+                foreach (var note in choice.Notes) UI.Warning(note);
+                Console.WriteLine($"  {choice.Describe()}");
+            }
 
             TaskTracker? tracker = null;
             if (!string.IsNullOrWhiteSpace(args.TaskSlug) && !args.IsDryRun)
@@ -81,7 +102,7 @@ public static class TuiHost
                     Distill: args.Distill,
                     Retry: new RetryPolicy(args.MaxRetries, args.RetryDelayMs),
                     Tracker: tracker),
-                new ConsoleObserver(args.Quiet),
+                (IAgentObserver?)scriptObserver ?? new ConsoleObserver(args.Quiet),
                 args.McpUrl,
                 memory);
 
@@ -92,14 +113,14 @@ public static class TuiHost
         // --prompt "text": one request, then exit (the conversation is saved in the memory folder as usual).
         if (!string.IsNullOrWhiteSpace(args.Prompt))
         {
-            Console.WriteLine($"\n> User: {args.Prompt}");
+            if (!script) Console.WriteLine($"\n> User: {args.Prompt}");
             try { await TurnAsync(args.Prompt!); }
             catch (Exception ex)
             {
                 Console.Error.WriteLine($"Error: {ex.Message}");
                 return 1;
             }
-            return 0;
+            return scriptObserver is { HadError: true } ? 1 : 0;
         }
 
         while (true)

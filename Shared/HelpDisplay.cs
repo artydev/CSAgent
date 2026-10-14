@@ -81,7 +81,11 @@ public static class HelpDisplay
         Console.WriteLine("    --explain-routing <message>  Show which model a message would get, and why,");
         Console.WriteLine("                       without calling any model, then exit");
         Console.WriteLine("    --rules <folder>  Use this folder instead of ./LLMRoutingRules");
-        Console.WriteLine("    --prompt <text>   Run one request, print the answer and exit (no interactive loop)");
+        Console.WriteLine("    --prompt <text>   Run one request, print the answer and exit (no interactive loop).");
+        Console.WriteLine("                       Script mode: only the final answer goes to stdout (pipe it);");
+        Console.WriteLine("                       warnings and errors go to stderr; exit code 1 on error;");
+        Console.WriteLine("                       a tool that needs confirmation is declined when input is");
+        Console.WriteLine("                       redirected (use --yes). --verbose shows the full display");
         Console.WriteLine("    --lang <en|fr>    Language of the routing messages (default: the system language;");
         Console.WriteLine("                       or CSAGENT_LANG)");
         Console.WriteLine("    --mcp <url>       Connect to an MCP server (Streamable HTTP); its tools are offered");
@@ -104,6 +108,8 @@ public static class HelpDisplay
         Console.WriteLine("    --quiet, -q       CLI, --ui, --leanui: show only the assistant's messages, warnings");
         Console.WriteLine("                       and errors (hides steps, tool calls and results; a tool call is");
         Console.WriteLine("                       still shown when it asks for your confirmation). Not used by --api");
+        Console.WriteLine("    --verbose         With --prompt: show the banner, steps, tool calls and token lines");
+        Console.WriteLine("                       as in interactive mode (default: only the answer)");
         Console.WriteLine("    --yes, -y         Approve every tool call automatically (no confirmation");
         Console.WriteLine("                       prompts). The shell command filter stays active");
         Console.WriteLine("    --host <addr>     With --api: address to listen on (default: localhost).");

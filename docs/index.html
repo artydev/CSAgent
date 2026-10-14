@@ -156,7 +156,7 @@ Five TODOs in four files. I'll group them by file in TODO.md.
         <figcaption><strong>Interface lean</strong>&nbsp;: <span class="cmd">csagent --leanui</span> Le même agent dans une page légère façon terminal. Les étapes restent repliées jusqu'à ce que vous les ouvriez, avec plusieurs sessions en onglets.</figcaption>
       </figure>
     </div>
-    <p style="margin-top:24px">Vous préférez rester dans le shell&nbsp;? <span class="cmd">csagent</span> seul lance la session dans votre terminal, comme dans le rejeu ci-dessus. Pour une seule demande, sans session&nbsp;: <span class="cmd">csagent --prompt "hello my name is John"</span> exécute la demande, affiche la réponse et rend la main (code de sortie 0, ou 1 en cas d'erreur).</p>
+    <p style="margin-top:24px">Vous préférez rester dans le shell&nbsp;? <span class="cmd">csagent</span> seul lance la session dans votre terminal, comme dans le rejeu ci-dessus. Pour une seule demande, sans session&nbsp;: <span class="cmd">csagent --prompt "hello my name is John"</span> exécute la demande et rend la main (code de sortie 0, ou 1 en cas d'erreur). Seule la réponse est écrite sur la sortie standard, sans bannière ni étapes : elle peut être redirigée vers une autre commande, et les erreurs vont sur la sortie d'erreur. <span class="cmd">--verbose</span> rend l'affichage complet.</p>
 
     <div class="block">
       <h3>Pas seulement du code</h3>
@@ -222,6 +222,7 @@ Five TODOs in four files. I'll group them by file in TODO.md.
     <div class="block">
       <h3>Réglages</h3>
       <dl class="dials">
+        <div><dt>--verbose</dt><dd>Avec --prompt : affiche la bannière, les étapes, les appels d'outils et les jetons. Par défaut, --prompt n'écrit que la réponse, pour pouvoir la rediriger.</dd></div>
         <div><dt>--quiet</dt><dd>N'affiche que les messages de l'assistant, les avertissements et la ligne finale. Un appel en échec garde une ligne, et une action destructive montre son appel juste avant de demander.</dd></div>
         <div><dt>--dry-run</dt><dd>Simule l'exécution des outils sans rien modifier.</dd></div>
         <div><dt>--yes</dt><dd>Approuve tous les appels d'outils automatiquement. Les filtres de chemins et de commandes restent actifs.</dd></div>
