@@ -463,7 +463,7 @@ Error: file too large (1024 KB). Use sh to grep/head.
 
 ## Outils disponibles
 
-L'agent dispose de **34 outils intégrés**. Vous ne les appelez pas vous-même : l'agent choisit ceux dont il a besoin pour votre demande. Dans les tableaux, `*` marque un paramètre obligatoire et **Confirmation** indique que l'outil demande votre accord avant de s'exécuter (sauf avec `--yes`).
+L'agent dispose de **35 outils intégrés**. Vous ne les appelez pas vous-même : l'agent choisit ceux dont il a besoin pour votre demande. Dans les tableaux, `*` marque un paramètre obligatoire et **Confirmation** indique que l'outil demande votre accord avant de s'exécuter (sauf avec `--yes`).
 
 #### Fichiers
 
@@ -515,6 +515,7 @@ L'agent dispose de **34 outils intégrés**. Vous ne les appelez pas vous-même 
 |---|---|---|---|
 | `read_msg` | Lit un e-mail Outlook `.msg` (détails plus bas) | `path`*, `max_chars` | non |
 | `save_attachment` | Enregistre les pièces jointes d'un `.msg` | `path`*, `index`, `destination` | **oui** |
+| `group_msg_by_sender` | Renomme les `.msg` d'un dossier en noms ASCII, puis les range dans un sous-dossier par expéditeur (détails plus bas) | `directory`, `group_by`, `rename` | **oui** |
 | `send_email` | Compose un e-mail avec Outlook (Windows, Outlook classique) : brouillon affiché par défaut | `to`*, `subject`*, `cc`, `bcc`, `body`, `bodyHtml`, `attachments`, `send`, `saveToDrafts` | **oui** |
 | `transcribe_audio` | Transcrit un enregistrement avec Whisper (détails plus bas) | `path`*, `language`, `max_chars` | non |
 | `read_clipboard` | Lit le texte du presse-papier | aucun | non |
@@ -577,6 +578,20 @@ Enregistre sur le disque les pièces jointes d'un fichier `.msg`. **Destructeur 
 Les noms de fichiers sont nettoyés (pas de chemin, pas de caractères réservés ou invalides), et un fichier existant n'est jamais écrasé (`nom (1).ext` est écrit à la place). Les messages incorporés et les pièces jointes stockées par référence ne peuvent pas être enregistrés.
 
 Non pris en charge : les archives `.pst` / `.ost`, et les fichiers `.msg` chiffrés ou protégés par des droits.
+
+### `group_msg_by_sender`
+Range les fichiers `.msg` d'un dossier par expéditeur. **Destructeur : demande confirmation** (sauf avec `--yes`). C'est un lecteur en C# pur : il fonctionne sur tous les systèmes et ne nécessite pas Outlook.
+
+**Paramètres :**
+- `directory` (string, facultatif, par défaut : le répertoire courant) — Dossier contenant les `.msg` (dans le répertoire de travail)
+- `group_by` (string, facultatif, `name` par défaut) — `name` : le nom affiché de l'expéditeur ; `email` : son adresse, qui distingue deux personnes de même nom
+- `rename` (boolean, facultatif, `true` par défaut) — Renomme d'abord les fichiers en noms ASCII ; `false` garde les noms d'origine
+
+Deux étapes, dans cet ordre :
+1. **Renommage.** Chaque fichier reçoit un nom sans accents, espaces ni caractères spéciaux (`Rapport trimestriel é.msg` devient `Rapport_trimestriel_e.msg`), pour que tous les outils puissent l'adresser sans problème de guillemets ou d'encodage. Les lettres latines accentuées sont ramenées à leur forme simple (é → e, ß → ss) ; tout autre caractère devient `_`.
+2. **Rangement.** Le nom ou l'adresse de l'expéditeur est lu dans le message ; le fichier est déplacé dans un sous-dossier portant ce nom, lui aussi en ASCII (`Jérôme Dupont` → `Jerome_Dupont`). Un message sans expéditeur va dans `UnknownSender`.
+
+Seuls les `.msg` placés directement dans le dossier sont traités. Rien n'est jamais écrasé (`nom (1).msg` est écrit à la place). Un fichier illisible reste en place (renommé) et est signalé dans le compte rendu, qui indique aussi le nombre de messages par expéditeur. Limite : 5 000 fichiers par appel.
 
 ### `transcribe_audio`
 Transcrit un enregistrement de parole en texte avec un serveur Whisper (`/audio/transcriptions` sur l'`--endpoint` configuré, avec le même `ALBERT_API_KEY`). Lecture seule.
@@ -758,6 +773,7 @@ Le projet compile directement les sources `Core/`, `Services/` et `Shared/` de l
 | `LlmEndpointTests.cs` | `--endpoint`, `--vision-model`, serveurs locaux et clé d'API |
 | `ModelRouterTests.cs` | Choix automatique du modèle (code / chat / vision) : messages généraux ou de code en français et en anglais, priorité de `--model`, suites après des outils, `--no-route`, serveurs personnalisés, et vérification dans la liste des modèles du serveur (cas inconnu, indisponible, non texte et hors ligne) |
 | `RoutingRulesTests.cs` | Dossier `LLMRoutingRules` (`models.json`, `keywords.json`, `rules.json`) : valeurs par défaut, erreurs signalées sans jamais bloquer, recherche du dossier et rechargement, `--init-routing`, `--explain-routing` ; messages en anglais et en français ; option `--prompt` |
+| `GroupMsgTests.cs` | `group_msg_by_sender` : noms ASCII (accents, espaces, caractères spéciaux), un dossier par expéditeur, noms identiques, fichier illisible, rien d'écrasé, `rename` et `group_by`, dossiers refusés |
 | `MsgTests.cs` / `MsgTestFile.cs` | Lecteur de fichiers Outlook `.msg` (un constructeur réservé aux tests écrit des fichiers `.msg` valides), conversion HTML/RTF en texte, `read_msg`, `save_attachment` et la sûreté des noms de fichiers |
 | `TranscribeTests.cs` | `transcribe_audio` : parties envoyées dans l'ordre (faux Whisper, faux ffmpeg), erreurs, troncature, contrôles de chemin et de clé ; stockage de l'enregistreur web (`AudioRecordings`) |
 | `McpTests.cs` | MCP : noms `mcp_` (pas d'ombre sur les outils natifs, collisions, 64 caractères), appels sous le nom propre du serveur, confirmation avant chaque appel MCP, l'outil natif l'emporte quand un serveur a le même nom (faux serveur MCP) |

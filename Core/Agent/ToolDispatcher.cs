@@ -144,6 +144,11 @@ public static partial class ToolDispatcher
                     args["index"]?.GetValue<int>(),
                     args["destination"]?.GetValue<string>()),
 
+                "group_msg_by_sender" => GroupMsgBySender(
+                    args["directory"]?.GetValue<string>(),
+                    args["group_by"]?.GetValue<string>(),
+                    args["rename"]?.GetValue<bool>() ?? true),
+
                 "transcribe_audio" => await TranscribeAudioAsync(
                     args["path"]!.GetValue<string>(),
                     args["language"]?.GetValue<string>(),
@@ -188,5 +193,5 @@ public static partial class ToolDispatcher
     /// Returns true if the tool name is considered destructive (requires user confirmation).
     /// </summary>
     public static bool IsDestructive(string name) =>
-        name is "write_file" or "edit_file" or "git_commit" or "move_file" or "delete_file" or "unzip" or "write_clipboard" or "send_email" or "save_attachment";
+        name is "write_file" or "edit_file" or "git_commit" or "move_file" or "delete_file" or "unzip" or "write_clipboard" or "send_email" or "save_attachment" or "group_msg_by_sender";
 }

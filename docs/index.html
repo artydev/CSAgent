@@ -96,7 +96,7 @@ Five TODOs in four files. I'll group them by file in TODO.md.
       <div><a href="#keyboard"><h3>Trois façons de lui parler</h3><p>Le terminal, une interface web, ou une page web légère façon terminal. Même agent, même mémoire.</p></a></div>
       <div><a href="#routing"><h3>Le bon modèle, à chaque message</h3><p>Code, chat et images vont chacun au modèle qui convient, affiché sous chaque réponse, et réglable en JSON. L'API Albert par défaut, ou tout serveur compatible OpenAI, Ollama compris.</p></a></div>
       <div><a href="#memory"><h3>Il se souvient</h3><p>Ce qui a échoué et ce qui a marché survit à la troncature de l'historique, et un court résumé des décisions et du travail restant passe à la session suivante.</p></a></div>
-      <div><a href="#tools"><h3>34 outils intégrés</h3><p>Fichiers, shell, git, web, courrier Outlook, Excel, audio et presse-papiers. En ajouter un tient en six étapes.</p></a></div>
+      <div><a href="#tools"><h3>35 outils intégrés</h3><p>Fichiers, shell, git, web, courrier Outlook, Excel, audio et presse-papiers. En ajouter un tient en six étapes.</p></a></div>
       <div><a href="#voice"><h3>Voix et images</h3><p>Dictez une tâche ou joignez une capture d'écran. Les longs enregistrements sont acceptés.</p></a></div>
       <div><a href="#api"><h3>Pilotable par du code</h3><p>Un serveur sans interface diffuse chaque étape sous forme d'événements. Conçu pour les orchestrateurs et les scripts.</p></a></div>
       <div><a href="#start"><h3>Un seul fichier à lancer</h3><p>Se publie en un exécutable natif unique. Aucun paquet NuGet à l'intérieur, rien à installer à côté.</p></a></div>
@@ -240,7 +240,7 @@ Five TODOs in four files. I'll group them by file in TODO.md.
       <p class="lede">L'autonomie n'a de sens que si vous pouvez prévoir le pire cas. CsAgent garde ses règles peu nombreuses, et dans du code lisible.</p>
     </div>
     <ul class="layers">
-      <li class="asks"><h3>Il demande d'abord</h3><p><code>write_file</code>, <code>edit_file</code>, <code>delete_file</code>, <code>move_file</code>, <code>unzip</code>, <code>git_commit</code>, <code>send_email</code>, <code>save_attachment</code>, <code>write_clipboard</code> et tout appel MCP s'arrêtent et attendent votre réponse. <code>--yes</code> supprime la question, et rien d'autre.</p></li>
+      <li class="asks"><h3>Il demande d'abord</h3><p><code>write_file</code>, <code>edit_file</code>, <code>delete_file</code>, <code>move_file</code>, <code>unzip</code>, <code>git_commit</code>, <code>send_email</code>, <code>save_attachment</code>, <code>group_msg_by_sender</code>, <code>write_clipboard</code> et tout appel MCP s'arrêtent et attendent votre réponse. <code>--yes</code> supprime la question, et rien d'autre.</p></li>
       <li><h3>Un dossier, pas un disque</h3><p>Les outils de fichiers sont limités au dossier de travail et à ses sous-dossiers. La seule exception volontaire concerne les pièces jointes d'e-mail, et l'envoi demande d'abord. Lancez CsAgent dans le projet, pas dans votre dossier personnel.</p></li>
       <li><h3>Un filtre pour les commandes risquées</h3><p>Les commandes shell sont contrôlées avant exécution, avec une liste par plateforme&nbsp;: <code>sudo</code>, <code>chmod</code>, <code>dd</code>, <code>mkfs</code>, <code>shutdown</code> et les dossiers système sous Linux et macOS&nbsp;; <code>format</code>, <code>del /f</code>, <code>rd /s</code>, <code>reg delete</code>, <code>net user</code>, <code>diskpart</code> et <code>runas</code> sous Windows.</p></li>
       <li><h3>Des limites</h3><p>Une commande est interrompue après 60 secondes. Un fichier de plus de 500 Ko n'est pas lu en entier&nbsp;; l'agent doit le parcourir avec <code>grep</code> ou <code>head</code>.</p></li>
@@ -417,14 +417,14 @@ csagent --endpoint http://localhost:11434/v1 --model qwen2.5-coder:14b</pre></di
     </div>
 
     <div class="block" id="tools">
-      <h3>Les 34 outils intégrés</h3>
+      <h3>Les 35 outils intégrés</h3>
       <p class="muted">Un liseré marqué signale un outil qui demande avant de s'exécuter.</p>
       <div class="catalog" style="margin-top:20px">
         <div><h3>Fichiers</h3><ul class="chips"><li>read_file</li><li class="ask">write_file</li><li class="ask">edit_file</li><li>read_json</li><li>list_dir</li><li>tree</li><li>search_files</li><li>copy_file</li><li class="ask">move_file</li><li class="ask">delete_file</li><li>zip</li><li class="ask">unzip</li></ul></div>
         <div><h3>Shell</h3><ul class="chips"><li>sh</li><li>run_terminal</li><li>close_terminal</li><li>parse_output</li></ul></div>
         <div><h3>Git</h3><ul class="chips"><li>git_status</li><li>git_diff</li><li>git_log</li><li>git_branch</li><li class="ask">git_commit</li></ul></div>
         <div><h3>Web</h3><ul class="chips"><li>web_search</li><li>fetch_url</li><li>http_request</li></ul></div>
-        <div><h3>Courrier et Office</h3><ul class="chips"><li>read_msg</li><li class="ask">save_attachment</li><li class="ask win">send_email</li><li class="win">excel_command</li><li class="win">close_excel</li></ul></div>
+        <div><h3>Courrier et Office</h3><ul class="chips"><li>read_msg</li><li class="ask">save_attachment</li><li class="ask">group_msg_by_sender</li><li class="ask win">send_email</li><li class="win">excel_command</li><li class="win">close_excel</li></ul></div>
         <div><h3>Audio, presse-papiers, modèles</h3><ul class="chips"><li>transcribe_audio</li><li>read_clipboard</li><li class="ask">write_clipboard</li><li>switch_model</li><li>list_models</li></ul></div>
       </div>
     </div>
