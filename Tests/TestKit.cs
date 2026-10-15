@@ -98,6 +98,7 @@ static partial class Tests
         await GroupMsgBySender();
         await ToolSelectorGroup();
         await McpStdioGroup();
+        await CalendarGroup();
         await AgentEndToEnd();
     }
 

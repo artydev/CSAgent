@@ -181,6 +181,27 @@ public static partial class ToolDispatcher
                    args["saveToDrafts"]?.GetValue<bool>() ?? false,
                    isWindows),
 
+                "read_calendar" => await ReadCalendarAsync(
+                   args["start"]?.GetValue<string>(),
+                   args["end"]?.GetValue<string>(),
+                   args["query"]?.GetValue<string>(),
+                   args["max_items"]?.GetValue<int>(),
+                   isWindows),
+
+                "create_appointment" => await CreateAppointmentAsync(
+                   args["subject"]!.GetValue<string>(),
+                   args["start"]!.GetValue<string>(),
+                   args["end"]?.GetValue<string>(),
+                   args["duration_minutes"]?.GetValue<int>(),
+                   args["all_day"]?.GetValue<bool>() ?? false,
+                   args["location"]?.GetValue<string>(),
+                   args["body"]?.GetValue<string>(),
+                   args["attendees"]?.GetValue<string>(),
+                   args["reminder_minutes"]?.GetValue<int>(),
+                   args["send"]?.GetValue<bool>() ?? false,
+                   args["save"]?.GetValue<bool>() ?? false,
+                   isWindows),
+
                 _ => $"Error: Unknown tool '{name}'"
             };
         }
@@ -193,5 +214,5 @@ public static partial class ToolDispatcher
     /// Returns true if the tool name is considered destructive (requires user confirmation).
     /// </summary>
     public static bool IsDestructive(string name) =>
-        name is "write_file" or "edit_file" or "git_commit" or "move_file" or "delete_file" or "unzip" or "write_clipboard" or "send_email" or "save_attachment" or "group_msg_by_sender";
+        name is "write_file" or "edit_file" or "git_commit" or "move_file" or "delete_file" or "unzip" or "write_clipboard" or "send_email" or "create_appointment" or "save_attachment" or "group_msg_by_sender";
 }

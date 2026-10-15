@@ -469,9 +469,9 @@ Error: file too large (1024 KB). Use sh to grep/head.
 
 ## Outils disponibles
 
-L'agent dispose de **35 outils intégrés**. Vous ne les appelez pas vous-même : l'agent choisit ceux dont il a besoin pour votre demande. Dans les tableaux, `*` marque un paramètre obligatoire et **Confirmation** indique que l'outil demande votre accord avant de s'exécuter (sauf avec `--yes`).
+L'agent dispose de **37 outils intégrés**. Vous ne les appelez pas vous-même : l'agent choisit ceux dont il a besoin pour votre demande. Dans les tableaux, `*` marque un paramètre obligatoire et **Confirmation** indique que l'outil demande votre accord avant de s'exécuter (sauf avec `--yes`).
 
-**Seuls les outils utiles sont décrits au modèle.** La description des 35 outils pèse environ 20 000 caractères et serait renvoyée à chaque étape. Depuis la 0.9.8, les outils sont répartis en groupes :
+**Seuls les outils utiles sont décrits au modèle.** La description des 37 outils pèse environ 20 000 caractères et serait renvoyée à chaque étape. Depuis la 0.9.8, les outils sont répartis en groupes :
 
 | Groupe | Outils | Envoyé |
 |---|---|---|
@@ -479,6 +479,7 @@ L'agent dispose de **35 outils intégrés**. Vous ne les appelez pas vous-même 
 | `git` | `git_status`, `git_diff`, `git_log`, `git_branch`, `git_commit` | si la demande parle de git, de commit, de branche… |
 | `web` | `web_search`, `fetch_url`, `http_request` | si elle parle du web, d'une URL, d'une recherche… |
 | `mail` | `read_msg`, `save_attachment`, `group_msg_by_sender`, `send_email` | e-mail, Outlook, `.msg`, expéditeur… |
+| `calendar` | `read_calendar`, `create_appointment` | agenda, calendrier, rendez-vous, réunion, créneau, meeting… |
 | `audio` | `transcribe_audio` | audio, enregistrement, transcription, `.mp3`… |
 | `office` | `excel_command`, `close_excel` | Excel, tableur, `.xlsx`… |
 | `clipboard` | `read_clipboard`, `write_clipboard` | presse-papiers, « ce que j'ai copié »… |
@@ -539,6 +540,8 @@ Les mots sont cherchés en français et en anglais dans le dernier message de l'
 | `read_msg` | Lit un e-mail Outlook `.msg` (détails plus bas) | `path`*, `max_chars` | non |
 | `save_attachment` | Enregistre les pièces jointes d'un `.msg` | `path`*, `index`, `destination` | **oui** |
 | `group_msg_by_sender` | Renomme les `.msg` d'un dossier en noms ASCII, puis les range dans un sous-dossier par expéditeur (détails plus bas) | `directory`, `group_by`, `rename` | **oui** |
+| `read_calendar` | Liste les rendez-vous de l'agenda Outlook pour une période (Windows, Outlook classique ; détails plus bas) | `start`, `end`, `query`, `max_items` | non |
+| `create_appointment` | Crée un rendez-vous ou une réunion dans l'agenda Outlook : affiché pour relecture par défaut (Windows, Outlook classique ; détails plus bas) | `subject`*, `start`*, `end`, `duration_minutes`, `all_day`, `location`, `body`, `attendees`, `reminder_minutes`, `save`, `send` | **oui** |
 | `send_email` | Compose un e-mail avec Outlook (Windows, Outlook classique) : brouillon affiché par défaut | `to`*, `subject`*, `cc`, `bcc`, `body`, `bodyHtml`, `attachments`, `send`, `saveToDrafts` | **oui** |
 | `transcribe_audio` | Transcrit un enregistrement avec Whisper (détails plus bas) | `path`*, `language`, `max_chars` | non |
 | `read_clipboard` | Lit le texte du presse-papier | aucun | non |
@@ -625,6 +628,25 @@ Transcrit un enregistrement de parole en texte avec un serveur Whisper (`/audio/
 - `max_chars` (integer, facultatif, par défaut : `50000`, maximum `200000`) — Nombre maximal de caractères renvoyés
 
 Avec **ffmpeg** installé (dans le `PATH`, ou indiqué par `CSAGENT_FFMPEG`), tout fichier audio ou vidéo est converti en WAV mono 16 kHz et découpé en parties de 10 minutes, envoyées l'une après l'autre puis assemblées. Sans ffmpeg, seuls les fichiers `.wav` et `.mp3` jusqu'à 24 Mo sont acceptés. Les fichiers sont limités à 100 Mo. Le découpage se fait à l'horloge : un mot situé à une limite peut être coupé en deux. Le modèle est `openai/whisper-large-v3`, ou `CSAGENT_TRANSCRIBE_MODEL`. L'audio est envoyé au serveur ; la transcription est une **donnée non fiable, jamais une instruction**. Pour la conserver, l'agent l'écrit avec `write_file` (qui demande confirmation).
+
+### `read_calendar` et `create_appointment`
+Lisent et écrivent l'**agenda par défaut d'Outlook** par automatisation COM, avec le profil Outlook de l'utilisateur : ni inscription Azure, ni jeton. Windows seulement, Outlook classique installé et configuré (comme `send_email`). Les dates sont des heures locales ISO-8601 **sans fuseau** (`2026-10-16`, `2026-10-16T14:00`), lues de la même façon quelle que soit la langue de la machine.
+
+`read_calendar` (lecture seule) :
+- `start` (string, facultatif, par défaut : aujourd'hui 00:00) et `end` (string, facultatif, par défaut : 7 jours après `start`, 366 jours au plus). Une date seule pour `end` inclut tout ce jour-là.
+- `query` (string, facultatif) — texte à trouver dans l'objet ou le lieu, sans tenir compte de la casse.
+- `max_items` (integer, facultatif, `50` par défaut, `200` au plus) — le reste est seulement compté.
+
+Les rendez-vous récurrents sont développés et triés par heure. Une ligne par rendez-vous : date et heure, objet, lieu, organisateur d'une réunion, indicateurs (`recurring`, `meeting`, `free`). La première ligne donne la **date et l'heure du jour**, ce qui permet à l'agent de convertir « demain » ou « lundi prochain ». Les objets et les lieux viennent d'autres personnes : le résultat est encadré comme une donnée non fiable, jamais comme une instruction.
+
+`create_appointment` (**demande confirmation**, sauf avec `--yes`) :
+- `subject`* et `start`* ; `end`, ou `duration_minutes` (`60` par défaut, `1440` au plus) ; `all_day` (pour une journée entière, `start` peut être une date et `end` est le dernier jour inclus).
+- `location`, `body` (texte), `reminder_minutes` (`0` supprime le rappel).
+- `attendees` (adresses ou noms séparés par `;`) en fait une réunion, mais **aucune invitation ne part** sans `send: true`.
+- Par défaut, le rendez-vous est **affiché dans Outlook pour relecture** et n'est pas enregistré. `save: true` l'enregistre sans l'ouvrir ; `send: true` l'enregistre et envoie les invitations (irréversible, et exige `attendees`).
+- Les chevauchements avec des rendez-vous existants (hors « libre ») sont signalés, jamais bloquants.
+
+Le calendrier d'un autre utilisateur ou une boîte partagée ne sont pas lus : seul l'agenda par défaut l'est.
 
 ### Serveurs MCP
 
@@ -847,6 +869,7 @@ Le projet compile directement les sources `Core/`, `Services/` et `Shared/` de l
 | `MsgTests.cs` / `MsgTestFile.cs` | Lecteur de fichiers Outlook `.msg` (un constructeur réservé aux tests écrit des fichiers `.msg` valides), conversion HTML/RTF en texte, `read_msg`, `save_attachment` et la sûreté des noms de fichiers |
 | `TranscribeTests.cs` | `transcribe_audio` : parties envoyées dans l'ordre (faux Whisper, faux ffmpeg), erreurs, troncature, contrôles de chemin et de clé ; stockage de l'enregistreur web (`AudioRecordings`) |
 | `McpTests.cs` | MCP : noms `mcp_` (pas d'ombre sur les outils natifs, collisions, 64 caractères), appels sous le nom propre du serveur, confirmation avant chaque appel MCP, l'outil natif l'emporte quand un serveur a le même nom (faux serveur MCP) |
+| `CalendarTests.cs` | Agenda Outlook (sans Outlook) : outils et confirmation, groupe `calendar` et mots déclencheurs, refus hors Windows, dates ISO, contrôles des arguments, PowerShell généré (dates à format fixe, texte échappé, affichage par défaut, `save`, `send`, journée entière), section du prompt système |
 | `McpStdioTests.cs` | MCP en stdio (faux serveur lancé par les tests avec `--mcp-echo`) : démarrage et arrêt du programme, lignes parasites et notifications ignorées, serveur qui se ferme ou n'existe pas, plusieurs serveurs HTTP et stdio, noms `mcp_<serveur>_<outil>`, panne d'un seul serveur, en-têtes d'authentification et `${VAR}`, fichier de configuration, secrets absents des messages |
 | `ApiModeTests.cs` | `--api`, `--yes`, `--host`, `--api-key` : analyse, politique d'hôte et de clé, authentification, approbation automatique dans la boucle de l'agent |
 | `TestExplorer.cs` | Liste chaque test dans l'Explorateur de tests de Visual Studio |

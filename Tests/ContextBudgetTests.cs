@@ -124,9 +124,10 @@ static partial class Tests
         await T("agent: --no-compact keeps the results it sends whole", async () =>
         {
             var tools = await RunNineReads(compact: false);
-            // Nothing is cut, so 9 x 10 000 characters pass the 96 000 limit and the oldest result is dropped instead.
-            Assert(tools.Count == 8 && tools.All(t => !t.Contains("characters left out") && t.Length >= 10_000), string.Join(",", tools.Select(t => t.Length)));
-            return "8 whole (the oldest dropped by the size limit)";
+            // Nothing is cut, so 9 x 10 000 characters pass the 96 000 limit (the system prompt counts too) and the
+            // oldest results are dropped instead: how many fit depends on the size of the system prompt.
+            Assert(tools.Count is >= 6 and <= 8 && tools.All(t => !t.Contains("characters left out") && t.Length >= 10_000), string.Join(",", tools.Select(t => t.Length)));
+            return $"{tools.Count} whole (the oldest dropped by the size limit)";
         });
     }
 }

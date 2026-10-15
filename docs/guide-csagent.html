@@ -87,7 +87,7 @@ body { background: var(--bg); color: var(--fg); font-family: var(--font-body); f
 <div class="app">
   <header class="topbar">
     <h1>CsAgent</h1>
-    <p>Guide de l'utilisateur · version 0.9.9</p>
+    <p>Guide de l'utilisateur · version 0.9.10</p>
   </header>
 
   <nav class="side" aria-label="Sommaire">
@@ -218,7 +218,7 @@ csagent --endpoint http://localhost:11434/v1 --model qwen2.5-coder:14b</code></p
   <h2>Travailler en sécurité</h2>
   <p class="lead">Quatre garde-fous limitent les dégâts possibles d'une erreur de l'agent.</p>
   <ul>
-    <li><b>Confirmation des actions destructrices.</b> Ces outils demandent ton accord : <code>write_file</code>, <code>edit_file</code>, <code>move_file</code>, <code>delete_file</code>, <code>unzip</code>, <code>git_commit</code>, <code>write_clipboard</code>, <code>send_email</code>, <code>save_attachment</code> et <code>group_msg_by_sender</code>. Chaque appel à un outil d'un serveur MCP en demande un aussi.</li>
+    <li><b>Confirmation des actions destructrices.</b> Ces outils demandent ton accord : <code>write_file</code>, <code>edit_file</code>, <code>move_file</code>, <code>delete_file</code>, <code>unzip</code>, <code>git_commit</code>, <code>write_clipboard</code>, <code>send_email</code>, <code>create_appointment</code>, <code>save_attachment</code> et <code>group_msg_by_sender</code>. Chaque appel à un outil d'un serveur MCP en demande un aussi.</li>
     <li><b>Périmètre.</b> Les opérations sur les fichiers sont limitées au dossier courant et à ses sous-dossiers.</li>
     <li><b>Filtre des commandes shell.</b> Les motifs dangereux sont refusés : <code>sudo</code>, <code>chmod</code>, <code>shutdown</code>, <code>mkfs</code>, <code>/etc/</code> sous Linux et macOS ; <code>format</code>, <code>del /f</code>, <code>reg delete</code>, <code>diskpart</code>, <code>shutdown</code>, <code>\windows\system32\</code> sous Windows.</li>
     <li><b>Limites.</b> Une commande est arrêtée après 60 secondes. La lecture d'un fichier de plus de 500 Ko est refusée ; l'agent utilise alors <code>grep</code> ou <code>head</code>.</li>
@@ -238,6 +238,7 @@ csagent --endpoint http://localhost:11434/v1 --model qwen2.5-coder:14b</code></p
       <tr><td>Git</td><td><code>git_status</code>, <code>git_diff</code>, <code>git_log</code>, <code>git_branch</code>, <code>git_commit</code></td></tr>
       <tr><td>Web</td><td><code>web_search</code>, <code>fetch_url</code>, <code>http_request</code></td></tr>
       <tr><td>Courrier</td><td><code>read_msg</code> (fichiers Outlook <code>.msg</code>), <code>save_attachment</code>, <code>group_msg_by_sender</code> (range les <code>.msg</code> par expéditeur, après avoir renommé les fichiers en ASCII), <code>send_email</code></td></tr>
+      <tr><td>Agenda</td><td><code>read_calendar</code> (liste les rendez-vous Outlook d'une période), <code>create_appointment</code> (affiche le rendez-vous pour relecture ; <code>save</code> l'enregistre, <code>send</code> invite les participants). Windows et Outlook classique</td></tr>
       <tr><td>Audio</td><td><code>transcribe_audio</code> (Whisper ; <code>ffmpeg</code> pour les longs fichiers, 100 Mo au maximum)</td></tr>
       <tr><td>Bureau</td><td><code>read_clipboard</code>, <code>write_clipboard</code>, <code>excel_command</code>, <code>close_excel</code></td></tr>
       <tr><td>Modèles</td><td><code>list_models</code>, <code>switch_model</code></td></tr>
@@ -295,7 +296,7 @@ csagent --mcp-config mcp.json</code></pre>
   <p>Réglages : <code>--max-retries &lt;n&gt;</code> (6 par défaut) et <code>--retry-delay &lt;ms&gt;</code> (1000 par défaut).</p>
   <h3>Consommer moins de jetons</h3>
   <p>Chaque étape renvoie toute la conversation au modèle, donc le quota se dépense surtout sur l'historique. Par défaut, les anciens résultats d'outils sont raccourcis. Pour réduire davantage, baisse la taille de l'historique : <code>csagent --leanui --context-chars 48000</code>. L'agent se souvient alors de moins de messages.</p>
-  <p>Chaque étape renvoie aussi la description des outils. Depuis la 0.9.8, seuls les outils utiles à la demande sont décrits : les fichiers, la recherche et le shell toujours, et git, le web, le courrier, l'audio, Excel, le presse-papiers, les archives, les sessions de terminal ou le changement de modèle quand la demande en parle. Cela retire environ deux tiers de ces descriptions. L'agent peut activer un groupe qui manque avec l'outil <code>enable_tools</code>. <code>--all-tools</code> rétablit l'envoi de tous les outils.</p>
+  <p>Chaque étape renvoie aussi la description des outils. Depuis la 0.9.8, seuls les outils utiles à la demande sont décrits : les fichiers, la recherche et le shell toujours, et git, le web, le courrier, l'agenda, l'audio, Excel, le presse-papiers, les archives, les sessions de terminal ou le changement de modèle quand la demande en parle. Cela retire environ deux tiers de ces descriptions. L'agent peut activer un groupe qui manque avec l'outil <code>enable_tools</code>. <code>--all-tools</code> rétablit l'envoi de tous les outils.</p>
 </section>
 
 <section id="scenarios" data-title="Scénarios">
