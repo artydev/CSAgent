@@ -32,8 +32,8 @@ public static partial class ToolDispatcher
             if (string.IsNullOrWhiteSpace(command))
                 return "Error: excel_command - 'command' argument is required.";
 
-            if (!IsSafeCommand(command, isWindows))
-                return $"Error: excel_command - command contains potentially dangerous operations and is not allowed.";
+            if (FindDangerousPattern(command, isWindows) is { } blocked)
+                return $"Error: excel_command - command {DangerousMessage("excel_command", blocked)}";
 
             if (timeoutMs < 1) timeoutMs = 1;
             if (timeoutMs > 300_000) timeoutMs = 300_000;

@@ -9,8 +9,8 @@ public static partial class ToolDispatcher
     {
         try
         {
-            if (!IsSafeCommand(cmd, isWindows))
-                return $"Error: sh - Command '{cmd}' contains potentially dangerous operations and is not allowed.";
+            if (FindDangerousPattern(cmd, isWindows) is { } blocked)
+                return $"Error: sh - Command '{cmd}' {DangerousMessage("sh", blocked)}";
 
             var (file, shellArgs) = isWindows
                 ? ("cmd.exe", $"/d /s /c \"{cmd}\"")
@@ -59,8 +59,8 @@ public static partial class ToolDispatcher
             if (string.IsNullOrWhiteSpace(cmd))
                 return "Error: run_terminal - 'cmd' argument is required.";
 
-            if (!IsSafeCommand(cmd, isWindows))
-                return $"Error: run_terminal - Command '{cmd}' contains potentially dangerous operations and is not allowed.";
+            if (FindDangerousPattern(cmd, isWindows) is { } blocked)
+                return $"Error: run_terminal - Command '{cmd}' {DangerousMessage("run_terminal", blocked)}";
 
             if (timeoutMs < 1) timeoutMs = 1;
             if (timeoutMs > 300_000) timeoutMs = 300_000;

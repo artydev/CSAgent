@@ -424,7 +424,7 @@ Error: write_file - Path 'C:\Windows\System32\config' is not allowed for writing
 
 ### 3. Filtrage des commandes dangereuses
 
-Les commandes shell sont analysées avant exécution à la recherche de motifs potentiellement dangereux. Le filtre **dépend de la plateforme** :
+Les commandes de `sh`, `run_terminal` et `excel_command` sont analysées avant exécution à la recherche de motifs potentiellement dangereux. Le filtre **dépend de la plateforme** :
 
 #### Windows (cmd.exe)
 Les motifs bloqués comprennent :
@@ -448,6 +448,8 @@ Les motifs bloqués comprennent :
 - `dd` — Opérations disque de bas niveau
 - `mkfs` — Création de système de fichiers
 - `/etc/` / `/usr/bin/` / `/bin/` — Accès aux répertoires système
+
+**Comment le filtre lit la commande.** Il cherche ces motifs dans le texte de la commande, y compris entre guillemets. Un motif qui commence par une lettre ne compte qu'en **début de mot** : `format c:` est bloqué, mais pas `.NumberFormat = "0.00"` (Excel), et `dd if=…` est bloqué, mais pas `git add fichier`. Quand une commande est refusée, le message **nomme le motif** (`blocked pattern 'format'`) pour que l'agent puisse la réécrire. Un texte qui contient le motif, par exemple une cellule Excel qui vaut « format c: », est bloqué lui aussi : il faut alors le reformuler.
 
 ### 4. Délai maximal des commandes
 
@@ -886,6 +888,7 @@ Le projet compile directement les sources `Core/`, `Services/` et `Shared/` de l
 | `MsgTests.cs` / `MsgTestFile.cs` | Lecteur de fichiers Outlook `.msg` (un constructeur réservé aux tests écrit des fichiers `.msg` valides), conversion HTML/RTF en texte, `read_msg`, `save_attachment` et la sûreté des noms de fichiers |
 | `TranscribeTests.cs` | `transcribe_audio` : parties envoyées dans l'ordre (faux Whisper, faux ffmpeg), erreurs, troncature, contrôles de chemin et de clé ; stockage de l'enregistreur web (`AudioRecordings`) |
 | `McpTests.cs` | MCP : noms `mcp_` (pas d'ombre sur les outils natifs, collisions, 64 caractères), appels sous le nom propre du serveur, confirmation avant chaque appel MCP, l'outil natif l'emporte quand un serveur a le même nom (faux serveur MCP) |
+| `CommandFilterTests.cs` | Filtre des commandes : `.NumberFormat` d'Excel et `git add` ne sont plus bloqués, les vraies commandes dangereuses le restent (au début, après `&` ou `;`, entre guillemets), le refus nomme le motif dans `sh`, `run_terminal` et `excel_command` |
 | `DownloadTests.cs` | `download_file` (petit serveur HTTP local) : octets enregistrés tels quels, `json_path` et JSON indenté, résumé sans données, erreurs qui n'écrivent rien, refus avant tout appel réseau, confirmation, appel complet de l'agent (un seul appel, réponse courte au modèle) |
 | `CalendarTests.cs` | Agenda Outlook (sans Outlook) : outils et confirmation, groupe `calendar` et mots déclencheurs, refus hors Windows, dates ISO, contrôles des arguments, PowerShell généré (dates à format fixe, texte échappé, affichage par défaut, `save`, `send`, journée entière), section du prompt système |
 | `McpStdioTests.cs` | MCP en stdio (faux serveur lancé par les tests avec `--mcp-echo`) : démarrage et arrêt du programme, lignes parasites et notifications ignorées, serveur qui se ferme ou n'existe pas, plusieurs serveurs HTTP et stdio, noms `mcp_<serveur>_<outil>`, panne d'un seul serveur, en-têtes d'authentification et `${VAR}`, fichier de configuration, secrets absents des messages |
