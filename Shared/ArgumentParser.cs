@@ -41,7 +41,8 @@ public sealed record AgentArguments(
     string? Prompt = null,
     int ContextChars = 96_000,
     bool CompactToolResults = true,
-    bool Verbose = false);
+    bool Verbose = false,
+    bool AllTools = false);
 
 /// <summary>
 /// Pure argument parsing — no side effects, no console output.
@@ -99,7 +100,7 @@ public static class ArgumentParser
             showHelp, showVersion, showDoc, maxRetries, retryDelayMs, usePropMem, propositionFile, distill,
             isApiMode, autoApprove, host, apiKey, endpoint, visionModel, quiet,
             codeModel, chatModel, autoRoute, initRouting, explainRouting, rulesFolder, language, prompt,
-            contextChars, !args.Contains("--no-compact"), args.Contains("--verbose"));
+            contextChars, !args.Contains("--no-compact"), args.Contains("--verbose"), args.Contains("--all-tools"));
     }
 
     private static string GetMemoryFile(string[] args)

@@ -11,7 +11,7 @@ namespace CsAgent;
 
 public static class Program
 {
-    public const string Version = "0.9.7";
+    public const string Version = "0.9.8";
 
     [STAThread]
     public static int Main(string[] args)
@@ -25,6 +25,7 @@ public static class Program
         LlmConfig.Configure(parsed.Endpoint, parsed.VisionModel, parsed.CodeModel, parsed.ChatModel, parsed.AutoRoute);
         RoutingRules.FolderOverride = parsed.RulesFolder;
         ContextBudget.Configure(parsed.ContextChars, parsed.CompactToolResults);
+        ToolSelector.Configure(parsed.AllTools);
 
         if (parsed.ShowHelp) { HelpDisplay.Show(Version); return 0; }
         if (parsed.ShowVersion) { Console.WriteLine($"CSAgent version {Version}"); return 0; }

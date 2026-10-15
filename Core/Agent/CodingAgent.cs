@@ -17,7 +17,10 @@ public sealed class CodingAgent : IDisposable
     private readonly AgentOptions _opts;
     private readonly IAgentObserver _observer;
     private readonly McpClient? _mcp;
-    private JsonArray? _toolDefinitions;
+    private JsonArray? _toolDefinitions;      // every tool (native + MCP), before the per-step choice
+    private JsonArray? _mcpDefinitions;
+    private readonly HashSet<string> _toolGroups = new(StringComparer.Ordinal);
+    private bool _mcpOn;
     private CancellationTokenSource? _cts;
     private HybridMemoryManager? _memory;
     private TaskTracker? _tracker;
@@ -71,9 +74,10 @@ public sealed class CodingAgent : IDisposable
             try
             {
                 await _mcp.ConnectAsync(_cts.Token);
+                _mcpDefinitions = _mcp.GetOpenAiToolDefinitions();
                 _toolDefinitions = MergeToolDefinitions(
                     ToolDispatcher.ToolDefinitions,
-                    _mcp.GetOpenAiToolDefinitions());
+                    _mcpDefinitions);
 
                 await _observer.OnThought($"MCP connected: {_mcp.Tools.Count} tool(s) available.");
             }
@@ -87,6 +91,14 @@ public sealed class CodingAgent : IDisposable
         {
             _toolDefinitions = ToolDispatcher.ToolDefinitions;
         }
+
+        // Which optional tool groups this request calls for (see ToolSelector); more are switched on during the run.
+        _toolGroups.Clear();
+        var requestText = LastUserText(messages);
+        var usedTools = UsedToolNames(messages);
+        foreach (var g in ToolSelector.Select(requestText, usedTools)) _toolGroups.Add(g);
+        _mcpOn = _mcpDefinitions is { Count: > 0 }
+                 && ToolSelector.McpWanted(_mcpDefinitions, requestText, usedTools.Any(t => _mcp is not null && _mcp.Contains(t)));
 
         ToolDispatcher.SwitchModelHandler switchModel = (model) =>
         {
@@ -147,7 +159,7 @@ public sealed class CodingAgent : IDisposable
                 JsonNode response;
                 try
                 {
-                    response = await _client.CompleteChatAsync(messages, _toolDefinitions, _cts.Token);
+                    response = await _client.CompleteChatAsync(messages, ToolsForStep(), _cts.Token);
                 }
                 catch (OperationCanceledException) { throw; }
                 catch (Exception ex)
@@ -228,10 +240,21 @@ public sealed class CodingAgent : IDisposable
 
 
 
+                    // A tool of a group that is off, called anyway: the model wants it, so the group stays on from now.
+                    if (_mcp is not null && _mcp.Contains(funcName)) _mcpOn = true;
+                    else if (funcName != ToolSelector.MetaToolName && ToolSelector.GroupFor(funcName) is var grp && grp != ToolSelector.Core)
+                        _toolGroups.Add(grp);
+
                     string result;
                     if (_opts.DryRun)
                     {
                         result = "[dry-run] Tool not executed.";
+                    }
+                    else if (funcName == ToolSelector.MetaToolName)
+                    {
+                        string? wanted = null;
+                        try { wanted = JsonNode.Parse(argsRaw)?["group"]?.GetValue<string>(); } catch { }
+                        result = ToolSelector.Enable(wanted, _toolGroups, ref _mcpOn, _mcpDefinitions is { Count: > 0 });
                     }
                     else if (_mcp is not null && _mcp.Contains(funcName))
                     {
@@ -339,6 +362,43 @@ public sealed class CodingAgent : IDisposable
         if (string.IsNullOrEmpty(s)) return s;
         var single = s.Replace("\r", " ").Replace("\n", " ");
         return single.Length <= max ? single : single.Substring(0, max) + "...";
+    }
+
+    /// <summary>The tool definitions sent at this step (see <see cref="ToolSelector"/>).</summary>
+    private JsonArray? ToolsForStep()
+    {
+        if (_toolDefinitions is null) return null;
+        if (!ToolSelector.Enabled) return _toolDefinitions;
+        return ToolSelector.Build(ToolDispatcher.ToolDefinitions, _mcpDefinitions, _toolGroups, _mcpOn, all: false);
+    }
+
+    /// <summary>The text of the last user message of the conversation (what the person asked), without the memory blocks.</summary>
+    internal static string LastUserText(JsonArray messages)
+    {
+        for (int i = messages.Count - 1; i >= 0; i--)
+        {
+            var m = messages[i];
+            if (m?["role"]?.GetValue<string>() != "user") continue;
+            var c = m["content"];
+            string text = c is JsonValue v && v.TryGetValue<string>(out var s) ? s
+                : c is JsonArray blocks ? string.Join("\n", blocks.Select(b => b?["type"]?.GetValue<string>() == "text" ? b["text"]?.GetValue<string>() : null).OfType<string>())
+                : "";
+            if (text.StartsWith(MemoryMarker, StringComparison.Ordinal)) continue;
+            if (text.StartsWith("[SESSION CONTEXT]", StringComparison.Ordinal)) continue;
+            return text;
+        }
+        return "";
+    }
+
+    /// <summary>Names of the tools the assistant has called so far in the conversation.</summary>
+    internal static List<string> UsedToolNames(JsonArray messages)
+    {
+        var names = new List<string>();
+        foreach (var m in messages)
+            if (m?["tool_calls"] is JsonArray calls)
+                foreach (var tc in calls)
+                    if (tc?["function"]?["name"]?.GetValue<string>() is { } n) names.Add(n);
+        return names;
     }
 
     private static JsonArray MergeToolDefinitions(JsonArray native, JsonArray mcp)

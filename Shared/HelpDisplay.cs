@@ -103,6 +103,9 @@ public static class HelpDisplay
         Console.WriteLine("                       Lower it to spend fewer input tokens");
         Console.WriteLine("    --no-compact      Keep old tool results whole (by default, results older than the");
         Console.WriteLine("                       last 6 are cut to 1500 characters in the history)");
+        Console.WriteLine("    --all-tools       Describe every tool to the model at each step (by default only the");
+        Console.WriteLine("                       tools the request needs: files, search and shell always; git, web,");
+        Console.WriteLine("                       mail, audio, Excel, clipboard... when the request calls for them)");
         Console.WriteLine("    --no-distill      Do not summarise the session at the end of a run");
         Console.WriteLine("                       (saves one LLM call; an existing summary is still used)");
         Console.WriteLine("    --quiet, -q       CLI, --ui, --leanui: show only the assistant's messages, warnings");

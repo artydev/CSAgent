@@ -333,6 +333,7 @@ Les fonctionnalités suivantes sont prévues pour de prochaines versions :
 | `--retry-delay <ms>` | Délai de base (en ms) avant la première nouvelle tentative (par défaut : `1000`) |
 | `--context-chars <n>` | Taille au-delà de laquelle les plus anciens messages sont retirés de l'historique renvoyé à chaque étape (par défaut : `96000`, minimum `8000`). Plus elle est petite, moins on consomme de jetons d'entrée |
 | `--no-compact` | Garde les anciens résultats d'outils en entier (par défaut, ceux au-delà des 6 derniers sont coupés à 1 500 caractères dans l'historique, et l'agent peut relancer l'outil) |
+| `--all-tools` | Décrit tous les outils au modèle à chaque étape (par défaut, seuls ceux utiles à la demande sont décrits, voir [Outils disponibles](#outils-disponibles)) |
 | `--no-distill` | Ne résume pas la session à la fin d'une exécution (économise un appel LLM ; voir [Distillation de session](#distillation-de-session-entre-les-sessions)) |
 | `--help`, `-h`, `/?` | Affiche l'aide et quitte |
 | `--version` | Affiche la version de CSAgent et quitte |
@@ -465,6 +466,23 @@ Error: file too large (1024 KB). Use sh to grep/head.
 ## Outils disponibles
 
 L'agent dispose de **35 outils intégrés**. Vous ne les appelez pas vous-même : l'agent choisit ceux dont il a besoin pour votre demande. Dans les tableaux, `*` marque un paramètre obligatoire et **Confirmation** indique que l'outil demande votre accord avant de s'exécuter (sauf avec `--yes`).
+
+**Seuls les outils utiles sont décrits au modèle.** La description des 35 outils pèse environ 20 000 caractères et serait renvoyée à chaque étape. Depuis la 0.9.8, les outils sont répartis en groupes :
+
+| Groupe | Outils | Envoyé |
+|---|---|---|
+| `core` | fichiers (`read_file`, `write_file`, `edit_file`, `copy_file`, `move_file`, `delete_file`, `read_json`, `parse_output`), `list_dir`, `tree`, `search_files`, `sh` | toujours |
+| `git` | `git_status`, `git_diff`, `git_log`, `git_branch`, `git_commit` | si la demande parle de git, de commit, de branche… |
+| `web` | `web_search`, `fetch_url`, `http_request` | si elle parle du web, d'une URL, d'une recherche… |
+| `mail` | `read_msg`, `save_attachment`, `group_msg_by_sender`, `send_email` | e-mail, Outlook, `.msg`, expéditeur… |
+| `audio` | `transcribe_audio` | audio, enregistrement, transcription, `.mp3`… |
+| `office` | `excel_command`, `close_excel` | Excel, tableur, `.xlsx`… |
+| `clipboard` | `read_clipboard`, `write_clipboard` | presse-papiers, « ce que j'ai copié »… |
+| `archive` | `zip`, `unzip` | archive, zip… |
+| `terminal` | `run_terminal`, `close_terminal` | terminal interactif, serveur de dev… |
+| `models` | `switch_model`, `list_models` | modèle, LLM… |
+
+Les mots sont cherchés en français et en anglais dans le dernier message de l'utilisateur. Un groupe déjà utilisé dans la conversation reste actif, et un outil appelé alors que son groupe était éteint le réactive pour la suite. Si un groupe manque, l'agent le rallume avec l'outil `enable_tools` (décrit en une ligne, avec les groupes éteints) et appelle l'outil à l'étape suivante. Les outils d'un serveur MCP sont tous envoyés tant que leurs descriptions tiennent en 4 000 caractères ; au-delà, ils ne le sont que si la demande dit « MCP » ou nomme l'un d'eux, ou si l'agent les active avec `enable_tools`. `--all-tools` rétablit l'envoi de tous les outils.
 
 #### Fichiers
 
@@ -796,6 +814,7 @@ Le projet compile directement les sources `Core/`, `Services/` et `Shared/` de l
 | `LlmEndpointTests.cs` | `--endpoint`, `--vision-model`, serveurs locaux et clé d'API |
 | `ModelRouterTests.cs` | Choix automatique du modèle (code / chat / vision) : messages généraux ou de code en français et en anglais, priorité de `--model`, suites après des outils, `--no-route`, serveurs personnalisés, et vérification dans la liste des modèles du serveur (cas inconnu, indisponible, non texte et hors ligne) |
 | `RoutingRulesTests.cs` | Dossier `LLMRoutingRules` (`models.json`, `keywords.json`, `rules.json`) : valeurs par défaut, erreurs signalées sans jamais bloquer, recherche du dossier et rechargement, `--init-routing`, `--explain-routing` ; messages en anglais et en français ; option `--prompt` |
+| `ToolSelectorTests.cs` | Choix des outils décrits au modèle : groupes, mots déclencheurs (FR et EN), groupes déjà utilisés, `enable_tools`, outils MCP, requêtes réelles envoyées au modèle, `--all-tools` |
 | `GroupMsgTests.cs` | `group_msg_by_sender` : noms ASCII (accents, espaces, caractères spéciaux), un dossier par expéditeur, noms identiques, fichier illisible, rien d'écrasé, `rename` et `group_by`, dossiers refusés |
 | `MsgTests.cs` / `MsgTestFile.cs` | Lecteur de fichiers Outlook `.msg` (un constructeur réservé aux tests écrit des fichiers `.msg` valides), conversion HTML/RTF en texte, `read_msg`, `save_attachment` et la sûreté des noms de fichiers |
 | `TranscribeTests.cs` | `transcribe_audio` : parties envoyées dans l'ordre (faux Whisper, faux ffmpeg), erreurs, troncature, contrôles de chemin et de clé ; stockage de l'enregistreur web (`AudioRecordings`) |

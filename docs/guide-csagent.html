@@ -87,7 +87,7 @@ body { background: var(--bg); color: var(--fg); font-family: var(--font-body); f
 <div class="app">
   <header class="topbar">
     <h1>CsAgent</h1>
-    <p>Guide de l'utilisateur · version 0.9.7</p>
+    <p>Guide de l'utilisateur · version 0.9.8</p>
   </header>
 
   <nav class="side" aria-label="Sommaire">
@@ -289,6 +289,7 @@ csagent --endpoint http://localhost:11434/v1 --model qwen2.5-coder:14b</code></p
   <p>Réglages : <code>--max-retries &lt;n&gt;</code> (6 par défaut) et <code>--retry-delay &lt;ms&gt;</code> (1000 par défaut).</p>
   <h3>Consommer moins de jetons</h3>
   <p>Chaque étape renvoie toute la conversation au modèle, donc le quota se dépense surtout sur l'historique. Par défaut, les anciens résultats d'outils sont raccourcis. Pour réduire davantage, baisse la taille de l'historique : <code>csagent --leanui --context-chars 48000</code>. L'agent se souvient alors de moins de messages.</p>
+  <p>Chaque étape renvoie aussi la description des outils. Depuis la 0.9.8, seuls les outils utiles à la demande sont décrits : les fichiers, la recherche et le shell toujours, et git, le web, le courrier, l'audio, Excel, le presse-papiers, les archives, les sessions de terminal ou le changement de modèle quand la demande en parle. Cela retire environ deux tiers de ces descriptions. L'agent peut activer un groupe qui manque avec l'outil <code>enable_tools</code>. <code>--all-tools</code> rétablit l'envoi de tous les outils.</p>
 </section>
 
 <section id="scenarios" data-title="Scénarios">
@@ -345,6 +346,7 @@ csagent --mem projet_b</code></pre>
       <tr><td><code>--no-distill</code></td><td>Pas de résumé de session en fin d'exécution</td></tr>
       <tr><td><code>--context-chars &lt;n&gt;</code></td><td>Taille de l'historique renvoyé à chaque étape (96 000 par défaut, 8 000 au minimum) : plus petite, moins de jetons consommés</td></tr>
       <tr><td><code>--no-compact</code></td><td>Garde les anciens résultats d'outils en entier</td></tr>
+      <tr><td><code>--all-tools</code></td><td>Décrit tous les outils à chaque étape (par défaut, seulement ceux utiles à la demande)</td></tr>
       <tr><td><code>--task &lt;slug&gt;</code></td><td>Suit le travail dans <code>.csagent/tasks/</code></td></tr>
       <tr><td><code>--mcp &lt;url&gt;</code></td><td>Connecte un serveur MCP</td></tr>
       <tr><td><code>--yes</code>, <code>-y</code></td><td>Approuve tous les appels d'outils</td></tr>
