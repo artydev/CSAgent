@@ -26,6 +26,7 @@ Il propose trois modes de présentation : une interface terminal (TUI), une inte
 - [Fonctions de sécurité](#fonctions-de-sécurité)
 - [Outils disponibles](#outils-disponibles)
   - [Serveurs MCP](#serveurs-mcp)
+- [Skills](#skills)
 - [Mémoire et persistance de la conversation](#mémoire-et-persistance-de-la-conversation)
   - [Mémoire hybride (anti-amnésie)](#mémoire-hybride-anti-amnésie)
   - [Distillation de session (entre les sessions)](#distillation-de-session-entre-les-sessions)
@@ -70,7 +71,7 @@ dotnet run
 csagent --prompt "hello my name is John"
 ```
 
-CSAgent exécute cette demande, affiche la réponse puis quitte (voir [`--prompt`](#arguments-de-la-ligne-de-commande)).
+CSAgent exécute cette demande puis quitte. Seule la réponse est écrite sur la sortie standard : elle peut être redirigée vers une autre commande (voir [`--prompt`](#arguments-de-la-ligne-de-commande)).
 
 ---
 
@@ -611,6 +612,28 @@ Avec **ffmpeg** installé (dans le `PATH`, ou indiqué par `CSAGENT_FFMPEG`), to
 - **Confirmation.** CsAgent ne peut pas savoir ce que fait l'outil d'un serveur : quand les confirmations sont actives (par défaut), **chaque** appel MCP demande votre accord, comme `write_file`. Avec `--yes`, ils s'exécutent sans demander.
 - **Contenu non fiable.** Ce qu'envoie un serveur (descriptions d'outils, résultats) est traité comme une donnée : le prompt système demande au modèle de ne jamais suivre les instructions qui s'y trouvent, et les descriptions sont coupées à 1000 caractères. Ne connectez que des serveurs de confiance.
 - **Limites.** Un seul serveur, HTTP uniquement (pas de stdio), pas d'en-tête d'authentification, outils seulement (ni ressources ni prompts), résultats en texte (les autres contenus sont affichés en JSON). Si le serveur est injoignable, l'exécution s'arrête avec une erreur.
+
+---
+
+## Skills
+
+Un **skill** est un fichier Markdown du dossier `skills/` qui apprend à l'agent à bien faire une tâche récurrente. Au début d'une tâche, l'agent lit seulement le petit index `skills/INDEX.md` et n'ouvre un skill que si sa description correspond à la demande. Ajouter un skill ne demande ni code ni recompilation : créez son fichier `.md`, puis ajoutez une ligne à l'index (nom, version, une phrase de déclenchement, chemin). Dans la Lean UI, `/skills [filtre]` liste les skills.
+
+| Skill | Sert à | Fichier |
+|---|---|---|
+| Tech-Watch Intelligence | Veille technologique : recherche sur le web et synthèse des nouveautés d'un domaine | `skills/tech-watch-intelligence.md` |
+| Excel Report Builder | Transforme des données en rapport Excel mis en forme (Windows) | `skills/export-report-builder.md` |
+| CSV Handling | Lire et analyser un `.csv` avant de le transformer | `skills/csv-handling.md` |
+| Pre-Commit Review & Message Drafting | Relit les changements et propose un message avant un `git_commit` | `skills/precommit-review.md` |
+| Organize .msg Emails by Sender | Range des `.msg` par expéditeur (l'outil `group_msg_by_sender` fait désormais ce travail) | `skills/msg-organize-by-sender.md` |
+| Task Framing | Cadre une demande vaste ou floue avant de commencer | `skills/task-framing.md` |
+| Plan Then Execute | Écrit puis suit un court plan avec une vérification par étape | `skills/plan-then-execute.md` |
+| Final Verification | Vérifie le résultat avec des preuves avant la réponse finale | `skills/final-verification.md` |
+| Failure Recovery | Diagnostique et change d'approche après deux échecs | `skills/failure-recovery.md` |
+| Safe Batch File Operations | Renommer, déplacer ou supprimer beaucoup de fichiers sans risque | `skills/safe-batch-file-operations.md` |
+| Product Owner Planning | Backlog, priorisation, feuille de route, risques et questions ouvertes à partir de documents, e-mails et enregistrements | `skills/po-planning.md` |
+
+Le skill **Product Owner Planning** transforme des notes, des spécifications, des e-mails et des enregistrements en un backlog traçable (chaque story renvoie à sa source), priorisé et accompagné d'une feuille de route, de risques et de questions ouvertes, écrits dans `planning/`. Il n'invente ni exigence, ni date, ni chiffre.
 
 ---
 

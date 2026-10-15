@@ -297,6 +297,15 @@ csagent --endpoint http://localhost:11434/v1 --model qwen2.5-coder:14b</code></p
   <pre><code>csagent --leanui --yes --quiet</code></pre>
   <h3>Lancer une tâche dans un script</h3>
   <pre><code>csagent mon_projet --prompt "liste les fichiers ici et résume le README" --yes</code></pre>
+  <h3>Récupérer la réponse dans une autre commande</h3>
+  <pre><code>csagent --prompt "liste les fichiers ici" --yes | clip</code></pre>
+  <p>Avec <code>--prompt</code>, seule la réponse finale est écrite sur la sortie standard. Les erreurs vont sur la sortie d'erreur, et le code de sortie est 1 en cas d'erreur.</p>
+  <h3>Ranger des e-mails par expéditeur</h3>
+  <pre><code>csagent --prompt "range les .msg de ce dossier par expéditeur" --yes</code></pre>
+  <p>L'outil <code>group_msg_by_sender</code> renomme d'abord les fichiers en noms sans accents ni espaces, puis les déplace dans un dossier par expéditeur. Rien n'est écrasé.</p>
+  <h3>Planifier un projet à partir de documents</h3>
+  <pre><code>csagent mon_projet --prompt "construis un backlog et une feuille de route à partir des notes et des e-mails de ce dossier"</code></pre>
+  <p>Le skill de product owner écrit <code>planning/backlog.md</code>, <code>roadmap.md</code>, <code>risks.md</code> et <code>sources.md</code>. Chaque story renvoie à sa source ; ce que les documents ne disent pas devient une question ouverte, pas une exigence.</p>
   <h3>Essayer sans rien modifier</h3>
   <pre><code>csagent --dry-run</code></pre>
   <h3>Suivre une tâche dans un dossier dédié</h3>

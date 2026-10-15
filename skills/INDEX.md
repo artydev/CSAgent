@@ -19,6 +19,7 @@ index.
 | Final Verification | 1.0 | Before the final answer of any task that produced or changed files, code, numbers or a report — check the result against the request with real evidence. | `skills/final-verification.md` |
 | Failure Recovery | 1.0 | A tool call or command has failed twice, or the same error repeats, or a result is clearly wrong — diagnose and change approach instead of retrying. | `skills/failure-recovery.md` |
 | Safe Batch File Operations | 1.0 | The user asks to rename, move, convert, classify, archive or delete about five or more files, or a whole folder. | `skills/safe-batch-file-operations.md` |
+| Product Owner Planning | 1.0 | The user wants to plan a project or release from documents, e-mails or recordings: build a backlog, prioritise it, draft a roadmap, list risks and open questions. | `skills/po-planning.md` |
 
 ---
 

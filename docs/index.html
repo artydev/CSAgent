@@ -162,12 +162,13 @@ Five TODOs in four files. I'll group them by file in TODO.md.
       <h3>Pas seulement du code</h3>
       <p class="muted">Les outils touchent au courrier, aux tableurs, à l'audio et au presse-papiers. Les skills (de simples fichiers Markdown) lui apprennent à bien faire les tâches récurrentes.</p>
       <ul class="prompts">
-        <li><q>Range les fichiers .msg de ce dossier dans un dossier par expéditeur.</q><span>Lit les messages Outlook sans Outlook (un lecteur C# pur, sur tout système) et suit un skill qui gère les noms accentués.</span></li>
+        <li><q>Range les fichiers .msg de ce dossier dans un dossier par expéditeur.</q><span>Lit les messages Outlook sans Outlook (un lecteur C# pur, sur tout système) avec l'outil <code>group_msg_by_sender</code>, qui renomme d'abord les fichiers en noms sans accents ni espaces.</span></li>
         <li><q>Transcris entretien.m4a en français et résume-le en cinq lignes.</q><span>Découpe l'audio long en parties de 10 minutes (avec ffmpeg), les envoie à un modèle Whisper et recolle le texte.</span></li>
         <li><q>Transforme ventes.csv en rapport Excel mis en forme.</q><span>Suit un skill de mise en forme et pilote une session Excel en direct. Windows uniquement.</span></li>
         <li><q>Prépare un e-mail pour Paul avec la transcription en pièce jointe.</q><span>Ouvre le brouillon dans Outlook pour que vous le relisiez, par défaut. Windows uniquement.</span></li>
         <li><q>Qu'est-ce qui ne va pas sur cette capture d'écran&nbsp;?</q><span>Joignez l'image&nbsp;: CsAgent passe à un modèle de vision pour cette demande.</span></li>
         <li><q>Corrige le code que je viens de copier.</q><span>Lit le presse-papiers, puis y réécrit la version corrigée (après avoir demandé).</span></li>
+        <li><q>Construis un backlog et une feuille de route à partir des notes et des e-mails de ce dossier.</q><span>Suit un skill de product owner&nbsp;: chaque story renvoie à sa source, avec priorités, risques et questions ouvertes dans <code>planning/</code>. Rien n'est inventé.</span></li>
         <li><q>Donne-moi la veille cybersécurité de la semaine.</q><span>Cherche sur le web, lit les pages et rédige une synthèse, en suivant un skill de veille technologique.</span></li>
       </ul>
     </div>
@@ -411,7 +412,7 @@ csagent --endpoint http://localhost:11434/v1 --model qwen2.5-coder:14b</pre></di
           <div class="pre-wrap"><pre class="pre"><span class="d">| Skill | Version | Use when… | File |</span>
 | CSV Handling | 1.0 | The user asks to read, parse, import,
   or work with a .csv file… | skills/csv-handling.md |</pre></div>
-          <p class="muted" style="margin-top:12px">Dix skills sont fournis, dont le cadrage de tâche, planifier puis exécuter, la vérification finale et la reprise après échec, qui orientent la façon de travailler de l'agent plus que ce qu'il produit.</p>
+          <p class="muted" style="margin-top:12px">Onze skills sont fournis, dont la planification d'un projet par un product owner, le cadrage de tâche, planifier puis exécuter, la vérification finale et la reprise après échec, qui orientent la façon de travailler de l'agent plus que ce qu'il produit.</p>
         </div>
       </div>
     </div>
