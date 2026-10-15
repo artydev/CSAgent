@@ -89,7 +89,11 @@ public static class HelpDisplay
         Console.WriteLine("    --lang <en|fr>    Language of the routing messages (default: the system language;");
         Console.WriteLine("                       or CSAGENT_LANG)");
         Console.WriteLine("    --mcp <url>       Connect to an MCP server (Streamable HTTP); its tools are offered");
-        Console.WriteLine("                       to the model as mcp_<name> and each call asks for confirmation");
+        Console.WriteLine("                       to the model as mcp_<name> and each call asks for confirmation.");
+        Console.WriteLine("                       Repeat it for several servers (names become mcp_<server>_<name>)");
+        Console.WriteLine("    --mcp-stdio \"<command>\"  Start a local MCP server and talk to it over stdin/stdout");
+        Console.WriteLine("    --mcp-header \"Name: value\"  Header sent to the --mcp servers (${VAR} = env variable)");
+        Console.WriteLine("    --mcp-config <file>  JSON file describing the MCP servers (\"mcpServers\")");
         Console.WriteLine("    --port, -p <n>    Web UI port number (default: 5050)");
         Console.WriteLine("    --task <slug>     Track the work in .csagent/tasks/<slug>-<date>/ (plan and progress");
         Console.WriteLine("                       files created by the host, not by the model)");
@@ -130,6 +134,7 @@ public static class HelpDisplay
         Console.WriteLine("    CSAGENT_VISION_MODEL  Same as --vision-model");
         Console.WriteLine("    CSAGENT_API_KEY   Key clients must present in --api mode (same as --api-key)");
         Console.WriteLine("    CSAGENT_MCP_URL   Same as --mcp");
+        Console.WriteLine("    CSAGENT_MCP_CONFIG  Same as --mcp-config");
         Console.WriteLine();
 
         C("green");

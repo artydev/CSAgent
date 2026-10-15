@@ -42,7 +42,11 @@ public sealed record AgentArguments(
     int ContextChars = 96_000,
     bool CompactToolResults = true,
     bool Verbose = false,
-    bool AllTools = false);
+    bool AllTools = false,
+    IReadOnlyList<string>? McpUrls = null,
+    IReadOnlyList<string>? McpStdio = null,
+    IReadOnlyList<string>? McpHeaders = null,
+    string? McpConfig = null);
 
 /// <summary>
 /// Pure argument parsing — no side effects, no console output.
@@ -59,8 +63,10 @@ public static class ArgumentParser
         var showDoc = args.Contains("--doc");
         var memFile = GetMemoryFile(args);
         var modelOverride = GetModelOverride(args);
-        var mcpUrl = GetValue(args, "--mcp", "--mcp-url")
-                           ?? Environment.GetEnvironmentVariable("CSAGENT_MCP_URL");
+        var mcpUrls = GetValues(args, "--mcp", "--mcp-url");
+        var mcpConfig = GetValue(args, "--mcp-config") ?? Environment.GetEnvironmentVariable("CSAGENT_MCP_CONFIG");
+        if (string.IsNullOrWhiteSpace(mcpConfig)) mcpConfig = null;
+        var mcpUrl = mcpUrls.Count > 0 ? mcpUrls[0] : Environment.GetEnvironmentVariable("CSAGENT_MCP_URL");
         var taskSlug = GetValue(args, "--task");
         var port = GetPort(args);
         var maxRetries = GetInt(args, "--max-retries", RetryPolicy.Default.MaxAttempts);
@@ -100,7 +106,9 @@ public static class ArgumentParser
             showHelp, showVersion, showDoc, maxRetries, retryDelayMs, usePropMem, propositionFile, distill,
             isApiMode, autoApprove, host, apiKey, endpoint, visionModel, quiet,
             codeModel, chatModel, autoRoute, initRouting, explainRouting, rulesFolder, language, prompt,
-            contextChars, !args.Contains("--no-compact"), args.Contains("--verbose"), args.Contains("--all-tools"));
+            contextChars, !args.Contains("--no-compact"), args.Contains("--verbose"), args.Contains("--all-tools"),
+            mcpUrls, GetValues(args, "--mcp-stdio"), GetValues(args, "--mcp-header"),
+            mcpConfig);
     }
 
     private static string GetMemoryFile(string[] args)
@@ -114,7 +122,8 @@ public static class ArgumentParser
                           or "-p" or "--max-retries" or "--retry-delay"
                           or "--task" or "--prop" or "--host" or "--api-key"
                           or "--endpoint" or "--vision-model" or "--code-model" or "--chat-model"
-                          or "--explain-routing" or "--rules" or "--lang" or "--prompt" or "--context-chars")
+                          or "--explain-routing" or "--rules" or "--lang" or "--prompt" or "--context-chars"
+                          or "--mcp-url" or "--mcp-stdio" or "--mcp-header" or "--mcp-config")
             { i++; continue; }
 
             if (args[i] != "--ui" && args[i] != "--leanui"
@@ -132,6 +141,16 @@ public static class ArgumentParser
         var v = Environment.GetEnvironmentVariable("CSAGENT_ROUTING")?.Trim();
         return v is not null && (v.Equals("off", StringComparison.OrdinalIgnoreCase) || v == "0"
             || v.Equals("false", StringComparison.OrdinalIgnoreCase) || v.Equals("no", StringComparison.OrdinalIgnoreCase));
+    }
+
+    /// <summary>Every value of an option that may be repeated (<c>--mcp a --mcp b</c>).</summary>
+    private static List<string> GetValues(string[] args, params string[] names)
+    {
+        var values = new List<string>();
+        for (int i = 0; i < args.Length - 1; i++)
+            if (names.Contains(args[i], StringComparer.OrdinalIgnoreCase))
+                values.Add(args[i + 1]);
+        return values;
     }
 
     private static string? GetValue(string[] args, params string[] names)

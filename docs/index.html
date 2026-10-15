@@ -378,16 +378,19 @@ csagent --endpoint http://localhost:11434/v1 --model qwen2.5-coder:14b</pre></di
       <div class="split">
         <div>
           <h3>Branchez un serveur MCP</h3>
-          <p><code>--mcp &lt;url&gt;</code> connecte un serveur MCP en Streamable HTTP et propose ses outils au modèle à côté des outils intégrés.</p>
+          <p>En HTTP (<code>--mcp</code>) ou en local (<code>--mcp-stdio</code>), un ou plusieurs serveurs, avec des en-têtes d'authentification. Leurs outils sont proposés au modèle à côté des outils intégrés.</p>
           <ul class="facts">
-            <li>Les outils du serveur apparaissent sous le nom <code>mcp_&lt;nom&gt;</code>, donc un serveur ne peut jamais remplacer un outil intégré.</li>
+            <li>Les outils apparaissent sous le nom <code>mcp_&lt;nom&gt;</code> (ou <code>mcp_&lt;serveur&gt;_&lt;nom&gt;</code> avec plusieurs serveurs), donc un serveur ne peut jamais remplacer un outil intégré.</li>
+            <li>Un serveur en panne donne un avertissement&nbsp;; les autres restent utilisables. Les secrets des en-têtes (<code>${VAR}</code>) ne sont jamais affichés.</li>
             <li>CsAgent ne peut pas savoir ce que fait l'outil d'un serveur, donc chaque appel MCP demande votre accord.</li>
             <li>Ce qu'envoie un serveur est traité comme une donnée non fiable.</li>
           </ul>
         </div>
         <div>
-          <div class="pre-wrap"><pre class="pre">csagent --mcp http://localhost:8000/mcp</pre></div>
-          <p class="muted" style="margin-top:12px">Limites actuelles&nbsp;: un seul serveur, HTTP uniquement (pas de stdio), pas d'en-tête d'authentification, outils seulement, résultats en texte. Si le serveur est injoignable, l'exécution s'arrête avec une erreur.</p>
+          <div class="pre-wrap"><pre class="pre">csagent --mcp https://api.exemple.com/mcp \
+  --mcp-header "Authorization: Bearer ${MCP_TOKEN}"
+csagent --mcp-stdio "npx -y @modelcontextprotocol/server-filesystem ."</pre></div>
+          <p class="muted" style="margin-top:12px">Limites actuelles&nbsp;: outils seulement (ni ressources ni prompts), pas d'OAuth, résultats en texte. Rien n'est lancé automatiquement depuis le dossier de travail&nbsp;: un serveur stdio ne démarre que si vous le nommez.</p>
         </div>
       </div>
     </div>
@@ -506,7 +509,7 @@ dotnet publish -c Release -r <span data-fill="rid">linux-x64</span></pre></div>
       </div>
       <ul class="limits">
         <li>Les outils Excel et Outlook utilisent l'automatisation COM, donc ils ne fonctionnent que sous Windows.</li>
-        <li>MCP gère un seul serveur, en HTTP, avec les outils seulement et sans en-tête d'authentification.</li>
+        <li>MCP gère les outils seulement (ni ressources ni prompts) et les en-têtes fixes, sans OAuth.</li>
         <li>La transcription vocale a lieu après l'arrêt de l'enregistrement. L'enregistreur est testé avec Chromium&nbsp;; le chemin Safari ne l'est pas.</li>
         <li>Les textes de l'interface et le prompt de l'agent sont en anglais. Seuls les messages de routage existent aussi en français.</li>
         <li>Le choix du modèle repose sur des mots-clés et des règles, pas sur le sens du message&nbsp;: un cas mal classé se corrige dans <code>LLMRoutingRules/</code> ou avec <code>--model</code>.</li>

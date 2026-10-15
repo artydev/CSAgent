@@ -1,3 +1,4 @@
+using CsAgent.Core.Agent;
 using CsAgent.Core.Llm;
 using CsAgent.Shared;
 
@@ -63,8 +64,8 @@ public static class ApiHost
             Console.WriteLine(args.AutoApprove
                 ? "--- Auto-approve: ON (tools run without confirmation; the shell command filter stays active) ---"
                 : "--- Auto-approve: OFF (destructive tools wait for POST /api/confirm) ---");
-            if (!string.IsNullOrWhiteSpace(args.McpUrl))
-                Console.WriteLine($"--- MCP endpoint: {args.McpUrl} ---");
+            if (McpSettings.Resolve(args.McpUrl).Count > 0)
+                Console.WriteLine($"--- MCP: {McpSettings.Describe(args.McpUrl)} ---");
             Console.WriteLine($"--- LLM endpoint: {LlmConfig.Endpoint} ---");
             if (string.IsNullOrEmpty(LlmConfig.ResolveApiKey()))
                 Console.WriteLine("--- WARNING: ALBERT_API_KEY is not set; every request will fail ---");

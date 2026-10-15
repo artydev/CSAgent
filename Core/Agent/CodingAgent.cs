@@ -16,7 +16,7 @@ public sealed class CodingAgent : IDisposable
     private readonly string _endpoint;
     private readonly AgentOptions _opts;
     private readonly IAgentObserver _observer;
-    private readonly McpClient? _mcp;
+    private readonly McpHub? _mcp;
     private JsonArray? _toolDefinitions;      // every tool (native + MCP), before the per-step choice
     private JsonArray? _mcpDefinitions;
     private readonly HashSet<string> _toolGroups = new(StringComparer.Ordinal);
@@ -41,8 +41,9 @@ public sealed class CodingAgent : IDisposable
         _tracker = opts.Tracker;
         _memory = memory;                 // ← add this line
 
-        if (!string.IsNullOrWhiteSpace(mcpUrl))
-            _mcp = new McpClient(mcpUrl);
+        var mcpServers = McpSettings.Resolve(mcpUrl);   // --mcp / --mcp-stdio / --mcp-config, plus this URL
+        if (mcpServers.Count > 0)
+            _mcp = new McpHub(mcpServers);
 
         if (_tracker is null && !string.IsNullOrWhiteSpace(_opts.ResumeTaskId))
             _tracker = TaskTracker.Load(_opts.ResumeTaskId);
@@ -73,13 +74,21 @@ public sealed class CodingAgent : IDisposable
         {
             try
             {
-                await _mcp.ConnectAsync(_cts.Token);
+                var failures = await _mcp.ConnectAsync(_cts.Token);
+                if (_mcp.Connected.Count == 0)
+                {
+                    await _observer.OnError("MCP connection error: " + string.Join("; ",
+                        failures.Select(f => _mcp.ServerCount > 1 ? $"{f.Name}: {f.Error}" : f.Error)));
+                    return;
+                }
+                foreach (var f in failures)
+                    await _observer.OnWarning($"MCP server '{f.Name}' is not available: {f.Error}");
                 _mcpDefinitions = _mcp.GetOpenAiToolDefinitions();
                 _toolDefinitions = MergeToolDefinitions(
                     ToolDispatcher.ToolDefinitions,
                     _mcpDefinitions);
 
-                await _observer.OnThought($"MCP connected: {_mcp.Tools.Count} tool(s) available.");
+                await _observer.OnThought($"MCP connected: {_mcp.Summary}");
             }
             catch (Exception ex)
             {

@@ -22,6 +22,8 @@ sealed class MockMcp : IDisposable
     /// <summary>tools/call requests received: (name, arguments json).</summary>
     public List<(string Name, string Args)> Calls { get; } = new();
     public bool CallsReturnError { get; set; }
+    /// <summary>The header text of every request received.</summary>
+    public List<string> RequestHeaders { get; } = new();
 
     public MockMcp()
     {
@@ -49,7 +51,9 @@ sealed class MockMcp : IDisposable
             try
             {
                 var stream = client.GetStream();
-                var req = JsonNode.Parse(await MockLlm.ReadBodyAsync(stream))!;
+                var (hdr, bodyText) = await MockLlm.ReadRequestAsync(stream);
+                lock (RequestHeaders) RequestHeaders.Add(hdr);
+                var req = JsonNode.Parse(bodyText)!;
                 var method = req["method"]!.GetValue<string>();
 
                 string status = "200 OK", body = "";

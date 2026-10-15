@@ -97,6 +97,7 @@ static partial class Tests
         await ScriptMode();
         await GroupMsgBySender();
         await ToolSelectorGroup();
+        await McpStdioGroup();
         await AgentEndToEnd();
     }
 

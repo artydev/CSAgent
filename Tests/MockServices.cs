@@ -70,7 +70,10 @@ sealed class MockLlm : IDisposable
     }
 
     // Reads one request and returns its body (the client always sends Content-Length).
-    internal static async Task<string> ReadBodyAsync(NetworkStream stream)
+    internal static async Task<string> ReadBodyAsync(NetworkStream stream) => (await ReadRequestAsync(stream)).Body;
+
+    // Same, with the request headers (text) as well.
+    internal static async Task<(string Header, string Body)> ReadRequestAsync(NetworkStream stream)
     {
         var data = new List<byte>();
         var chunk = new byte[8192];
@@ -97,7 +100,7 @@ sealed class MockLlm : IDisposable
             if (n == 0) throw new IOException("connection closed");
             data.AddRange(chunk.AsSpan(0, n).ToArray());
         }
-        return Encoding.UTF8.GetString(data.GetRange(bodyStart, length).ToArray());
+        return (header, Encoding.UTF8.GetString(data.GetRange(bodyStart, length).ToArray()));
     }
 
     static int IndexOfHeaderEnd(List<byte> d)

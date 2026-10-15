@@ -11,7 +11,7 @@ namespace CsAgent;
 
 public static class Program
 {
-    public const string Version = "0.9.8";
+    public const string Version = "0.9.9";
 
     [STAThread]
     public static int Main(string[] args)
@@ -32,6 +32,13 @@ public static class Program
         if (parsed.ShowDoc) { DocDisplay.Show(); return 0; }
         if (parsed.InitRouting) return RoutingCli.Init(Console.Out, parsed.RulesFolder);
         if (parsed.ExplainRouting is not null) return RoutingCli.Explain(Console.Out, parsed.ExplainRouting);
+
+        try { McpSettings.Configure(McpSettings.FromArguments(parsed)); }
+        catch (McpConfigException ex)
+        {
+            Console.Error.WriteLine($"Error: {ex.Message}");
+            return 2;
+        }
 
         if (parsed.Prompt is not null && string.IsNullOrWhiteSpace(parsed.Prompt))
         {

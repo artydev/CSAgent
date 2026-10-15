@@ -298,6 +298,7 @@ Les fonctionnalités suivantes sont prévues pour de prochaines versions :
 | `CSAGENT_AUDIO_KEEP_DAYS` | Non | Enregistreur web : supprime au démarrage l'audio de `recordings/` plus ancien que ce nombre de jours (par défaut : tout conserver ; les transcriptions ne sont jamais supprimées) |
 | `CSAGENT_API_KEY` | Non | Clé que les clients doivent présenter en mode `--api` (équivaut à `--api-key`) |
 | `CSAGENT_MCP_URL` | Non | Équivaut à `--mcp` (l'argument l'emporte) |
+| `CSAGENT_MCP_CONFIG` | Non | Équivaut à `--mcp-config` : fichier JSON qui décrit les serveurs MCP |
 
 ---
 
@@ -318,7 +319,10 @@ Les fonctionnalités suivantes sont prévues pour de prochaines versions :
 | `--yes`, `-y` | Approuve automatiquement chaque appel d'outil (aucune demande de confirmation ; le filtre des commandes shell reste actif) |
 | `--host <adresse>` | Avec `--api` : adresse d'écoute (par défaut `localhost` ; une adresse non locale exige une clé d'API) |
 | `--api-key <clé>` | Avec `--api` : clé exigée sur chaque requête (ou définissez `CSAGENT_API_KEY`) |
-| `--mcp <url>`, `--mcp-url <url>` | Se connecte à un serveur MCP en Streamable HTTP (voir [Serveurs MCP](#serveurs-mcp)). Ou définissez `CSAGENT_MCP_URL` |
+| `--mcp <url>`, `--mcp-url <url>` | Se connecte à un serveur MCP en Streamable HTTP (voir [Serveurs MCP](#serveurs-mcp)). Répétable pour plusieurs serveurs. Ou définissez `CSAGENT_MCP_URL` |
+| `--mcp-stdio "<commande>"` | Démarre un serveur MCP local et dialogue avec lui sur son entrée et sa sortie standard, par exemple `--mcp-stdio "npx -y @modelcontextprotocol/server-filesystem ."`. Répétable |
+| `--mcp-header "Nom: valeur"` | En-tête HTTP envoyé aux serveurs `--mcp` (`${VAR}` est remplacé par la variable d'environnement). Répétable |
+| `--mcp-config <fichier>` | Fichier JSON qui décrit les serveurs MCP (HTTP ou stdio). Ou définissez `CSAGENT_MCP_CONFIG` |
 | `--mem <nom>` | Dossier de mémoire contenant la conversation et les fichiers de mémoire (par défaut : `agent_memory`, voir [Fichiers de mémoire](#fichiers-de-mémoire)) |
 | `--model <modèle>` | Utilise ce modèle pour chaque message (désactive le choix automatique, voir [Modèles LLM](#modèles-llm)) |
 | `--code-model <nom>` | Modèle pour le code, les fichiers et les outils (par défaut : `deepseek-v4-flash`) |
@@ -549,7 +553,7 @@ Les mots sont cherchés en français et en anglais dans le dernier message de l'
 | `list_models` | Liste les modèles disponibles sur l'endpoint | aucun | non |
 | `switch_model` | Change de modèle pour la session | `model`* | non |
 
-Les outils d'un serveur MCP s'ajoutent à cette liste sous le nom `mcp_<nom>` (voir [Serveurs MCP](#serveurs-mcp)). Les sept outils suivants sont décrits en détail.
+Les outils d'un serveur MCP s'ajoutent à cette liste sous le nom `mcp_<nom>`, ou `mcp_<serveur>_<nom>` quand plusieurs serveurs sont connectés (voir [Serveurs MCP](#serveurs-mcp)). Les sept outils suivants sont décrits en détail.
 
 ### `write_file`
 Écrit (ou écrase) un fichier texte. Les répertoires parents sont créés automatiquement.
@@ -624,12 +628,36 @@ Avec **ffmpeg** installé (dans le `PATH`, ou indiqué par `CSAGENT_FFMPEG`), to
 
 ### Serveurs MCP
 
-`--mcp <url>` (ou `CSAGENT_MCP_URL`) connecte CsAgent à un serveur MCP en Streamable HTTP, par exemple `csagent --mcp http://localhost:8000/mcp`. À la première demande, l'agent liste les outils du serveur et les propose au modèle à côté des outils intégrés. Cela fonctionne dans tous les modes (CLI, `--ui`, `--leanui`, `--api`).
+CsAgent se connecte à un ou plusieurs serveurs MCP, en Streamable HTTP ou en stdio, et propose leurs outils au modèle à côté des outils intégrés. À la première demande, l'agent liste les outils de chaque serveur. Cela fonctionne dans tous les modes (CLI, `--ui`, `--leanui`, `--api`).
 
-- **Noms.** Chaque outil du serveur est proposé sous le nom `mcp_<nom>` (les caractères autres que lettres, chiffres, `_` et `-` deviennent `_`, 64 caractères au maximum). Un serveur ne peut donc pas remplacer un outil intégré : son `read_file` devient `mcp_read_file`, et le `read_file` intégré reste intact.
+```
+csagent --mcp http://localhost:8000/mcp
+csagent --mcp https://api.exemple.com/mcp --mcp-header "Authorization: Bearer ${MCP_TOKEN}"
+csagent --mcp-stdio "npx -y @modelcontextprotocol/server-filesystem ."
+csagent --mcp-config mcp.json
+```
+
+- **HTTP.** `--mcp <url>` (ou `CSAGENT_MCP_URL`). `--mcp-header "Nom: valeur"` ajoute un en-tête à chaque requête (clé d'API, jeton `Bearer`…) et s'applique aux URL de `--mcp`.
+- **stdio.** `--mcp-stdio "<commande>"` démarre le programme et échange des messages JSON, une ligne par message, sur son entrée et sa sortie standard. Le programme est arrêté à la fin de l'exécution. Sous Windows, une commande sans extension (`npx`) passe par `cmd.exe /c`.
+- **Plusieurs serveurs.** Répétez `--mcp` et `--mcp-stdio`, ou décrivez-les dans un fichier. Les serveurs sont connectés en parallèle. Un serveur qui ne répond pas donne un avertissement et les autres restent utilisables ; l'exécution ne s'arrête que si aucun ne répond.
+- **Fichier de configuration.** `--mcp-config <fichier>` (ou `CSAGENT_MCP_CONFIG`) lit un fichier JSON (commentaires et virgules finales acceptés) :
+
+```json
+{
+  "mcpServers": {
+    "fichiers": { "command": "npx", "args": ["-y", "@modelcontextprotocol/server-filesystem", "."] },
+    "wiki":     { "url": "https://wiki.exemple.com/mcp", "headers": { "Authorization": "Bearer ${WIKI_TOKEN}" } },
+    "base":     { "command": "node", "args": ["db.js"], "env": { "DB_PASSWORD": "${DB_PASSWORD}" }, "cwd": "." }
+  }
+}
+```
+
+  Chaque serveur a soit `url` (et `headers`), soit `command` (et `args`, `env`, `cwd`), jamais les deux. `${VAR}` est remplacé par la variable d'environnement dans les en-têtes, les arguments et `env`, ce qui évite d'écrire un secret dans le fichier.
+- **Noms.** Avec un seul serveur, ses outils sont proposés sous le nom `mcp_<nom>`. Avec plusieurs, sous le nom `mcp_<serveur>_<nom>`, où `<serveur>` est le nom du fichier de configuration, ou un nom déduit de l'URL ou du programme (`server-filesystem`, `api_exemple_com`). Les caractères autres que lettres, chiffres, `_` et `-` deviennent `_`, 64 caractères au maximum. Un serveur ne peut donc pas remplacer un outil intégré : son `read_file` devient `mcp_read_file`, et le `read_file` intégré reste intact.
 - **Confirmation.** CsAgent ne peut pas savoir ce que fait l'outil d'un serveur : quand les confirmations sont actives (par défaut), **chaque** appel MCP demande votre accord, comme `write_file`. Avec `--yes`, ils s'exécutent sans demander.
+- **Sécurité.** Un serveur stdio est un programme lancé avec vos droits. Rien n'est donc chargé automatiquement depuis le dossier de travail : seuls `--mcp-stdio` et `--mcp-config`, que vous écrivez vous-même, démarrent un programme. Les valeurs des en-têtes et de `env` ne sont jamais affichées, ni dans la bannière ni dans les messages d'erreur.
 - **Contenu non fiable.** Ce qu'envoie un serveur (descriptions d'outils, résultats) est traité comme une donnée : le prompt système demande au modèle de ne jamais suivre les instructions qui s'y trouvent, et les descriptions sont coupées à 1000 caractères. Ne connectez que des serveurs de confiance.
-- **Limites.** Un seul serveur, HTTP uniquement (pas de stdio), pas d'en-tête d'authentification, outils seulement (ni ressources ni prompts), résultats en texte (les autres contenus sont affichés en JSON). Si le serveur est injoignable, l'exécution s'arrête avec une erreur.
+- **Limites.** Outils seulement (ni ressources ni prompts), résultats en texte (les autres contenus sont affichés en JSON). Pas d'authentification OAuth : seuls les en-têtes fixes sont pris en charge. Une demande à un serveur stdio dure 60 secondes au plus.
 
 ---
 
@@ -819,6 +847,7 @@ Le projet compile directement les sources `Core/`, `Services/` et `Shared/` de l
 | `MsgTests.cs` / `MsgTestFile.cs` | Lecteur de fichiers Outlook `.msg` (un constructeur réservé aux tests écrit des fichiers `.msg` valides), conversion HTML/RTF en texte, `read_msg`, `save_attachment` et la sûreté des noms de fichiers |
 | `TranscribeTests.cs` | `transcribe_audio` : parties envoyées dans l'ordre (faux Whisper, faux ffmpeg), erreurs, troncature, contrôles de chemin et de clé ; stockage de l'enregistreur web (`AudioRecordings`) |
 | `McpTests.cs` | MCP : noms `mcp_` (pas d'ombre sur les outils natifs, collisions, 64 caractères), appels sous le nom propre du serveur, confirmation avant chaque appel MCP, l'outil natif l'emporte quand un serveur a le même nom (faux serveur MCP) |
+| `McpStdioTests.cs` | MCP en stdio (faux serveur lancé par les tests avec `--mcp-echo`) : démarrage et arrêt du programme, lignes parasites et notifications ignorées, serveur qui se ferme ou n'existe pas, plusieurs serveurs HTTP et stdio, noms `mcp_<serveur>_<outil>`, panne d'un seul serveur, en-têtes d'authentification et `${VAR}`, fichier de configuration, secrets absents des messages |
 | `ApiModeTests.cs` | `--api`, `--yes`, `--host`, `--api-key` : analyse, politique d'hôte et de clé, authentification, approbation automatique dans la boucle de l'agent |
 | `TestExplorer.cs` | Liste chaque test dans l'Explorateur de tests de Visual Studio |
 | `AgentEndToEndTests.cs` | Exécutions complètes de `CodingAgent` contre le faux LLM |

@@ -1,3 +1,4 @@
+using CsAgent.Core.Agent;
 using System.Diagnostics;
 using CsAgent.Core.Llm;
 using CsAgent.Infrastructure.Clipboard;
@@ -34,8 +35,8 @@ public static class LeanUIHost
                 Console.WriteLine("--- Quiet: steps, tool calls and results are hidden ---");
             if (args.AutoApprove)
                 Console.WriteLine("--- Auto-approve: ON (tools run without confirmation) ---");
-            if (!string.IsNullOrWhiteSpace(args.McpUrl))
-                Console.WriteLine($"--- MCP endpoint: {args.McpUrl} ---");
+            if (McpSettings.Resolve(args.McpUrl).Count > 0)
+                Console.WriteLine($"--- MCP: {McpSettings.Describe(args.McpUrl)} ---");
             try { Process.Start(new ProcessStartInfo(url) { UseShellExecute = true }); }
             catch { }
         });

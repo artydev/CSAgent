@@ -8,8 +8,11 @@ public static class Program
 {
     public const string Version = "test";
 
-    public static async Task<int> Main()
+    public static async Task<int> Main(string[] args)
     {
+        // The tests start this very program as a stdio MCP server (see McpStdioTests).
+        if (args.Length > 0 && args[0] == "--mcp-echo") return CsAgent.Tests.McpEchoServer.Run(args);
+
         var code = await CsAgent.Tests.Tests.RunAll();
 
         // Started from Visual Studio with F5 the console closes at once: wait for a key.

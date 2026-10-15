@@ -1,20 +1,17 @@
-using System.Net.Http.Headers;
 using System.Text;
 using System.Text.Json.Nodes;
 
 namespace CsAgent.Core.Agent;
 
 /// <summary>
-/// Minimal MCP Streamable HTTP client. It intentionally depends only on the
-/// .NET BCL so CsAgent remains friendly to trimming/AOT and has no MCP SDK
-/// dependency. It supports initialize, tools/list and tools/call.
+/// Minimal MCP client for ONE server, over any <see cref="IMcpTransport"/> (HTTP or standard input/output).
+/// It intentionally depends only on the .NET BCL so CsAgent remains friendly to trimming/AOT and has no MCP SDK
+/// dependency. It supports initialize, tools/list and tools/call. <see cref="McpHub"/> joins several of them.
 /// </summary>
 public sealed class McpClient : IDisposable
 {
-    private readonly HttpClient _http;
-    private readonly Uri _endpoint;
-    private string? _sessionId;
-    private string? _protocolVersion;
+    private readonly IMcpTransport _transport;
+    private readonly string _prefix;
     private int _requestId;
     // Keyed by the name the model sees ("mcp_<name>"), never by the server's own name: a server must not be
     // able to shadow a native tool (read_file, sh, ...). The server's real name stays in each tool's "name".
@@ -25,11 +22,18 @@ public sealed class McpClient : IDisposable
     private const int MaxToolNameLength = 64;          // limit of the OpenAI function-calling name
     private const int MaxDescriptionLength = 1000;     // a server's text goes into the prompt: keep it bounded
 
-    public McpClient(string endpoint)
+    /// <summary>A server reached over HTTP, without extra headers.</summary>
+    public McpClient(string endpoint) : this(new HttpMcpTransport(endpoint)) { }
+
+    /// <param name="transport">How to reach the server.</param>
+    /// <param name="prefix">Start of the tool names: "mcp_", or "mcp_&lt;server&gt;_" when several servers are connected.</param>
+    public McpClient(IMcpTransport transport, string prefix = ToolPrefix)
     {
-        _endpoint = new Uri(endpoint, UriKind.Absolute);
-        _http = new HttpClient { Timeout = TimeSpan.FromSeconds(60) };
+        _transport = transport;
+        _prefix = prefix;
     }
+
+    public string Describe => _transport.Describe;
 
     public IReadOnlyDictionary<string, JsonObject> Tools => _tools;
 
@@ -49,7 +53,7 @@ public sealed class McpClient : IDisposable
         var negotiated = initialize?["protocolVersion"]?.GetValue<string>();
         if (string.IsNullOrWhiteSpace(negotiated))
             throw new InvalidOperationException("MCP server returned no protocolVersion during initialize.");
-        _protocolVersion = negotiated;
+        _transport.SetProtocolVersion(negotiated);
 
         await SendNotificationAsync("notifications/initialized", new JsonObject(), ct);
 
@@ -72,9 +76,11 @@ public sealed class McpClient : IDisposable
     /// The name the model sees for a server tool: "mcp_" + the server's name, with every character that
     /// function-calling APIs refuse replaced by '_', cut to 64 characters, and made unique.
     /// </summary>
-    public static string ExposedName(string serverName)
+    public static string ExposedName(string serverName) => ExposedName(ToolPrefix, serverName);
+
+    public static string ExposedName(string prefix, string serverName)
     {
-        var clean = new StringBuilder(ToolPrefix, MaxToolNameLength);
+        var clean = new StringBuilder(prefix.Length > 40 ? prefix[..40] : prefix, MaxToolNameLength);
         foreach (var c in serverName)
         {
             if (clean.Length >= MaxToolNameLength) break;
@@ -85,7 +91,7 @@ public sealed class McpClient : IDisposable
 
     private string UniqueExposedName(string serverName)
     {
-        var name = ExposedName(serverName);
+        var name = ExposedName(_prefix, serverName);
         if (!_tools.ContainsKey(name)) return name;
 
         // Two server names can collapse to the same text ("a.b" and "a_b"): number the later ones.
@@ -185,24 +191,7 @@ public sealed class McpClient : IDisposable
             ["params"] = parameters
         };
 
-        using var request = new HttpRequestMessage(HttpMethod.Post, _endpoint)
-        {
-            Content = new StringContent(body.ToJsonString(), Encoding.UTF8, "application/json")
-        };
-        AddMcpHeaders(request, includeProtocolVersion);
-
-        using var response = await _http.SendAsync(request, HttpCompletionOption.ResponseContentRead, ct);
-        var raw = await response.Content.ReadAsStringAsync(ct);
-
-        if (response.Headers.TryGetValues("Mcp-Session-Id", out var sessionValues))
-            _sessionId = sessionValues.FirstOrDefault();
-
-        if (!response.IsSuccessStatusCode)
-            throw new HttpRequestException($"MCP HTTP {(int)response.StatusCode}: {raw}");
-
-        var json = ExtractJsonResponse(raw, response.Content.Headers.ContentType?.MediaType);
-        if (json is null)
-            throw new InvalidDataException("MCP server returned an empty response.");
+        var json = await _transport.RequestAsync(body, ct, includeProtocolVersion);
 
         if (json["error"] is JsonObject error)
             throw new InvalidOperationException($"MCP {method} failed: {error.ToJsonString()}");
@@ -210,59 +199,13 @@ public sealed class McpClient : IDisposable
         return json["result"] as JsonObject;
     }
 
-    private async Task SendNotificationAsync(string method, JsonObject parameters, CancellationToken ct)
-    {
-        var body = new JsonObject
+    private Task SendNotificationAsync(string method, JsonObject parameters, CancellationToken ct) =>
+        _transport.NotifyAsync(new JsonObject
         {
             ["jsonrpc"] = "2.0",
             ["method"] = method,
             ["params"] = parameters
-        };
+        }, ct);
 
-        using var request = new HttpRequestMessage(HttpMethod.Post, _endpoint)
-        {
-            Content = new StringContent(body.ToJsonString(), Encoding.UTF8, "application/json")
-        };
-        AddMcpHeaders(request);
-        using var response = await _http.SendAsync(request, HttpCompletionOption.ResponseHeadersRead, ct);
-        if (!response.IsSuccessStatusCode)
-        {
-            var raw = await response.Content.ReadAsStringAsync(ct);
-            throw new HttpRequestException($"MCP notification HTTP {(int)response.StatusCode}: {raw}");
-        }
-    }
-
-    private void AddMcpHeaders(HttpRequestMessage request, bool includeProtocolVersion = true)
-    {
-        request.Headers.Accept.Clear();
-        request.Headers.Accept.Add(new MediaTypeWithQualityHeaderValue("application/json"));
-        request.Headers.Accept.Add(new MediaTypeWithQualityHeaderValue("text/event-stream"));
-        if (!string.IsNullOrWhiteSpace(_sessionId))
-            request.Headers.TryAddWithoutValidation("Mcp-Session-Id", _sessionId);
-        if (includeProtocolVersion && !string.IsNullOrWhiteSpace(_protocolVersion))
-            request.Headers.TryAddWithoutValidation("MCP-Protocol-Version", _protocolVersion);
-    }
-
-    private static JsonObject? ExtractJsonResponse(string raw, string? mediaType)
-    {
-        if (string.IsNullOrWhiteSpace(raw)) return null;
-
-        if (mediaType?.Contains("text/event-stream", StringComparison.OrdinalIgnoreCase) == true)
-        {
-            foreach (var line in raw.Split('\n'))
-            {
-                var trimmed = line.Trim();
-                if (!trimmed.StartsWith("data:", StringComparison.OrdinalIgnoreCase)) continue;
-                var payload = trimmed[5..].Trim();
-                if (string.IsNullOrWhiteSpace(payload) || payload == "[DONE]") continue;
-                var node = JsonNode.Parse(payload);
-                if (node is JsonObject obj) return obj;
-            }
-            return null;
-        }
-
-        return JsonNode.Parse(raw) as JsonObject;
-    }
-
-    public void Dispose() => _http.Dispose();
+    public void Dispose() => _transport.Dispose();
 }

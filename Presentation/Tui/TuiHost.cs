@@ -39,8 +39,8 @@ public static class TuiHost
 
         if (!script)
         {
-            if (!string.IsNullOrWhiteSpace(args.McpUrl))
-                Console.WriteLine($"  MCP: {args.McpUrl}");
+            if (McpSettings.Resolve(args.McpUrl).Count > 0)
+                Console.WriteLine($"  MCP: {McpSettings.Describe(args.McpUrl)}");
             if (args.IsDryRun)
                 Console.WriteLine("  Dry-run: ON (no changes will be made)");
             if (args.AutoApprove)

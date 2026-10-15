@@ -87,7 +87,7 @@ body { background: var(--bg); color: var(--fg); font-family: var(--font-body); f
 <div class="app">
   <header class="topbar">
     <h1>CsAgent</h1>
-    <p>Guide de l'utilisateur · version 0.9.8</p>
+    <p>Guide de l'utilisateur · version 0.9.9</p>
   </header>
 
   <nav class="side" aria-label="Sommaire">
@@ -244,11 +244,17 @@ csagent --endpoint http://localhost:11434/v1 --model qwen2.5-coder:14b</code></p
     </tbody>
   </table></div>
   <h3>Connecter un serveur MCP</h3>
-  <p><code>--mcp &lt;url&gt;</code> (ou <code>CSAGENT_MCP_URL</code>) connecte un serveur MCP en HTTP, par exemple <code>csagent --mcp http://localhost:8000/mcp</code>. Ses outils sont proposés au modèle sous le nom <code>mcp_&lt;nom&gt;</code>, ce qui empêche un serveur de remplacer un outil intégré.</p>
+  <p>Trois façons de brancher un serveur MCP&nbsp;: en HTTP avec <code>--mcp &lt;url&gt;</code> (ou <code>CSAGENT_MCP_URL</code>), en local avec <code>--mcp-stdio "&lt;commande&gt;"</code>, ou avec un fichier <code>--mcp-config</code> (ou <code>CSAGENT_MCP_CONFIG</code>). Ses outils sont proposés au modèle sous le nom <code>mcp_&lt;nom&gt;</code>, ce qui empêche un serveur de remplacer un outil intégré.</p>
+  <pre><code>csagent --mcp https://api.exemple.com/mcp --mcp-header "Authorization: Bearer ${MCP_TOKEN}"
+csagent --mcp-stdio "npx -y @modelcontextprotocol/server-filesystem ."
+csagent --mcp-config mcp.json</code></pre>
   <ul>
     <li>Chaque appel MCP demande confirmation, sauf avec <code>--yes</code>.</li>
     <li>Ce qu'envoie le serveur est traité comme une donnée, jamais comme une instruction. Ne connecte que des serveurs de confiance.</li>
-    <li>Limites : un seul serveur, HTTP seulement, pas d'en-tête d'authentification, outils uniquement.</li>
+    <li>Répète <code>--mcp</code> et <code>--mcp-stdio</code> pour brancher plusieurs serveurs&nbsp;: leurs outils s'appellent alors <code>mcp_&lt;serveur&gt;_&lt;nom&gt;</code>. Si l'un ne répond pas, tu as un avertissement et les autres restent utilisables.</li>
+    <li><code>--mcp-header "Nom: valeur"</code> ajoute un en-tête d'authentification aux serveurs HTTP. <code>${VAR}</code> est remplacé par la variable d'environnement, donc le secret reste hors de la ligne de commande et du fichier. Les valeurs ne sont jamais affichées.</li>
+    <li>Un serveur stdio est un programme lancé avec tes droits&nbsp;: seuls <code>--mcp-stdio</code> et <code>--mcp-config</code>, que tu écris toi-même, en démarrent un. Rien n'est chargé depuis le dossier de travail.</li>
+    <li>Limites : outils uniquement (ni ressources ni prompts), pas d'OAuth.</li>
   </ul>
 </section>
 
@@ -348,7 +354,10 @@ csagent --mem projet_b</code></pre>
       <tr><td><code>--no-compact</code></td><td>Garde les anciens résultats d'outils en entier</td></tr>
       <tr><td><code>--all-tools</code></td><td>Décrit tous les outils à chaque étape (par défaut, seulement ceux utiles à la demande)</td></tr>
       <tr><td><code>--task &lt;slug&gt;</code></td><td>Suit le travail dans <code>.csagent/tasks/</code></td></tr>
-      <tr><td><code>--mcp &lt;url&gt;</code></td><td>Connecte un serveur MCP</td></tr>
+      <tr><td><code>--mcp &lt;url&gt;</code></td><td>Connecte un serveur MCP en HTTP (répétable)</td></tr>
+      <tr><td><code>--mcp-stdio "&lt;commande&gt;"</code></td><td>Démarre un serveur MCP local (répétable)</td></tr>
+      <tr><td><code>--mcp-header "Nom: valeur"</code></td><td>En-tête envoyé aux serveurs MCP HTTP</td></tr>
+      <tr><td><code>--mcp-config &lt;fichier&gt;</code></td><td>Décrit les serveurs MCP dans un fichier JSON</td></tr>
       <tr><td><code>--yes</code>, <code>-y</code></td><td>Approuve tous les appels d'outils</td></tr>
       <tr><td><code>--dry-run</code></td><td>Simule les outils sans rien modifier</td></tr>
       <tr><td><code>--quiet</code>, <code>-q</code></td><td>Sortie réduite à l'essentiel</td></tr>
@@ -372,6 +381,7 @@ csagent --mem projet_b</code></pre>
       <tr><td><code>CSAGENT_FALLBACK_MODEL</code></td><td>Modèle de la bascule de quota ; <code>off</code> la désactive</td></tr>
       <tr><td><code>CSAGENT_API_KEY</code></td><td>Clé du mode <code>--api</code></td></tr>
       <tr><td><code>CSAGENT_MCP_URL</code></td><td>Comme <code>--mcp</code></td></tr>
+      <tr><td><code>CSAGENT_MCP_CONFIG</code></td><td>Comme <code>--mcp-config</code></td></tr>
       <tr><td><code>CSAGENT_TRANSCRIBE_MODEL</code></td><td>Modèle de transcription (<code>openai/whisper-large-v3</code>)</td></tr>
       <tr><td><code>CSAGENT_FFMPEG</code></td><td>Chemin de <code>ffmpeg</code></td></tr>
       <tr><td><code>CSAGENT_AUDIO_KEEP_DAYS</code></td><td>Supprime les enregistrements plus vieux que ce nombre de jours</td></tr>
