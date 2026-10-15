@@ -112,6 +112,16 @@ public static partial class ToolDispatcher
                     args["body"]?.GetValue<string>(),
                     args["timeoutMs"]?.GetValue<int>() ?? 30_000),
 
+                "download_file" => await DownloadFileAsync(
+                    args["url"]!.GetValue<string>(),
+                    args["destination"]!.GetValue<string>(),
+                    args["method"]?.GetValue<string>(),
+                    args["headers"] as JsonObject,
+                    args["body"]?.GetValue<string>(),
+                    args["json_path"]?.GetValue<string>(),
+                    args["pretty"]?.GetValue<bool>() ?? false,
+                    args["timeoutMs"]?.GetValue<int>() ?? 30_000),
+
                 "web_search" => await WebSearchAsync(
                     args["query"]!.GetValue<string>(),
                     args["maxResults"]?.GetValue<int>() ?? 5),
@@ -214,5 +224,5 @@ public static partial class ToolDispatcher
     /// Returns true if the tool name is considered destructive (requires user confirmation).
     /// </summary>
     public static bool IsDestructive(string name) =>
-        name is "write_file" or "edit_file" or "git_commit" or "move_file" or "delete_file" or "unzip" or "write_clipboard" or "send_email" or "create_appointment" or "save_attachment" or "group_msg_by_sender";
+        name is "write_file" or "edit_file" or "git_commit" or "move_file" or "delete_file" or "unzip" or "write_clipboard" or "download_file" or "send_email" or "create_appointment" or "save_attachment" or "group_msg_by_sender";
 }

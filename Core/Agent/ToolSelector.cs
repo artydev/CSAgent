@@ -26,7 +26,7 @@ public static class ToolSelector
     public static readonly IReadOnlyDictionary<string, string[]> Groups = new Dictionary<string, string[]>
     {
         ["git"] = new[] { "git_status", "git_diff", "git_log", "git_branch", "git_commit" },
-        ["web"] = new[] { "web_search", "fetch_url", "http_request" },
+        ["web"] = new[] { "web_search", "fetch_url", "http_request", "download_file" },
         ["terminal"] = new[] { "run_terminal", "close_terminal" },
         ["archive"] = new[] { "zip", "unzip" },
         ["models"] = new[] { "switch_model", "list_models" },

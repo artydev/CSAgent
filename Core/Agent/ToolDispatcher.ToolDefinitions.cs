@@ -303,7 +303,7 @@ public static partial class ToolDispatcher
             "type": "function",
             "function": {
               "name": "http_request",
-              "description": "Make an HTTP request to a URL and return the status, headers, and body. Use this to call web APIs or fetch remote resources.",
+              "description": "Make an HTTP request to a URL and return the status, headers, and body. Use this to call web APIs or fetch remote resources. To put the response in a file, use download_file instead: copying a body through write_file is slow.",
               "parameters": {
                 "type": "object",
                 "properties": {
@@ -314,6 +314,27 @@ public static partial class ToolDispatcher
                   "timeoutMs": { "type": "integer", "description": "Timeout in milliseconds. Defaults to 30000, max 120000." }
                 },
                 "required": ["url"]
+              }
+            }
+          },
+          {
+            "type": "function",
+            "function": {
+              "name": "download_file",
+              "description": "Save the response of an HTTP request directly to a file in the working directory, without passing the data through the conversation. Use it whenever the goal is a file (products.json, a CSV, an image, an archive): it is much faster than http_request followed by write_file, which makes you write out every character. Asks the user to confirm. Nothing is written if the request fails. Limit 20 MB. Returns only a short summary (size, and for JSON its shape).",
+              "parameters": {
+                "type": "object",
+                "properties": {
+                  "url":         { "type": "string",  "description": "The absolute http/https URL to request." },
+                  "destination": { "type": "string",  "description": "File to write, inside the working directory. An existing file is overwritten; folders are created." },
+                  "json_path":   { "type": "string",  "description": "Optional, for a JSON response: save only this part, such as products or data.items[0]. The saved file is indented." },
+                  "pretty":      { "type": "boolean", "description": "If true, the JSON response is re-written indented. Implied by json_path. Defaults to false (the bytes are saved as received)." },
+                  "method":      { "type": "string",  "description": "HTTP method. Defaults to GET." },
+                  "headers":     { "type": "object",  "description": "Optional request headers as a JSON object of string values." },
+                  "body":        { "type": "string",  "description": "Optional request body (POST/PUT/PATCH)." },
+                  "timeoutMs":   { "type": "integer", "description": "Timeout in milliseconds. Defaults to 30000, max 120000." }
+                },
+                "required": ["url", "destination"]
               }
             }
           },

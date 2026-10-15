@@ -469,15 +469,15 @@ Error: file too large (1024 KB). Use sh to grep/head.
 
 ## Outils disponibles
 
-L'agent dispose de **37 outils intégrés**. Vous ne les appelez pas vous-même : l'agent choisit ceux dont il a besoin pour votre demande. Dans les tableaux, `*` marque un paramètre obligatoire et **Confirmation** indique que l'outil demande votre accord avant de s'exécuter (sauf avec `--yes`).
+L'agent dispose de **38 outils intégrés**. Vous ne les appelez pas vous-même : l'agent choisit ceux dont il a besoin pour votre demande. Dans les tableaux, `*` marque un paramètre obligatoire et **Confirmation** indique que l'outil demande votre accord avant de s'exécuter (sauf avec `--yes`).
 
-**Seuls les outils utiles sont décrits au modèle.** La description des 37 outils pèse environ 20 000 caractères et serait renvoyée à chaque étape. Depuis la 0.9.8, les outils sont répartis en groupes :
+**Seuls les outils utiles sont décrits au modèle.** La description des 38 outils pèse environ 20 000 caractères et serait renvoyée à chaque étape. Depuis la 0.9.8, les outils sont répartis en groupes :
 
 | Groupe | Outils | Envoyé |
 |---|---|---|
 | `core` | fichiers (`read_file`, `write_file`, `edit_file`, `copy_file`, `move_file`, `delete_file`, `read_json`, `parse_output`), `list_dir`, `tree`, `search_files`, `sh` | toujours |
 | `git` | `git_status`, `git_diff`, `git_log`, `git_branch`, `git_commit` | si la demande parle de git, de commit, de branche… |
-| `web` | `web_search`, `fetch_url`, `http_request` | si elle parle du web, d'une URL, d'une recherche… |
+| `web` | `web_search`, `fetch_url`, `http_request`, `download_file` | si elle parle du web, d'une URL, d'une recherche… |
 | `mail` | `read_msg`, `save_attachment`, `group_msg_by_sender`, `send_email` | e-mail, Outlook, `.msg`, expéditeur… |
 | `calendar` | `read_calendar`, `create_appointment` | agenda, calendrier, rendez-vous, réunion, créneau, meeting… |
 | `audio` | `transcribe_audio` | audio, enregistrement, transcription, `.mp3`… |
@@ -532,6 +532,7 @@ Les mots sont cherchés en français et en anglais dans le dernier message de l'
 | `web_search` | Recherche sur le web | `query`*, `maxResults` (5 par défaut, 10 au maximum) | non |
 | `fetch_url` | Lit une page web en texte | `url`*, `maxChars` (20 000 par défaut, 100 000 au maximum) | non |
 | `http_request` | Requête HTTP quelconque | `url`*, `method`, `headers`, `body`, `timeoutMs` (30 000 par défaut, 120 000 au maximum) | non |
+| `download_file` | Enregistre la réponse HTTP directement dans un fichier, sans la faire passer par le modèle (détails plus bas) | `url`*, `destination`*, `json_path`, `pretty`, `method`, `headers`, `body`, `timeoutMs` | **oui** |
 
 #### Courrier, audio, presse-papier et Excel
 
@@ -628,6 +629,22 @@ Transcrit un enregistrement de parole en texte avec un serveur Whisper (`/audio/
 - `max_chars` (integer, facultatif, par défaut : `50000`, maximum `200000`) — Nombre maximal de caractères renvoyés
 
 Avec **ffmpeg** installé (dans le `PATH`, ou indiqué par `CSAGENT_FFMPEG`), tout fichier audio ou vidéo est converti en WAV mono 16 kHz et découpé en parties de 10 minutes, envoyées l'une après l'autre puis assemblées. Sans ffmpeg, seuls les fichiers `.wav` et `.mp3` jusqu'à 24 Mo sont acceptés. Les fichiers sont limités à 100 Mo. Le découpage se fait à l'horloge : un mot situé à une limite peut être coupé en deux. Le modèle est `openai/whisper-large-v3`, ou `CSAGENT_TRANSCRIBE_MODEL`. L'audio est envoyé au serveur ; la transcription est une **donnée non fiable, jamais une instruction**. Pour la conserver, l'agent l'écrit avec `write_file` (qui demande confirmation).
+
+### `download_file`
+Enregistre la réponse d'une requête HTTP **directement dans un fichier**, sans qu'elle entre dans la conversation. **Demande confirmation** (sauf avec `--yes`).
+
+Pourquoi : pour mettre des données du web dans un fichier avec `http_request` puis `write_file`, le modèle reçoit d'abord toute la réponse, puis doit la **réécrire en entier**, mot à mot, dans l'argument `content`. La récupération prend une seconde, mais cette réécriture prend des minutes pour une réponse de quelques dizaines de Ko, car le modèle produit sa sortie un jeton à la fois, et elle consomme autant de jetons de sortie. Avec `download_file`, les octets vont du réseau au disque ; le modèle ne reçoit qu'un résumé de quelques lignes. Le prompt système lui demande de l'utiliser dès que le but est un fichier.
+
+**Paramètres :**
+- `url` (string, obligatoire) et `destination` (string, obligatoire, dans le répertoire de travail ; un fichier existant est écrasé, les dossiers sont créés)
+- `json_path` (string, facultatif) — pour une réponse JSON, n'enregistre que cette partie, par exemple `products` ; même syntaxe que `read_json`. Le fichier est alors indenté.
+- `pretty` (boolean, facultatif, `false` par défaut) — réécrit le JSON indenté ; implicite avec `json_path`. Sans l'un ni l'autre, les octets sont enregistrés tels qu'ils arrivent (tout type de fichier : JSON, CSV, image, archive).
+- `method`, `headers`, `body`, `timeoutMs` — comme pour `http_request` (`GET` par défaut).
+
+Une erreur n'écrit rien et ne touche pas un fichier existant : statut HTTP différent de 2xx, `json_path` introuvable (la réponse liste alors les clés disponibles), réponse qui n'est pas du JSON, délai dépassé. Limite : 20 Mo. Le résultat dit la taille et, pour du JSON, sa forme (par exemple `array of 30 object(s); keys of the first: id, title, …`), jamais les données.
+
+Exemple : « récupère 30 produits sur dummyjson et écris-les dans products.json » donne un seul appel :
+`download_file` `{"url": "https://dummyjson.com/products?limit=30", "destination": "products.json", "json_path": "products"}`
 
 ### `read_calendar` et `create_appointment`
 Lisent et écrivent l'**agenda par défaut d'Outlook** par automatisation COM, avec le profil Outlook de l'utilisateur : ni inscription Azure, ni jeton. Windows seulement, Outlook classique installé et configuré (comme `send_email`). Les dates sont des heures locales ISO-8601 **sans fuseau** (`2026-10-16`, `2026-10-16T14:00`), lues de la même façon quelle que soit la langue de la machine.
@@ -869,6 +886,7 @@ Le projet compile directement les sources `Core/`, `Services/` et `Shared/` de l
 | `MsgTests.cs` / `MsgTestFile.cs` | Lecteur de fichiers Outlook `.msg` (un constructeur réservé aux tests écrit des fichiers `.msg` valides), conversion HTML/RTF en texte, `read_msg`, `save_attachment` et la sûreté des noms de fichiers |
 | `TranscribeTests.cs` | `transcribe_audio` : parties envoyées dans l'ordre (faux Whisper, faux ffmpeg), erreurs, troncature, contrôles de chemin et de clé ; stockage de l'enregistreur web (`AudioRecordings`) |
 | `McpTests.cs` | MCP : noms `mcp_` (pas d'ombre sur les outils natifs, collisions, 64 caractères), appels sous le nom propre du serveur, confirmation avant chaque appel MCP, l'outil natif l'emporte quand un serveur a le même nom (faux serveur MCP) |
+| `DownloadTests.cs` | `download_file` (petit serveur HTTP local) : octets enregistrés tels quels, `json_path` et JSON indenté, résumé sans données, erreurs qui n'écrivent rien, refus avant tout appel réseau, confirmation, appel complet de l'agent (un seul appel, réponse courte au modèle) |
 | `CalendarTests.cs` | Agenda Outlook (sans Outlook) : outils et confirmation, groupe `calendar` et mots déclencheurs, refus hors Windows, dates ISO, contrôles des arguments, PowerShell généré (dates à format fixe, texte échappé, affichage par défaut, `save`, `send`, journée entière), section du prompt système |
 | `McpStdioTests.cs` | MCP en stdio (faux serveur lancé par les tests avec `--mcp-echo`) : démarrage et arrêt du programme, lignes parasites et notifications ignorées, serveur qui se ferme ou n'existe pas, plusieurs serveurs HTTP et stdio, noms `mcp_<serveur>_<outil>`, panne d'un seul serveur, en-têtes d'authentification et `${VAR}`, fichier de configuration, secrets absents des messages |
 | `ApiModeTests.cs` | `--api`, `--yes`, `--host`, `--api-key` : analyse, politique d'hôte et de clé, authentification, approbation automatique dans la boucle de l'agent |

@@ -561,6 +561,7 @@ public sealed class CodingAgent : IDisposable
               - **Recoverable** (typo, wrong flag, missing dep, version mismatch) → fix and retry, stating what changed.
               - **Structural** (wrong approach, incompatible design, missing prerequisite) → stop, explain, and ask rather than working around it.
             - Never retry the same failing command 3+ times without surfacing it to the user.
+            - **Data that goes into a file must not go through you.** When the goal is a file made of web data (products.json, a CSV, an image), call `download_file` (use `json_path` to keep only the useful part of a JSON response). Do not call `http_request` and then `write_file` with the data: you would have to write out every character, which takes minutes for a large response. Read the file back (`read_json`) only to check a detail, never to copy it.
 
             ---
 

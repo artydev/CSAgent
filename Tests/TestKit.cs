@@ -99,6 +99,7 @@ static partial class Tests
         await ToolSelectorGroup();
         await McpStdioGroup();
         await CalendarGroup();
+        await DownloadGroup();
         await AgentEndToEnd();
     }
 
