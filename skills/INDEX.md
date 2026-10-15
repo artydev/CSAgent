@@ -13,7 +13,7 @@ index.
 | Excel Report Builder | 1.2 | The user wants raw data turned into a formatted Excel report (pasted, fetched, or read from a file), with professional styling and a confirmed save. | `skills/export-report-builder.md` |
 | CSV Handling | 1.0 | The user asks to read, parse, import, or work with a `.csv` file — especially before turning it into a report or passing it to another tool. | `skills/csv-handling.md` |
 | Pre-Commit Review & Message Drafting | 1.0 | The user asks to commit changes, or asks for a commit message — before any `git_commit` call. | `skills/precommit-review.md` |
-| Organize .msg Emails by Sender | 1.0 | The user asks to sort, organize, or move Outlook `.msg` email files into per-sender folders, especially when filenames contain accented characters. | `skills/msg-organize-by-sender.md` |
+| Organize .msg Emails by Sender | 2.0 | The user asks to sort, organize, or move Outlook `.msg` email files into per-sender folders, especially when filenames contain accented characters. | `skills/msg-organize-by-sender.md` |
 | Task Framing | 1.0 | The user gives a large, vague or multi-deliverable request ("prépare…", "nettoie…", "fix X and update Y") — before starting; not for simple questions or one-line fixes. | `skills/task-framing.md` |
 | Plan Then Execute | 1.0 | The task needs three or more dependent steps or touches several files — write and follow a short plan with a check per step. | `skills/plan-then-execute.md` |
 | Final Verification | 1.0 | Before the final answer of any task that produced or changed files, code, numbers or a report — check the result against the request with real evidence. | `skills/final-verification.md` |

@@ -671,7 +671,7 @@ Un **skill** est un fichier Markdown du dossier `skills/` qui apprend à l'agent
 | Excel Report Builder | Transforme des données en rapport Excel mis en forme (Windows) | `skills/export-report-builder.md` |
 | CSV Handling | Lire et analyser un `.csv` avant de le transformer | `skills/csv-handling.md` |
 | Pre-Commit Review & Message Drafting | Relit les changements et propose un message avant un `git_commit` | `skills/precommit-review.md` |
-| Organize .msg Emails by Sender | Range des `.msg` par expéditeur (l'outil `group_msg_by_sender` fait désormais ce travail) | `skills/msg-organize-by-sender.md` |
+| Organize .msg Emails by Sender | Range des `.msg` par expéditeur avec `group_msg_by_sender` (noms ASCII, un dossier par expéditeur), puis vérifie le résultat | `skills/msg-organize-by-sender.md` |
 | Task Framing | Cadre une demande vaste ou floue avant de commencer | `skills/task-framing.md` |
 | Plan Then Execute | Écrit puis suit un court plan avec une vérification par étape | `skills/plan-then-execute.md` |
 | Final Verification | Vérifie le résultat avec des preuves avant la réponse finale | `skills/final-verification.md` |
