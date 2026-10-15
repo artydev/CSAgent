@@ -56,6 +56,7 @@ static class McpEchoServer
                 case "tools/call":
                     var text = req["params"]?["arguments"]?["text"]?.GetValue<string>() ?? "";
                     var env = Environment.GetEnvironmentVariable("MCP_TEST_VALUE") ?? "";
+                    if (text == "__pid__") env = Environment.ProcessId.ToString();   // lets a test check that the process is stopped
                     result = new JsonObject { ["content"] = new JsonArray(new JsonObject { ["type"] = "text", ["text"] = $"{tool}:{text}|env={env}" }) };
                     break;
                 default: result = new JsonObject(); break;
@@ -76,10 +77,14 @@ static partial class Tests
         // The command that starts this program as the echo server.
         static McpServerConfig Echo(string name, string tool = "echo", string? extra = null, Dictionary<string, string>? env = null)
         {
-            var exe = Environment.ProcessPath!;
+            // Not Environment.ProcessPath: under Visual Studio's Test Explorer that is testhost, which does not
+            // run our Main. The tests assembly is started directly: its own launcher if there is one, else dotnet.
+            var dll = typeof(McpEchoServer).Assembly.Location;
+            var launcher = Path.Combine(Path.GetDirectoryName(dll)!, Path.GetFileNameWithoutExtension(dll) + (OperatingSystem.IsWindows() ? ".exe" : ""));
             var args = new List<string>();
-            if (Path.GetFileNameWithoutExtension(exe).Equals("dotnet", StringComparison.OrdinalIgnoreCase))
-                args.Add(System.Reflection.Assembly.GetEntryAssembly()!.Location);
+            string exe;
+            if (File.Exists(launcher)) exe = launcher;
+            else { exe = "dotnet"; args.Add(dll); }
             args.Add("--mcp-echo"); args.Add("--tool"); args.Add(tool);
             if (extra is not null) args.Add(extra);
             return new McpServerConfig(name, Command: exe, ArgList: args, EnvValues: env);
@@ -143,12 +148,15 @@ static partial class Tests
         {
             var hub = new McpHub(new[] { Echo("tmp") });
             await hub.ConnectAsync();
-            var before = Process.GetProcesses().Count(p => { try { return p.ProcessName == Path.GetFileNameWithoutExtension(Environment.ProcessPath!) && p.Id != Environment.ProcessId; } catch { return false; } });
+            var reply = await hub.CallToolAsync("mcp_echo", "{\"text\":\"__pid__\"}");
+            var pid = int.Parse(reply[(reply.IndexOf("env=") + 4)..]);
+            Assert(pid != Environment.ProcessId, "the server must be another process");
+            bool Alive() { try { using var p = Process.GetProcessById(pid); return !p.HasExited; } catch { return false; } }
+            Assert(Alive(), "the server should be running before the hub is disposed");
             hub.Dispose();
-            await Task.Delay(1000);
-            var after = Process.GetProcesses().Count(p => { try { return p.ProcessName == Path.GetFileNameWithoutExtension(Environment.ProcessPath!) && p.Id != Environment.ProcessId; } catch { return false; } });
-            Assert(after < before || before == 0, $"before {before}, after {after}");
-            return $"{before} -> {after}";
+            for (int i = 0; i < 40 && Alive(); i++) await Task.Delay(100);
+            Assert(!Alive(), $"process {pid} still running after Dispose");
+            return $"process {pid} stopped";
         });
 
         await T("HTTP: configured headers (Authorization) are sent on every request; the server list may mix HTTP and stdio", async () =>
