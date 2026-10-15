@@ -1,0 +1,801 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>CsAgent : historique des versions depuis la 0.6</title>
+<meta name="description" content="Toutes les versions de CsAgent depuis la 0.6.0, avec la date, le nombre de tests et un résumé de ce que chacune ajoute.">
+<meta name="color-scheme" content="light dark">
+<link rel="icon" href="assets/favicon.svg" type="image/svg+xml">
+<style>
+/* CsAgent site. One stylesheet, no framework, no external requests. */
+
+@font-face { font-family: "Bricolage Grotesque"; src: url("assets/fonts/bricolage-grotesque-latin-wght-normal.woff2") format("woff2"); font-weight: 200 800; font-display: swap; }
+@font-face { font-family: "Hanken Grotesk"; src: url("assets/fonts/hanken-grotesk-latin-wght-normal.woff2") format("woff2"); font-weight: 100 900; font-display: swap; }
+@font-face { font-family: "JetBrains Mono"; src: url("assets/fonts/jetbrains-mono-latin-400-normal.woff2") format("woff2"); font-weight: 400; font-display: swap; }
+@font-face { font-family: "JetBrains Mono"; src: url("assets/fonts/jetbrains-mono-latin-700-normal.woff2") format("woff2"); font-weight: 700; font-display: swap; }
+
+:root {
+  --paper: #f3f5f8;
+  --paper-2: #e9edf2;
+  --text: #17212e;
+  --muted: #526071;
+  --line: #d0d8e2;
+  --ink: #1e3a5f;          /* bleu de travail */
+  --ink-text: #ffffff;
+  --link: #1e3a5f;
+  --gate: #f7c600;         /* safety yellow: used only where the agent stops and asks */
+  --gate-ink: #231b00;
+  --focus: #1f6feb;
+  --term-bg: #0e1a29;
+  --term-bar: #14253a;
+  --term-text: #d5e1ef;
+  --term-dim: #7f94ab;
+  --term-ok: #7bd3a0;
+  --term-err: #f28b82;
+  --term-call: #8fc1f2;
+  --code-bg: #e7ecf2;
+  --font-display: "Bricolage Grotesque", "Hanken Grotesk", system-ui, sans-serif;
+  --font-body: "Hanken Grotesk", system-ui, -apple-system, "Segoe UI", sans-serif;
+  --font-mono: "JetBrains Mono", ui-monospace, "Cascadia Code", Consolas, monospace;
+  --gutter: 16px;
+  --measure: 62ch;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --paper: #0c1622;
+    --paper-2: #122033;
+    --text: #e3ebf4;
+    --muted: #9badc0;
+    --line: #243348;
+    --ink: #a9c8ee;
+    --ink-text: #0c1622;
+    --link: #a9c8ee;
+    --term-bg: #07101a;
+    --term-bar: #0e1c2d;
+    --code-bg: #122033;
+  }
+}
+
+@media (min-width: 720px) { :root { --gutter: 32px; } }
+
+* { box-sizing: border-box; }
+html { scroll-behavior: smooth; scroll-padding-top: 72px; -webkit-text-size-adjust: 100%; }
+@media (prefers-reduced-motion: reduce) { html { scroll-behavior: auto; } }
+
+body {
+  margin: 0;
+  background: var(--paper);
+  color: var(--text);
+  font-family: var(--font-body);
+  font-size: 1.0625rem;
+  line-height: 1.6;
+  text-rendering: optimizeLegibility;
+}
+
+img { max-width: 100%; height: auto; display: block; }
+a { color: var(--link); text-underline-offset: 0.18em; text-decoration-thickness: 1px; }
+a:hover { text-decoration-thickness: 2px; }
+:focus-visible { outline: 3px solid var(--focus); outline-offset: 2px; border-radius: 3px; }
+
+.wrap { width: min(1120px, 100% - 2 * var(--gutter)); margin-inline: auto; }
+.sr-only { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
+.skip { position: absolute; left: var(--gutter); top: -60px; background: var(--ink); color: var(--ink-text); padding: 8px 14px; border-radius: 6px; z-index: 20; }
+.skip:focus { top: 8px; }
+
+/* ---------- type ---------- */
+h1, h2, h3 { font-family: var(--font-display); font-weight: 700; letter-spacing: -0.02em; line-height: 1.08; margin: 0; text-wrap: balance; }
+h1 { font-size: clamp(2.15rem, 4.4vw, 3.45rem); line-height: 1.05; letter-spacing: -0.028em; }
+h2 { font-size: clamp(1.85rem, 3.4vw, 2.7rem); }
+h3 { font-size: clamp(1.25rem, 2vw, 1.55rem); letter-spacing: -0.012em; line-height: 1.2; }
+p { margin: 0 0 1em; max-width: var(--measure); }
+.lede { font-size: 1.2rem; line-height: 1.55; color: var(--muted); max-width: 56ch; }
+code, kbd, pre { font-family: var(--font-mono); font-size: 0.86em; }
+code { background: var(--code-bg); padding: 0.1em 0.38em; border-radius: 4px; white-space: nowrap; }
+code.w, .pre code { white-space: normal; }
+.muted { color: var(--muted); }
+
+/* ---------- header ---------- */
+.top { position: sticky; top: 0; z-index: 10; background: color-mix(in srgb, var(--paper) 88%, transparent); backdrop-filter: blur(8px); border-bottom: 1px solid var(--line); }
+.top .wrap { display: flex; align-items: center; gap: 20px; min-height: 56px; }
+.brand { font-family: var(--font-display); font-weight: 800; font-size: 1.25rem; letter-spacing: -0.02em; color: var(--text); text-decoration: none; display: inline-flex; align-items: center; gap: 9px; flex: none; }
+.brand img { width: 26px; height: 26px; }
+.top nav { display: flex; gap: 4px; overflow-x: auto; scrollbar-width: none; flex: 1; min-width: 0; }
+.top nav::-webkit-scrollbar { display: none; }
+.top nav a { color: var(--muted); text-decoration: none; padding: 8px 10px; border-radius: 6px; font-size: 0.95rem; white-space: nowrap; }
+.top nav a:hover { color: var(--text); background: var(--paper-2); }
+.top .gh { flex: none; font-size: 0.92rem; padding: 7px 12px; }
+
+/* ---------- buttons ---------- */
+.btn { display: inline-flex; align-items: center; gap: 8px; font: inherit; font-weight: 650; font-size: 1rem; padding: 12px 20px; border-radius: 8px; border: 2px solid var(--ink); background: var(--ink); color: var(--ink-text); text-decoration: none; cursor: pointer; line-height: 1.2; }
+.btn:hover { filter: brightness(1.08); text-decoration: none; }
+.btn.ghost { background: transparent; color: var(--ink); }
+.btn.ghost:hover { background: var(--paper-2); filter: none; }
+.btn.small { padding: 7px 12px; font-size: 0.92rem; border-width: 1.5px; }
+
+/* ---------- hero ---------- */
+.hero { padding: 48px 0 40px; }
+.hero .wrap { display: grid; gap: 40px; align-items: center; }
+@media (min-width: 980px) { .hero .wrap { grid-template-columns: minmax(0, 5fr) minmax(0, 6fr); gap: 56px; } .hero { padding: 72px 0 56px; } }
+.hero h1 { margin-bottom: 22px; }
+.hero .lede { margin-bottom: 28px; }
+.cta { display: flex; flex-wrap: wrap; gap: 12px; margin-bottom: 22px; }
+.fine { font-size: 0.95rem; color: var(--muted); max-width: 48ch; margin: 0; }
+
+/* ---------- terminal ---------- */
+.term { background: var(--term-bg); color: var(--term-text); border-radius: 12px; border: 1px solid color-mix(in srgb, var(--ink) 35%, transparent); overflow: hidden; box-shadow: 0 24px 48px -28px rgba(8, 20, 38, 0.55); }
+.term-bar { background: var(--term-bar); padding: 9px 14px; font-family: var(--font-mono); font-size: 0.78rem; color: var(--term-dim); display: flex; justify-content: space-between; gap: 12px; }
+.term-body { margin: 0; padding: 16px 16px 8px; font-family: var(--font-mono); font-size: 0.78rem; line-height: 1.55; height: 430px; overflow: auto; white-space: pre-wrap; word-break: break-word; tab-size: 4; scrollbar-width: thin; }
+@media (min-width: 720px) { .term-body { font-size: 0.82rem; height: 470px; } }
+.term-body .d { color: var(--term-dim); }
+.term-body .u { color: #ffffff; font-weight: 700; }
+.term-body .c { color: var(--term-call); }
+.term-body .ok { color: var(--term-ok); }
+.term-body .er { color: var(--term-err); }
+.term-body .q { color: var(--gate); font-weight: 700; }
+.caret::after { content: "\2588"; color: var(--term-dim); animation: blink 1.05s steps(1) infinite; margin-left: 1px; }
+@keyframes blink { 50% { opacity: 0; } }
+@media (prefers-reduced-motion: reduce) { .caret::after { animation: none; } }
+
+.gate-bar { background: var(--gate); color: var(--gate-ink); padding: 12px 16px; display: none; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap; }
+.gate-bar.on { display: flex; }
+.gate-bar.waiting { animation: gate-pulse 1.8s ease-in-out 3; }
+@keyframes gate-pulse { 0%, 100% { box-shadow: inset 0 0 0 0 rgba(35, 27, 0, 0); } 50% { box-shadow: inset 0 0 0 3px rgba(35, 27, 0, 0.45); } }
+@media (prefers-reduced-motion: reduce) { .gate-bar.waiting { animation: none; } }
+.gate-bar p { margin: 0; font-weight: 650; font-size: 0.95rem; max-width: none; }
+.gate-bar .opts { display: flex; gap: 8px; }
+.gate-btn { font: inherit; font-weight: 700; font-size: 0.95rem; padding: 8px 16px; border-radius: 6px; border: 2px solid var(--gate-ink); cursor: pointer; background: var(--gate-ink); color: var(--gate); line-height: 1.2; }
+.gate-btn.no { background: transparent; color: var(--gate-ink); }
+.gate-btn:focus-visible { outline-color: #ffffff; outline-offset: 2px; }
+.replay { display: none; background: var(--term-bar); padding: 10px 16px; align-items: center; justify-content: space-between; gap: 12px; font-size: 0.9rem; color: var(--term-dim); }
+.replay.on { display: flex; }
+.replay button { font: inherit; font-weight: 650; background: transparent; color: var(--term-text); border: 1.5px solid var(--term-dim); padding: 6px 12px; border-radius: 6px; cursor: pointer; }
+.replay button:hover { border-color: var(--term-text); }
+.term-note { font-size: 0.88rem; color: var(--muted); margin: 14px 0 0; max-width: 60ch; }
+
+/* ---------- sections ---------- */
+section { padding: 72px 0; }
+section + section { border-top: 1px solid var(--line); }
+.sec-head { margin-bottom: 40px; display: grid; gap: 16px; }
+.sec-head .lede { margin: 0; }
+
+.glance { display: grid; gap: 0 40px; grid-template-columns: 1fr; }
+@media (min-width: 720px) { .glance { grid-template-columns: repeat(2, 1fr); } }
+@media (min-width: 1000px) { .glance { grid-template-columns: repeat(4, 1fr); } }
+.glance > div { border-top: 2px solid var(--ink); padding: 14px 0 28px; }
+.glance > div.ask { border-top-color: var(--gate); }
+.glance h3 { font-size: 1.2rem; margin-bottom: 8px; }
+.glance p { color: var(--muted); font-size: 0.98rem; margin: 0; }
+.glance a { color: inherit; text-decoration: none; }
+.glance a:hover h3 { text-decoration: underline; text-decoration-thickness: 2px; }
+
+/* flow diagram (html, so it reflows on phones) */
+.flow { list-style: none; margin: 0; padding: 0; display: grid; gap: 0; grid-template-columns: 1fr; }
+@media (min-width: 900px) { .flow { grid-template-columns: 1fr 1.25fr 1.7fr 1fr; } }
+.flow > li { position: relative; padding: 20px 20px 22px; background: var(--paper-2); }
+.flow > li + li { margin-top: 28px; }
+@media (min-width: 900px) { .flow > li + li { margin-top: 0; margin-left: 28px; } }
+.flow > li + li::before { content: ""; position: absolute; background: var(--ink); }
+.flow > li + li::before { left: 24px; top: -28px; width: 2px; height: 28px; }
+.flow > li + li::after { content: ""; position: absolute; left: 19px; top: -9px; border: 6px solid transparent; border-top: 8px solid var(--ink); border-bottom: 0; }
+@media (min-width: 900px) {
+  .flow > li + li::before { left: -28px; top: 30px; width: 28px; height: 2px; }
+  .flow > li + li::after { left: -10px; top: 24px; border: 6px solid transparent; border-left: 8px solid var(--ink); border-right: 0; }
+}
+.flow > li.gate { background: var(--gate); color: var(--gate-ink); }
+.flow h3 { font-size: 1.1rem; margin-bottom: 6px; }
+.flow p { font-size: 0.95rem; margin: 0; max-width: none; }
+.flow ul { margin: 8px 0 0; padding-left: 1.1em; font-size: 0.95rem; }
+.flow > li.gate p, .flow > li.gate ul { color: var(--gate-ink); }
+.loop { margin-top: 14px; border-left: 2px solid var(--ink); padding: 4px 0 4px 16px; color: var(--muted); font-size: 0.97rem; max-width: 80ch; }
+
+/* two-column */
+.split { display: grid; gap: 28px 56px; align-items: start; }
+@media (min-width: 900px) { .split { grid-template-columns: repeat(2, minmax(0, 1fr)); } .split.wide-left { grid-template-columns: 7fr 5fr; } .split.wide-right { grid-template-columns: 5fr 7fr; } }
+.block { margin-top: 64px; }
+.block > h3 { margin-bottom: 0; }
+.split h3 + *, .block h3 + *, .start-steps h3 + * { margin-top: 12px; }
+
+figure { margin: 0; }
+figure img { border-radius: 10px; border: 1px solid var(--line); background: var(--term-bg); }
+figcaption { font-size: 0.92rem; color: var(--muted); margin-top: 10px; max-width: 60ch; }
+.shots { display: grid; gap: 28px; }
+@media (min-width: 900px) { .shots { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+
+.cmd { font-family: var(--font-mono); font-size: 0.9rem; background: var(--term-bg); color: var(--term-text); padding: 4px 10px; border-radius: 6px; display: inline-block; }
+
+/* prompts list */
+.prompts { margin: 0; padding: 0; list-style: none; }
+.prompts li { display: grid; gap: 6px 32px; padding: 18px 0; border-top: 1px solid var(--line); }
+.prompts li:last-child { border-bottom: 1px solid var(--line); }
+@media (min-width: 820px) { .prompts li { grid-template-columns: 5fr 6fr; } }
+.prompts q { font-family: var(--font-display); font-weight: 600; font-size: 1.2rem; line-height: 1.3; letter-spacing: -0.01em; quotes: "\00AB\00A0" "\00A0\00BB"; }
+.prompts span { color: var(--muted); font-size: 0.98rem; }
+
+/* voice */
+.chunks { display: flex; gap: 4px; align-items: flex-end; height: 56px; margin-bottom: 8px; }
+.chunks i { flex: 1; background: var(--ink); border-radius: 2px; opacity: 0.88; }
+.chunks-label { display: flex; justify-content: space-between; font-size: 0.85rem; color: var(--muted); margin-bottom: 20px; }
+.outcome { display: grid; gap: 10px; grid-template-columns: 1fr 1fr; }
+.outcome div { border: 1.5px solid var(--line); border-radius: 8px; padding: 12px 14px; font-size: 0.93rem; }
+.outcome b { display: block; font-family: var(--font-display); font-size: 1.02rem; margin-bottom: 3px; }
+.outcome span { color: var(--muted); }
+
+/* memory visual */
+.pre { background: var(--term-bg); color: var(--term-text); border-radius: 10px; padding: 16px 18px; font-family: var(--font-mono); font-size: 0.84rem; line-height: 1.65; overflow-x: auto; margin: 0; white-space: pre; }
+.pre .d { color: var(--term-dim); }
+.pre .c { color: var(--term-call); }
+.pre .ok { color: var(--term-ok); }
+.pre .er { color: var(--term-err); }
+.pre .q { color: var(--gate); }
+.pre-wrap { position: relative; }
+.copy { position: absolute; top: 8px; right: 8px; font: inherit; font-size: 0.78rem; font-weight: 650; color: var(--term-text); background: var(--term-bar); border: 1px solid var(--term-dim); border-radius: 5px; padding: 3px 9px; cursor: pointer; opacity: 0.9; }
+.copy:hover { opacity: 1; border-color: var(--term-text); }
+.lists { display: grid; grid-template-columns: 1fr 1fr; gap: 0; border: 1px solid var(--line); border-radius: 10px; overflow: hidden; }
+.lists div { padding: 14px 16px; border-bottom: 1px solid var(--line); }
+.lists div:nth-child(odd) { border-right: 1px solid var(--line); }
+.lists div:nth-last-child(-n+2) { border-bottom: 0; }
+.lists b { display: block; font-family: var(--font-display); margin-bottom: 4px; }
+.lists span { color: var(--muted); font-size: 0.93rem; line-height: 1.45; display: block; }
+
+/* dials */
+.dials { margin: 0; display: grid; gap: 0; }
+.dials div { display: grid; gap: 4px 24px; padding: 14px 0; border-top: 1px solid var(--line); }
+.dials div:last-child { border-bottom: 1px solid var(--line); }
+@media (min-width: 720px) { .dials div { grid-template-columns: 190px 1fr; } }
+.dials dt { font-family: var(--font-mono); font-size: 0.9rem; font-weight: 700; }
+.dials dd { margin: 0; color: var(--muted); }
+
+/* safety */
+#safety { background: var(--paper-2); }
+#safety .sec-head h2::before { content: ""; display: block; width: 72px; height: 10px; background: var(--gate); margin-bottom: 20px; border-radius: 2px; }
+.layers { margin: 0; padding: 0; list-style: none; display: grid; gap: 0; }
+.layers li { display: grid; gap: 4px 32px; padding: 20px 0 20px 22px; border-top: 1px solid var(--line); }
+.layers li:last-child { border-bottom: 1px solid var(--line); }
+@media (min-width: 820px) { .layers li { grid-template-columns: 230px 1fr; } }
+.layers h3 { font-size: 1.2rem; }
+.layers li.asks { background: linear-gradient(var(--gate), var(--gate)) left top / 8px 100% no-repeat; }
+.layers p { margin: 0; color: var(--muted); max-width: 70ch; }
+.layers p code { color: var(--text); }
+.callout { margin-top: 36px; border: 2px solid var(--text); border-radius: 10px; padding: 20px 24px; max-width: 78ch; background: var(--paper); }
+.callout h3 { margin-bottom: 8px; font-size: 1.2rem; }
+.callout p:last-child { margin-bottom: 0; }
+
+/* dev */
+.events { width: 100%; border-collapse: collapse; font-size: 0.95rem; }
+.events th, .events td { text-align: left; padding: 9px 12px 9px 0; border-top: 1px solid var(--line); vertical-align: top; }
+.events th { font-family: var(--font-mono); font-weight: 700; font-size: 0.86rem; white-space: nowrap; }
+.events td { color: var(--muted); }
+.events tr:last-child th, .events tr:last-child td { border-bottom: 1px solid var(--line); }
+.steps { list-style: none; margin: 0; padding: 0; counter-reset: s; display: grid; gap: 14px; }
+.steps li { counter-increment: s; display: grid; grid-template-columns: 34px 1fr; gap: 12px; align-items: baseline; max-width: 70ch; }
+.steps li::before { content: counter(s); font-family: var(--font-display); font-weight: 800; font-size: 1.1rem; width: 28px; height: 28px; border-radius: 50%; background: var(--ink); color: var(--ink-text); display: grid; place-items: center; align-self: start; margin-top: 1px; }
+.catalog { display: grid; gap: 22px 40px; }
+@media (min-width: 720px) { .catalog { grid-template-columns: repeat(2, 1fr); } }
+@media (min-width: 1000px) { .catalog { grid-template-columns: repeat(3, 1fr); } }
+.catalog h3 { font-size: 1.05rem; margin-bottom: 8px; }
+.chips { display: flex; flex-wrap: wrap; gap: 6px; margin: 0; padding: 0; list-style: none; }
+.chips li { font-family: var(--font-mono); font-size: 0.78rem; padding: 3px 8px; border: 1px solid var(--line); border-radius: 5px; background: var(--paper); }
+.chips li.ask { border-left: 5px solid var(--gate); }
+.chips li.win::after { content: " (Windows)"; color: var(--muted); font-family: var(--font-body); font-size: 0.74rem; }
+.legend { font-size: 0.9rem; color: var(--muted); margin-top: 18px; display: flex; align-items: center; gap: 8px; max-width: none; }
+.legend i { display: inline-block; width: 5px; height: 16px; background: var(--gate); border-radius: 1px; }
+.facts { margin: 0; padding: 0; list-style: none; display: grid; gap: 10px; max-width: 64ch; }
+.facts li { padding-left: 18px; position: relative; }
+.facts li::before { content: ""; position: absolute; left: 0; top: 0.7em; width: 8px; height: 2px; background: var(--ink); }
+
+/* get started */
+.tabs { display: flex; gap: 6px; margin-bottom: 14px; flex-wrap: wrap; }
+.tabs button { font: inherit; font-weight: 650; font-size: 0.95rem; padding: 7px 14px; border-radius: 999px; border: 1.5px solid var(--line); background: transparent; color: var(--muted); cursor: pointer; }
+.tabs button[aria-pressed="true"] { background: var(--ink); color: var(--ink-text); border-color: var(--ink); }
+.start-steps { display: grid; gap: 32px; max-width: 760px; }
+.start-steps h3 { font-size: 1.3rem; }
+.start-steps p { max-width: 64ch; }
+
+/* status */
+.limits { margin: 0; padding: 0; list-style: none; display: grid; gap: 12px; max-width: 72ch; }
+.limits li { padding: 12px 0 12px 0; border-top: 1px solid var(--line); }
+.limits li:last-child { border-bottom: 1px solid var(--line); }
+
+footer { padding: 48px 0 64px; border-top: 1px solid var(--line); color: var(--muted); font-size: 0.95rem; }
+footer .wrap { display: grid; gap: 24px; }
+@media (min-width: 820px) { footer .wrap { grid-template-columns: 1fr auto; align-items: end; } }
+footer ul { list-style: none; margin: 0; padding: 0; display: flex; flex-wrap: wrap; gap: 6px 22px; }
+footer p { margin: 0 0 6px; max-width: 60ch; }
+
+/* grid children must be allowed to shrink, or wide code blocks stretch the page on phones */
+.hero .wrap > *, .split > *, .shots > *, .catalog > *, .start-steps > * { min-width: 0; }
+.pre-wrap { min-width: 0; max-width: 100%; }
+.pre { max-width: 100%; }
+
+.views { font-size: 0.88rem; margin-top: 14px; }
+.views strong { color: var(--text); font-variant-numeric: tabular-nums; }
+
+</style>
+<style>
+  .rel-intro { padding: 40px 0 24px; }
+  .rel-intro h1 { margin-bottom: 18px; }
+  .rel-stats { display: flex; flex-wrap: wrap; gap: 12px 36px; margin: 28px 0 0; padding: 0; list-style: none; }
+  .rel-stats li { display: grid; gap: 2px; }
+  .rel-stats b { font-family: var(--font-display); font-size: 2rem; line-height: 1; letter-spacing: -0.02em; }
+  .rel-stats span { color: var(--muted); font-size: 0.95rem; }
+  .rel-toc { display: flex; flex-wrap: wrap; gap: 8px; margin: 0; padding: 0; list-style: none; }
+  .rel-toc a { display: inline-block; padding: 5px 11px; border: 1px solid var(--line); border-radius: 999px; text-decoration: none; font-family: var(--font-mono); font-size: 0.86rem; color: var(--ink); }
+  .rel-toc a:hover { background: var(--paper-2); }
+  .rel-toc .grp { flex-basis: 100%; margin-top: 10px; color: var(--muted); font-size: 0.9rem; }
+  .rel-series { padding: 56px 0 8px; }
+  .rel-series + .rel-series { border-top: 1px solid var(--line); }
+  .rel-series > .wrap > header { margin-bottom: 28px; }
+  .rel-series header p { margin: 6px 0 0; color: var(--muted); }
+  .rel { display: grid; gap: 6px 28px; padding: 26px 0; border-top: 1px solid var(--line); }
+  .rel:first-of-type { border-top: 0; padding-top: 0; }
+  @media (min-width: 860px) { .rel { grid-template-columns: 190px 1fr; } }
+  .rel-meta { display: grid; gap: 6px; align-content: start; }
+  .rel-ver { font-family: var(--font-display); font-weight: 700; font-size: 1.7rem; letter-spacing: -0.02em; line-height: 1; margin: 0; }
+  .rel-ver a { color: inherit; text-decoration: none; }
+  .rel-ver a:hover { text-decoration: underline; }
+  .rel-date, .rel-tests { color: var(--muted); font-size: 0.93rem; margin: 0; }
+  .rel-kind { justify-self: start; font-size: 0.78rem; font-weight: 650; letter-spacing: 0.02em; padding: 2px 9px; border-radius: 999px; border: 1px solid var(--line); background: var(--paper-2); }
+  .rel-kind.major { background: var(--ink); color: var(--ink-text); border-color: var(--ink); }
+  .rel-kind.fix { background: var(--gate); color: var(--gate-ink); border-color: var(--gate); }
+  .rel-body h3 { margin: 0 0 8px; }
+  .rel-body > p { margin: 0 0 10px; color: var(--muted); }
+  .rel-body ul { margin: 0 0 12px; padding-left: 1.15em; max-width: 72ch; }
+  .rel-body li { margin: 0 0 5px; }
+  .rel > * { min-width: 0; }
+  .rel-body code, .rel-body li, .rel-body p { overflow-wrap: anywhere; }
+  .rel-body code { white-space: normal; }
+  .rel-links { margin: 0; font-size: 0.93rem; display: flex; flex-wrap: wrap; gap: 4px 18px; }
+</style>
+</head>
+<body>
+<a class="skip" href="#main">Aller au contenu</a>
+
+<header class="top">
+  <div class="wrap">
+    <a class="brand" href="index.html"><img src="assets/favicon.svg" alt="" width="26" height="26">CsAgent</a>
+    <nav aria-label="Pages">
+      <a href="index.html">Accueil</a>
+      <a href="guide-csagent.html">Guide</a>
+      <a href="slides.html">Slides</a>
+      <a href="releases.html" aria-current="page">Versions</a>
+    </nav>
+    <a class="btn ghost gh small" href="https://github.com/artydev/csagent">GitHub</a>
+  </div>
+</header>
+
+<main id="main">
+<div class="rel-intro">
+  <div class="wrap">
+    <h1>Historique des versions</h1>
+    <p class="lede">Toutes les versions de CsAgent depuis la 0.6.0 : ce que chacune ajoute ou corrige, avec sa date et le nombre de tests.</p>
+    <ul class="rel-stats">
+      <li><b>19</b><span>versions</span></li>
+      <li><b>10</b><span>jours, du 6 au 15 octobre 2026</span></li>
+      <li><b>136 → 285</b><span>tests, de la 0.8.0 à la 0.9.12</span></li>
+    </ul>
+  </div>
+</div>
+
+<section aria-labelledby="toc-h" style="padding:24px 0 8px">
+  <div class="wrap">
+    <h2 id="toc-h" class="sr-only">Sommaire</h2>
+    <ul class="rel-toc">
+      <li class="grp">Série 0.9</li>
+      <li><a href="#v0.9.12">v0.9.12</a></li>
+      <li><a href="#v0.9.11">v0.9.11</a></li>
+      <li><a href="#v0.9.10">v0.9.10</a></li>
+      <li><a href="#v0.9.9">v0.9.9</a></li>
+      <li><a href="#v0.9.8">v0.9.8</a></li>
+      <li><a href="#v0.9.7">v0.9.7</a></li>
+      <li><a href="#v0.9.6">v0.9.6</a></li>
+      <li><a href="#v0.9.5">v0.9.5</a></li>
+      <li><a href="#v0.9.4">v0.9.4</a></li>
+      <li><a href="#v0.9.3">v0.9.3</a></li>
+      <li><a href="#v0.9.2">v0.9.2</a></li>
+      <li><a href="#v0.9.1">v0.9.1</a></li>
+      <li><a href="#v0.9.0">v0.9.0</a></li>
+      <li class="grp">Série 0.8</li>
+      <li><a href="#v0.8.0">v0.8.0</a></li>
+      <li class="grp">Série 0.7</li>
+      <li><a href="#v0.7.3">v0.7.3</a></li>
+      <li><a href="#v0.7.2">v0.7.2</a></li>
+      <li><a href="#v0.7.1">v0.7.1</a></li>
+      <li><a href="#v0.7.0">v0.7.0</a></li>
+      <li class="grp">Série 0.6</li>
+      <li><a href="#v0.6.0">v0.6.0</a></li>
+    </ul>
+  </div>
+</section>
+
+<section class="rel-series" aria-labelledby="s0.9-h">
+  <div class="wrap">
+    <header>
+      <h2 id="s0.9-h">Série 0.9</h2>
+      <p>Routage, économie de quota, MCP, nouveaux outils · Du 10 au 15 octobre 2026</p>
+    </header>
+    <article class="rel" id="v0.9.12">
+      <div class="rel-meta">
+        <p class="rel-ver"><a href="#v0.9.12">v0.9.12</a></p>
+        <span class="rel-kind fix">Correctif</span>
+        <p class="rel-date">15 octobre 2026</p>
+        <p class="rel-tests">285 tests</p>
+      </div>
+      <div class="rel-body">
+        <h3>Le filtre de commandes ne bloque plus à tort</h3>
+        <p>Le filtre de sécurité des commandes refusait <code>$ws.Range("E2:E31").NumberFormat = "0.00"</code> d'Excel, qu'il prenait pour la commande Windows <code>format</code>.</p>
+        <ul>
+          <li>Un motif qui commence par une lettre ne compte qu'en <strong>début de mot</strong> : <code>.NumberFormat</code> d'Excel et <code>git add</code> ne sont plus bloqués, <code>format c:</code> et <code>dd if=…</code> le restent.</li>
+          <li>Le message de refus <strong>nomme le motif</strong> bloqué (<code>blocked pattern 'format'</code>) dans <code>sh</code>, <code>run_terminal</code> et <code>excel_command</code>, pour que l'agent puisse réécrire sa commande.</li>
+          <li>La liste des motifs ne change pas.</li>
+        </ul>
+        <p class="rel-links"><a href="https://github.com/artydev/csagent/blob/main/releases/release-0.9.12.md">Note de version complète</a> <a href="https://github.com/artydev/csagent/releases/tag/v0.9.12">Étiquette v0.9.12</a></p>
+      </div>
+    </article>
+    <article class="rel" id="v0.9.11">
+      <div class="rel-meta">
+        <p class="rel-ver"><a href="#v0.9.11">v0.9.11</a></p>
+        <span class="rel-kind tool">Nouvel outil</span>
+        <p class="rel-date">15 octobre 2026</p>
+        <p class="rel-tests">281 tests</p>
+      </div>
+      <div class="rel-body">
+        <h3><code>download_file</code> : une réponse HTTP directement dans un fichier</h3>
+        <p>Mettre des données du web dans un fichier prenait des minutes : le modèle recevait la réponse, puis devait la réécrire en entier dans <code>write_file</code>.</p>
+        <ul>
+          <li>Le nouvel outil <strong><code>download_file</code></strong> écrit la réponse sur le disque sans la faire passer par le modèle, qui ne reçoit qu'un résumé de quelques lignes.</li>
+          <li><code>json_path</code> ne garde qu'une partie d'une réponse JSON (par exemple <code>products</code>) ; <code>pretty</code> ré-indente le JSON.</li>
+          <li>Il demande confirmation ; une erreur n'écrit rien et laisse un fichier existant intact ; limite de 20 Mo. 38 outils au total.</li>
+          <li>Le prompt système demande au modèle de ne plus recopier de données web dans <code>write_file</code>.</li>
+        </ul>
+        <p class="rel-links"><a href="https://github.com/artydev/csagent/blob/main/releases/release-0.9.11.md">Note de version complète</a> <a href="https://github.com/artydev/csagent/releases/tag/v0.9.11">Étiquette v0.9.11</a></p>
+      </div>
+    </article>
+    <article class="rel" id="v0.9.10">
+      <div class="rel-meta">
+        <p class="rel-ver"><a href="#v0.9.10">v0.9.10</a></p>
+        <span class="rel-kind tool">Nouvel outil</span>
+        <p class="rel-date">15 octobre 2026</p>
+        <p class="rel-tests">274 tests</p>
+      </div>
+      <div class="rel-body">
+        <h3>L'agenda Outlook : lire et créer des rendez-vous</h3>
+        <p>L'agent lit les rendez-vous d'une période et en crée, par l'automatisation COM d'Outlook : ni inscription Azure, ni jeton. Windows et Outlook classique.</p>
+        <ul>
+          <li><strong><code>read_calendar</code></strong> (lecture seule) liste les rendez-vous, récurrents compris, et donne la date du jour pour convertir « demain ».</li>
+          <li><strong><code>create_appointment</code></strong> demande confirmation, puis affiche le rendez-vous dans Outlook pour relecture. <code>save</code> l'enregistre, <code>send</code> envoie les invitations ; les chevauchements sont signalés.</li>
+          <li>Nouveau groupe d'outils <code>calendar</code> et section 19 du prompt système. 37 outils au total.</li>
+          <li>Non essayé avec un vrai Outlook : à vérifier sur Windows.</li>
+        </ul>
+        <p class="rel-links"><a href="https://github.com/artydev/csagent/blob/main/releases/release-0.9.10.md">Note de version complète</a> <a href="https://github.com/artydev/csagent/releases/tag/v0.9.10">Étiquette v0.9.10</a></p>
+      </div>
+    </article>
+    <article class="rel" id="v0.9.9">
+      <div class="rel-meta">
+        <p class="rel-ver"><a href="#v0.9.9">v0.9.9</a></p>
+        <span class="rel-kind feat">Nouveauté</span>
+        <p class="rel-date">15 octobre 2026</p>
+        <p class="rel-tests">264 tests</p>
+      </div>
+      <div class="rel-body">
+        <h3>MCP : stdio, plusieurs serveurs, en-têtes d'authentification</h3>
+        <p>CsAgent se connecte à des serveurs MCP locaux ou distants, plusieurs à la fois, avec authentification.</p>
+        <ul>
+          <li><code>--mcp-stdio "&lt;commande&gt;"</code> démarre un serveur MCP local ; <code>--mcp</code> est répétable.</li>
+          <li><code>--mcp-header "Nom: valeur"</code> ajoute un en-tête (clé d'API, <code>Bearer</code>) ; <code>${VAR}</code> lit une variable d'environnement et les secrets ne s'affichent jamais.</li>
+          <li><code>--mcp-config &lt;fichier&gt;</code> (ou <code>CSAGENT_MCP_CONFIG</code>) décrit les serveurs en JSON.</li>
+          <li>Avec plusieurs serveurs, les outils s'appellent <code>mcp_&lt;serveur&gt;_&lt;outil&gt;</code> ; un serveur en panne donne un avertissement, les autres restent utilisables.</li>
+          <li>Rien n'est chargé automatiquement depuis le dossier de travail.</li>
+        </ul>
+        <p class="rel-links"><a href="https://github.com/artydev/csagent/blob/main/releases/release-0.9.9.md">Note de version complète</a> <a href="https://github.com/artydev/csagent/releases/tag/v0.9.9">Étiquette v0.9.9</a></p>
+      </div>
+    </article>
+    <article class="rel" id="v0.9.8">
+      <div class="rel-meta">
+        <p class="rel-ver"><a href="#v0.9.8">v0.9.8</a></p>
+        <span class="rel-kind feat">Nouveauté</span>
+        <p class="rel-date">15 octobre 2026</p>
+        <p class="rel-tests">247 tests</p>
+      </div>
+      <div class="rel-body">
+        <h3>Seuls les outils utiles sont décrits au modèle</h3>
+        <p>À chaque étape, la description des 35 outils (environ 20 000 caractères) était renvoyée au modèle. Cela consommait du quota pour rien.</p>
+        <ul>
+          <li>Les outils sont répartis en groupes : <code>core</code> (fichiers, recherche, shell) toujours envoyé ; git, web, courrier, audio, Excel, presse-papiers, archives, terminal et modèles seulement quand la demande en parle.</li>
+          <li>L'outil <code>enable_tools</code> rallume un groupe qui manque ; <code>--all-tools</code> rétablit l'envoi de tous les outils.</li>
+          <li>Une demande de code ordinaire envoie environ 67 % de caractères d'outils en moins.</li>
+          <li>Rien n'est interdit : un outil non décrit reste exécutable.</li>
+        </ul>
+        <p class="rel-links"><a href="https://github.com/artydev/csagent/blob/main/releases/release-0.9.8.md">Note de version complète</a> <a href="https://github.com/artydev/csagent/releases/tag/v0.9.8">Étiquette v0.9.8</a></p>
+      </div>
+    </article>
+    <article class="rel" id="v0.9.7">
+      <div class="rel-meta">
+        <p class="rel-ver"><a href="#v0.9.7">v0.9.7</a></p>
+        <span class="rel-kind tool">Nouvel outil</span>
+        <p class="rel-date">14 octobre 2026</p>
+        <p class="rel-tests">238 tests</p>
+      </div>
+      <div class="rel-body">
+        <h3>Ranger les e-mails <code>.msg</code> par expéditeur</h3>
+        <p>Le nouvel outil <code>group_msg_by_sender</code> renomme les fichiers Outlook <code>.msg</code> en noms ASCII, puis les range dans un dossier par expéditeur.</p>
+        <ul>
+          <li>Un lecteur de <code>.msg</code> en C# pur : il fonctionne sur tous les systèmes et ne nécessite pas Outlook.</li>
+          <li>Les noms sans accents, espaces ni caractères spéciaux se manipulent sans problème d'encodage.</li>
+          <li>Regroupement par nom ou par adresse ; rien n'est jamais écrasé ; il demande confirmation. 35 outils au total.</li>
+        </ul>
+        <p class="rel-links"><a href="https://github.com/artydev/csagent/blob/main/releases/release-0.9.7.md">Note de version complète</a> <a href="https://github.com/artydev/csagent/releases/tag/v0.9.7">Étiquette v0.9.7</a></p>
+      </div>
+    </article>
+    <article class="rel" id="v0.9.6">
+      <div class="rel-meta">
+        <p class="rel-ver"><a href="#v0.9.6">v0.9.6</a></p>
+        <span class="rel-kind feat">Nouveauté</span>
+        <p class="rel-date">14 octobre 2026</p>
+        <p class="rel-tests">231 tests</p>
+      </div>
+      <div class="rel-body">
+        <h3><code>--prompt</code> utilisable dans un script</h3>
+        <p><code>csagent --prompt "…"</code> n'écrit plus que la réponse finale sur la sortie standard : elle peut être redirigée vers une autre commande.</p>
+        <ul>
+          <li>Plus de bannière, de ligne de version, d'étapes, d'appels d'outils, de résultats, de modèle ni de jetons dans la sortie ; <code>--verbose</code> rétablit l'affichage complet.</li>
+          <li>Avertissements et erreurs vont sur la sortie d'erreur ; code de sortie 1 si l'agent signale une erreur.</li>
+          <li>Si l'entrée est redirigée, un outil qui demande confirmation est refusé (utiliser <code>--yes</code>).</li>
+        </ul>
+        <p class="rel-links"><a href="https://github.com/artydev/csagent/blob/main/releases/release-0.9.6.md">Note de version complète</a> <a href="https://github.com/artydev/csagent/releases/tag/v0.9.6">Étiquette v0.9.6</a></p>
+      </div>
+    </article>
+    <article class="rel" id="v0.9.5">
+      <div class="rel-meta">
+        <p class="rel-ver"><a href="#v0.9.5">v0.9.5</a></p>
+        <span class="rel-kind feat">Nouveauté</span>
+        <p class="rel-date">13 octobre 2026</p>
+        <p class="rel-tests">224 tests</p>
+      </div>
+      <div class="rel-body">
+        <h3>Moins de jetons d'entrée par étape</h3>
+        <p>Réduire le nombre de jetons envoyés à chaque étape aide à rester sous les quotas de l'API.</p>
+        <ul>
+          <li>Les résultats d'outils plus anciens que les 6 derniers sont coupés à 1 500 caractères, avec une mention que l'outil peut être relancé.</li>
+          <li>Nouveaux arguments <code>--context-chars &lt;n&gt;</code> (taille de l'historique) et <code>--no-compact</code> (garder les anciens résultats entiers).</li>
+          <li>README corrigé (les 34 outils, le routage des images, le dépannage de la mémoire) et guide de l'utilisateur ajouté dans <code>docs/</code>.</li>
+          <li><code>--native</code>, sans effet depuis la 0.5, est retiré.</li>
+        </ul>
+        <p class="rel-links"><a href="https://github.com/artydev/csagent/blob/main/releases/release-0.9.5.md">Note de version complète</a> <a href="https://github.com/artydev/csagent/releases/tag/v0.9.5">Étiquette v0.9.5</a></p>
+      </div>
+    </article>
+    <article class="rel" id="v0.9.4">
+      <div class="rel-meta">
+        <p class="rel-ver"><a href="#v0.9.4">v0.9.4</a></p>
+        <span class="rel-kind feat">Nouveauté</span>
+        <p class="rel-date">13 octobre 2026</p>
+        <p class="rel-tests">217 tests</p>
+      </div>
+      <div class="rel-body">
+        <h3>Bascule automatique quand le quota du jour est épuisé</h3>
+        <p>Au lieu de s'arrêter, CsAgent continue la même requête avec un autre modèle.</p>
+        <ul>
+          <li>Le modèle de remplacement est <code>deepseek-v4-flash</code> par défaut ; <code>CSAGENT_FALLBACK_MODEL</code> le change, ou <code>off</code> rétablit l'arrêt.</li>
+          <li>Un modèle épuisé est mis de côté pendant 1 heure ; un avertissement indique le changement.</li>
+          <li>Les limites par minute gardent leur comportement (nouveaux essais, jamais de bascule).</li>
+        </ul>
+        <p class="rel-links"><a href="https://github.com/artydev/csagent/blob/main/releases/release-0.9.4.md">Note de version complète</a> <a href="https://github.com/artydev/csagent/releases/tag/v0.9.4">Étiquette v0.9.4</a></p>
+      </div>
+    </article>
+    <article class="rel" id="v0.9.3">
+      <div class="rel-meta">
+        <p class="rel-ver"><a href="#v0.9.3">v0.9.3</a></p>
+        <span class="rel-kind feat">Nouveauté</span>
+        <p class="rel-date">13 octobre 2026</p>
+        <p class="rel-tests">207 tests</p>
+      </div>
+      <div class="rel-body">
+        <h3>Limites de débit : quota du jour, jetons affichés</h3>
+        <p>CsAgent lit le message des erreurs HTTP 429 de l'API et réagit selon la limite atteinte.</p>
+        <ul>
+          <li>Une limite par minute est réessayée comme avant ; une limite <strong>par jour</strong> n'est plus réessayée et s'arrête tout de suite avec une explication.</li>
+          <li>Pas de résumé de session après un 429 : il serait refusé aussi et consommerait du quota.</li>
+          <li>Une ligne en fin de tour indique les jetons du tour et de la session. Messages en français et en anglais.</li>
+        </ul>
+        <p class="rel-links"><a href="https://github.com/artydev/csagent/blob/main/releases/release-0.9.3.md">Note de version complète</a> <a href="https://github.com/artydev/csagent/releases/tag/v0.9.3">Étiquette v0.9.3</a></p>
+      </div>
+    </article>
+    <article class="rel" id="v0.9.2">
+      <div class="rel-meta">
+        <p class="rel-ver"><a href="#v0.9.2">v0.9.2</a></p>
+        <span class="rel-kind feat">Nouveauté</span>
+        <p class="rel-date">13 octobre 2026</p>
+        <p class="rel-tests">197 tests</p>
+      </div>
+      <div class="rel-body">
+        <h3>Un menu <code>/skills</code> dans LeanUI</h3>
+        <p>L'interface <code>--leanui</code> affiche les skills de <code>skills/INDEX.md</code> dans un menu.</p>
+        <ul>
+          <li>Choisir un skill écrit une instruction dans le champ de saisie.</li>
+          <li>Corrigé : un préfixe comme <code>/ne</code> suivi d'Entrée complète en <code>/new </code> au lieu d'être envoyé comme commande inconnue.</li>
+          <li>Nouvelle route en lecture seule : <code>GET /api/skills</code>.</li>
+        </ul>
+        <p class="rel-links"><a href="https://github.com/artydev/csagent/blob/main/releases/release-0.9.2.md">Note de version complète</a> <a href="https://github.com/artydev/csagent/releases/tag/v0.9.2">Étiquette v0.9.2</a></p>
+      </div>
+    </article>
+    <article class="rel" id="v0.9.1">
+      <div class="rel-meta">
+        <p class="rel-ver"><a href="#v0.9.1">v0.9.1</a></p>
+        <span class="rel-kind fix">Correctif</span>
+        <p class="rel-date">12 octobre 2026</p>
+        <p class="rel-tests">192 tests</p>
+      </div>
+      <div class="rel-body">
+        <h3>Le modèle de vision ne suit plus toute la conversation</h3>
+        <p>Une image envoyée une seule fois envoyait tous les tours suivants vers le modèle de vision.</p>
+        <ul>
+          <li>Seule l'image envoyée <strong>avec le message courant</strong> fait choisir le modèle de vision ; les anciennes images sont remplacées par un court texte.</li>
+          <li><code>--leanui</code> : <code>/help</code> ouvre un menu sélectionnable (flèches ou souris), et taper <code>/</code> propose les commandes.</li>
+        </ul>
+        <p class="rel-links"><a href="https://github.com/artydev/csagent/blob/main/releases/release-0.9.1.md">Note de version complète</a> <a href="https://github.com/artydev/csagent/releases/tag/v0.9.1">Étiquette v0.9.1</a></p>
+      </div>
+    </article>
+    <article class="rel" id="v0.9.0">
+      <div class="rel-meta">
+        <p class="rel-ver"><a href="#v0.9.0">v0.9.0</a></p>
+        <span class="rel-kind major">Version majeure</span>
+        <p class="rel-date">10 octobre 2026</p>
+      </div>
+      <div class="rel-body">
+        <h3>Routage des modèles, README en français, site GitHub Pages</h3>
+        <p>CsAgent choisit lui-même le modèle de chaque message, et sa documentation devient accessible en ligne et en français.</p>
+        <ul>
+          <li><strong>Routage des modèles LLM</strong> : code, discussion, vision, recherche web ; règles modifiables dans <code>LLMRoutingRules/</code> (créé par <code>--init-routing</code>) ; messages en français et en anglais.</li>
+          <li><code>--quiet</code> s'applique aussi à <code>--ui</code> et <code>--leanui</code>.</li>
+          <li>README en français, site GitHub Pages (<code>docs/</code>) avec les slides.</li>
+          <li>Persistance plus robuste : le déplacement final de la conversation est relancé et un fichier verrouillé ne fait plus planter l'agent.</li>
+        </ul>
+        <p class="rel-links"><a href="https://github.com/artydev/csagent/releases/tag/v0.9.0">Étiquette v0.9.0</a></p>
+      </div>
+    </article>
+  </div>
+</section>
+
+<section class="rel-series" aria-labelledby="s0.8-h">
+  <div class="wrap">
+    <header>
+      <h2 id="s0.8-h">Série 0.8</h2>
+      <p>Parole et MCP plus sûr · 9 octobre 2026</p>
+    </header>
+    <article class="rel" id="v0.8.0">
+      <div class="rel-meta">
+        <p class="rel-ver"><a href="#v0.8.0">v0.8.0</a></p>
+        <span class="rel-kind major">Version majeure</span>
+        <p class="rel-date">9 octobre 2026</p>
+        <p class="rel-tests">136 tests</p>
+      </div>
+      <div class="rel-body">
+        <h3>Transcription vocale, enregistreur web, MCP plus sûr</h3>
+        <p>L'agent comprend la parole, et MCP devient sûr par défaut.</p>
+        <ul>
+          <li>Nouvel outil <strong><code>transcribe_audio</code></strong> (Whisper, via l'endpoint configuré) ; <code>ffmpeg</code> pour les longs fichiers.</li>
+          <li><strong>Enregistreur vocal</strong> dans <code>--ui</code> et <code>--leanui</code>, avec le choix de la langue (FR / EN / Auto).</li>
+          <li><strong>MCP plus sûr</strong> : outils proposés sous le nom <code>mcp_&lt;nom&gt;</code> (un serveur ne remplace plus un outil intégré), chaque appel demande confirmation, résultats traités comme des données non fiables.</li>
+          <li><strong>Skills</strong> (<code>skills/INDEX.md</code>) et purge facultative des anciens enregistrements (<code>CSAGENT_AUDIO_KEEP_DAYS</code>).</li>
+        </ul>
+        <p class="rel-links"><a href="https://github.com/artydev/csagent/blob/main/releases/release-0.8.0.md">Note de version complète</a> <a href="https://github.com/artydev/csagent/releases/tag/v0.8.0">Étiquette v0.8.0</a></p>
+      </div>
+    </article>
+  </div>
+</section>
+
+<section class="rel-series" aria-labelledby="s0.7-h">
+  <div class="wrap">
+    <header>
+      <h2 id="s0.7-h">Série 0.7</h2>
+      <p>Pilotage par script, e-mails Outlook, endpoint · 7 et 8 octobre 2026</p>
+    </header>
+    <article class="rel" id="v0.7.3">
+      <div class="rel-meta">
+        <p class="rel-ver"><a href="#v0.7.3">v0.7.3</a></p>
+        <span class="rel-kind feat">Nouveauté</span>
+        <p class="rel-date">8 octobre 2026</p>
+      </div>
+      <div class="rel-body">
+        <h3>Le mode <code>--quiet</code></h3>
+        <p>Une sortie réduite à l'essentiel en mode CLI.</p>
+        <ul>
+          <li><code>--quiet</code> n'affiche que les messages de l'assistant, les avertissements, les erreurs et la ligne finale.</li>
+        </ul>
+        <p class="rel-links"><a href="https://github.com/artydev/csagent/releases/tag/csagent-v0.7.3">Étiquette csagent-v0.7.3</a></p>
+      </div>
+    </article>
+    <article class="rel" id="v0.7.2">
+      <div class="rel-meta">
+        <p class="rel-ver"><a href="#v0.7.2">v0.7.2</a></p>
+        <span class="rel-kind tool">Nouvel outil</span>
+        <p class="rel-date">8 octobre 2026</p>
+      </div>
+      <div class="rel-body">
+        <h3>Lire un e-mail Outlook <code>.msg</code></h3>
+        <p>Le nouvel outil <code>read_msg</code> lit les fichiers <code>.msg</code>.</p>
+        <ul>
+          <li>Objet, expéditeur, destinataires, dates, corps et liste des pièces jointes, en lecture seule.</li>
+        </ul>
+        <p class="rel-links"><a href="https://github.com/artydev/csagent/releases/tag/csagent-v0.7.2">Étiquette csagent-v0.7.2</a></p>
+      </div>
+    </article>
+    <article class="rel" id="v0.7.1">
+      <div class="rel-meta">
+        <p class="rel-ver"><a href="#v0.7.1">v0.7.1</a></p>
+        <span class="rel-kind feat">Nouveauté</span>
+        <p class="rel-date">7 octobre 2026</p>
+      </div>
+      <div class="rel-body">
+        <h3>Un autre endpoint en ligne de commande</h3>
+        <p>Utiliser n'importe quel serveur compatible OpenAI sans variable d'environnement.</p>
+        <ul>
+          <li>Nouvel argument <code>--endpoint &lt;url&gt;</code> (par exemple un modèle local avec Ollama).</li>
+          <li>Fichiers de mémoire renommés ; correctif du moniteur de presse-papiers, absent sous Linux.</li>
+        </ul>
+        <p class="rel-links"><a href="https://github.com/artydev/csagent/releases/tag/csagent-v0.7.1">Étiquette csagent-v0.7.1</a></p>
+      </div>
+    </article>
+    <article class="rel" id="v0.7.0">
+      <div class="rel-meta">
+        <p class="rel-ver"><a href="#v0.7.0">v0.7.0</a></p>
+        <span class="rel-kind feat">Nouveauté</span>
+        <p class="rel-date">7 octobre 2026</p>
+      </div>
+      <div class="rel-body">
+        <h3>Le mode agent sans confirmation</h3>
+        <p>CsAgent peut être piloté par un autre programme.</p>
+        <ul>
+          <li><code>--yes</code> approuve chaque appel d'outil automatiquement ; avec <code>--api</code>, un serveur sans interface pour orchestrateurs.</li>
+        </ul>
+        <p class="rel-links"><a href="https://github.com/artydev/csagent/releases/tag/csagent-v0.7.0">Étiquette csagent-v0.7.0</a></p>
+      </div>
+    </article>
+  </div>
+</section>
+
+<section class="rel-series" aria-labelledby="s0.6-h">
+  <div class="wrap">
+    <header>
+      <h2 id="s0.6-h">Série 0.6</h2>
+      <p>Mémoire · 6 octobre 2026</p>
+    </header>
+    <article class="rel" id="v0.6.0">
+      <div class="rel-meta">
+        <p class="rel-ver"><a href="#v0.6.0">v0.6.0</a></p>
+        <span class="rel-kind major">Version majeure</span>
+        <p class="rel-date">6 octobre 2026</p>
+      </div>
+      <div class="rel-body">
+        <h3>La mémoire : hybride et distillée entre les sessions</h3>
+        <p>L'agent ne perd plus ce qu'il a déjà essayé quand l'historique est raccourci.</p>
+        <ul>
+          <li><strong>Mémoire hybride</strong> : les 50 derniers pas sont gardés tels quels (<code>ExactMemory</code>) et les leçons d'erreurs et de solutions sont retenues (<code>SemanticMemory</code>). Les éléments utiles sont réinjectés avant chaque appel au modèle.</li>
+          <li><strong>Distillation de session</strong> : un résumé de la session est gardé pour la suivante ; <code>--no-distill</code> l'évite.</li>
+          <li>Accès aux mémoires protégé contre les lectures et écritures simultanées.</li>
+          <li>Dépôt restructuré (CsAgentUI devient CsAgent) et interface web réparée.</li>
+        </ul>
+        <p class="rel-links"><a href="https://github.com/artydev/csagent/releases/tag/csagent-v0.6.0">Étiquette csagent-v0.6.0</a></p>
+      </div>
+    </article>
+  </div>
+</section>
+
+</main>
+
+<footer>
+  <div class="wrap">
+    <div>
+      <p><strong>CsAgent</strong> est un logiciel libre sous licence MIT, par Salvatore Di Dio.</p>
+      <p>Les notes de version complètes sont dans le dossier <code>releases/</code> du dépôt. Pour les versions sans note (0.6.0 à 0.7.3 et 0.9.0), le résumé vient de l'historique des commits.</p>
+    </div>
+    <ul>
+      <li><a href="https://github.com/artydev/csagent">Code source sur GitHub</a></li>
+      <li><a href="https://github.com/artydev/csagent/tree/main/releases">Notes de version</a></li>
+      <li><a href="index.html">Accueil</a></li>
+    </ul>
+  </div>
+</footer>
+</body>
+</html>
