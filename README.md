@@ -290,6 +290,7 @@ Les fonctionnalités suivantes sont prévues pour de prochaines versions :
 | `CSAGENT_VISION_MODEL` | Non | Équivaut à `--vision-model` |
 | `CSAGENT_MODEL_CODE` | Non | Équivaut à `--code-model` (par défaut `deepseek-v4-flash`) |
 | `CSAGENT_MODEL_CHAT` | Non | Équivaut à `--chat-model` (par défaut `openweight-large` sur le serveur Albert) |
+| `CSAGENT_FALLBACK_MODEL` | Non | Modèle vers lequel passer quand le quota journalier du modèle en cours est épuisé (erreur 429). Par défaut, le modèle de code sur le serveur Albert ; `off` (ou `none`) désactive la bascule. Voir [Gestion des erreurs 429](https://artydev.github.io/csagent/gestion-429.html) |
 | `CSAGENT_ROUTING` | Non | `off` (ou `0`, `false`, `no`) désactive le choix automatique du modèle, comme `--no-route` |
 | `CSAGENT_ROUTING_RULES` | Non | Équivaut à `--rules` : dossier des règles de routage |
 | `CSAGENT_LANG` | Non | Équivaut à `--lang` : langue des messages de routage (`fr` ou `en`) |
@@ -333,7 +334,7 @@ Les fonctionnalités suivantes sont prévues pour de prochaines versions :
 | `--port`, `-p <n>` | Numéro de port de la Web UI (par défaut : `5050`) |
 | `--task <slug>` | Suit le travail dans `.csagent/tasks/<slug>-<date>/` (fichiers de plan et de progression créés par l'hôte, jamais par le modèle) |
 | `--dry-run` | Simule l'exécution des outils sans rien modifier |
-| `--max-retries <n>` | Nombre maximal de tentatives pour les erreurs HTTP 429 (limite de débit) (par défaut : `6`) |
+| `--max-retries <n>` | Nombre maximal de tentatives pour les erreurs HTTP 429 (limite de débit), première requête comprise (par défaut : `6`). Voir [Gestion des erreurs 429](https://artydev.github.io/csagent/gestion-429.html) |
 | `--retry-delay <ms>` | Délai de base (en ms) avant la première nouvelle tentative (par défaut : `1000`) |
 | `--context-chars <n>` | Taille au-delà de laquelle les plus anciens messages sont retirés de l'historique renvoyé à chaque étape (par défaut : `96000`, minimum `8000`). Plus elle est petite, moins on consomme de jetons d'entrée |
 | `--no-compact` | Garde les anciens résultats d'outils en entier (par défaut, ceux au-delà des 6 derniers sont coupés à 1 500 caractères dans l'historique, et l'agent peut relancer l'outil) |
@@ -925,7 +926,7 @@ Vérifiez que la variable d'environnement `ALBERT_API_KEY` est définie avant de
 Votre clé d'API est invalide ou a expiré. Vérifiez vos identifiants.
 
 ### « API 429: ... »
-Vous avez atteint la limite de débit. CSAgent réessaie désormais automatiquement avec un délai exponentiel (en respectant l'en-tête `Retry-After` du serveur quand il est présent). Si l'erreur persiste après toutes les tentatives, l'API vous limite toujours : attendez un moment et réessayez. Vous pouvez régler ce comportement avec `--max-retries` et `--retry-delay` (voir [Arguments de la ligne de commande](#arguments-de-la-ligne-de-commande)).
+Vous avez atteint la limite de débit. CSAgent réessaie désormais automatiquement avec un délai exponentiel (en respectant l'en-tête `Retry-After` du serveur quand il est présent). Si l'erreur persiste après toutes les tentatives, l'API vous limite toujours : attendez un moment et réessayez. Vous pouvez régler ce comportement avec `--max-retries` et `--retry-delay` (voir [Arguments de la ligne de commande](#arguments-de-la-ligne-de-commande)). Quand le quota **journalier** d'un modèle est épuisé, CSAgent ne réessaie pas : il passe à un autre modèle (voir `CSAGENT_FALLBACK_MODEL` dans les [variables d'environnement](#variables-denvironnement)). Détails, délais et exemples : [Gestion des erreurs 429](https://artydev.github.io/csagent/gestion-429.html).
 
 ### « command timed out (60s) »
 La commande shell a duré plus de 60 secondes. Essayez de découper la tâche en étapes plus petites.

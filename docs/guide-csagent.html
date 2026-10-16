@@ -293,7 +293,8 @@ csagent --mcp-config mcp.json</code></pre>
     <li>Sur un autre <code>--endpoint</code> sans cette variable, il n'y a pas de bascule.</li>
   </ul>
   <p>En fin de tour, la console affiche les jetons consommés : <code>[tokens: this turn in 23,412 / out 310 · session in … / out …]</code>. Les jetons d'entrée sont ceux qui comptent pour le quota, car chaque étape renvoie tout l'historique.</p>
-  <p>Réglages : <code>--max-retries &lt;n&gt;</code> (6 par défaut) et <code>--retry-delay &lt;ms&gt;</code> (1000 par défaut).</p>
+  <p>Réglages : <code>--max-retries &lt;n&gt;</code> (6 par défaut, première requête comprise) et <code>--retry-delay &lt;ms&gt;</code> (1000 par défaut). L'attente entre deux essais double à chaque fois et ne dépasse jamais 70 secondes, même quand le serveur envoie <code>Retry-After</code>.</p>
+  <p>Le détail (reconnaissance de la limite, calcul des délais, règles de la bascule, ce qu'il faut faire selon le cas) est sur la page <a href="gestion-429.html">Gestion des erreurs 429</a>.</p>
   <h3>Consommer moins de jetons</h3>
   <p>Chaque étape renvoie toute la conversation au modèle, donc le quota se dépense surtout sur l'historique. Par défaut, les anciens résultats d'outils sont raccourcis. Pour réduire davantage, baisse la taille de l'historique : <code>csagent --leanui --context-chars 48000</code>. L'agent se souvient alors de moins de messages.</p>
   <p>Chaque étape renvoie aussi la description des outils. Depuis la 0.9.8, seuls les outils utiles à la demande sont décrits : les fichiers, la recherche et le shell toujours, et git, le web, le courrier, l'agenda, l'audio, Excel, le presse-papiers, les archives, les sessions de terminal ou le changement de modèle quand la demande en parle. Cela retire environ deux tiers de ces descriptions. L'agent peut activer un groupe qui manque avec l'outil <code>enable_tools</code>. <code>--all-tools</code> rétablit l'envoi de tous les outils.</p>
@@ -400,7 +401,7 @@ csagent --mem projet_b</code></pre>
     <tbody>
       <tr><td>« API Key not set »</td><td>Définis <code>ALBERT_API_KEY</code> avant de lancer l'agent.</td></tr>
       <tr><td>« API 401 »</td><td>La clé est invalide ou a expiré.</td></tr>
-      <tr><td>« API 429 »</td><td>Limite de débit : voir la section sur les limites. Un quota du jour épuisé bascule sur un autre modèle ou s'arrête.</td></tr>
+      <tr><td>« API 429 »</td><td>Limite de débit : voir la section sur les limites. Un quota du jour épuisé bascule sur un autre modèle ou s'arrête. Détails : <a href="gestion-429.html">gestion des erreurs 429</a>.</td></tr>
       <tr><td>« command timed out (60s) »</td><td>La commande a duré plus de 60 secondes. Découpe la tâche en étapes plus petites.</td></tr>
       <tr><td>« file too large »</td><td>Le fichier dépasse 500 Ko. L'agent doit utiliser <code>grep</code>, <code>head</code> ou <code>find</code>.</td></tr>
       <tr><td>« Path is not allowed »</td><td>Le chemin est hors du dossier courant. Lance l'agent depuis le bon dossier.</td></tr>
