@@ -11,7 +11,7 @@ namespace CsAgent;
 
 public static class Program
 {
-    public const string Version = "0.9.12";
+    public const string Version = "0.9.13";
 
     [STAThread]
     public static int Main(string[] args)

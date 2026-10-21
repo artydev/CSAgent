@@ -86,6 +86,7 @@ static partial class Tests
         await SkillIndexGroup();
         await RateLimitGroup();
         await QuotaFallbackGroup();
+        await HttpClientsGroup();
         await ContextBudgetGroup();
         await RoutingLocalization();
         await PromptOption();

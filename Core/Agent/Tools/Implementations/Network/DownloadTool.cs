@@ -39,7 +39,7 @@ public static partial class ToolDispatcher
             if (timeoutMs < 1) timeoutMs = 1;
             if (timeoutMs > 120_000) timeoutMs = 120_000;
 
-            using var client = new HttpClient { Timeout = TimeSpan.FromMilliseconds(timeoutMs) };
+            using var client = CsAgent.Shared.HttpClients.Create(TimeSpan.FromMilliseconds(timeoutMs));
             client.DefaultRequestHeaders.UserAgent.ParseAdd("Mozilla/5.0 (Windows NT 10.0; Win64; x64) CsAgent/1.0");
             using var request = new HttpRequestMessage(new HttpMethod((method ?? "GET").ToUpperInvariant()), uri);
 

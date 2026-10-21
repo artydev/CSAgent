@@ -371,9 +371,9 @@ footer p { margin: 0 0 6px; max-width: 60ch; }
     <h1>Historique des versions</h1>
     <p class="lede">Toutes les versions de CsAgent depuis la 0.6.0 : ce que chacune ajoute ou corrige, avec sa date et le nombre de tests.</p>
     <ul class="rel-stats">
-      <li><b>19</b><span>versions</span></li>
-      <li><b>10</b><span>jours, du 6 au 15 octobre 2026</span></li>
-      <li><b>136 → 285</b><span>tests, de la 0.8.0 à la 0.9.12</span></li>
+      <li><b>20</b><span>versions</span></li>
+      <li><b>11</b><span>jours, du 6 au 16 octobre 2026</span></li>
+      <li><b>136 → 288</b><span>tests, de la 0.8.0 à la 0.9.13</span></li>
     </ul>
   </div>
 </div>
@@ -383,6 +383,7 @@ footer p { margin: 0 0 6px; max-width: 60ch; }
     <h2 id="toc-h" class="sr-only">Sommaire</h2>
     <ul class="rel-toc">
       <li class="grp">Série 0.9</li>
+      <li><a href="#v0.9.13">v0.9.13</a></li>
       <li><a href="#v0.9.12">v0.9.12</a></li>
       <li><a href="#v0.9.11">v0.9.11</a></li>
       <li><a href="#v0.9.10">v0.9.10</a></li>
@@ -413,8 +414,27 @@ footer p { margin: 0 0 6px; max-width: 60ch; }
   <div class="wrap">
     <header>
       <h2 id="s0.9-h">Série 0.9</h2>
-      <p>Routage, économie de quota, MCP, nouveaux outils · Du 10 au 15 octobre 2026</p>
+      <p>Routage, économie de quota, MCP, nouveaux outils · Du 10 au 16 octobre 2026</p>
     </header>
+    <article class="rel" id="v0.9.13">
+      <div class="rel-meta">
+        <p class="rel-ver"><a href="#v0.9.13">v0.9.13</a></p>
+        <span class="rel-kind fix">Correctif</span>
+        <p class="rel-date">16 octobre 2026</p>
+        <p class="rel-tests">288 tests</p>
+      </div>
+      <div class="rel-body">
+        <h3>CsAgent passe derrière un proxy d'entreprise</h3>
+        <p>Derrière un proxy qui exige l'authentification Windows, chaque requête recevait une erreur 407. Les identifiants de la session sont maintenant donnés au proxy.</p>
+        <ul>
+          <li>Un seul endroit crée les clients HTTP, <code>HttpClients.Create</code> : le client LLM, le catalogue de modèles, <code>download_file</code>, les outils réseau, système et audio, et le transport MCP en HTTP l'utilisent.</li>
+          <li>Les identifiants vont <strong>au proxy seulement</strong>, jamais aux serveurs.</li>
+          <li>Sous Linux et macOS, le proxy vient de <code>HTTPS_PROXY</code> ; un identifiant et un mot de passe se mettent dans la variable.</li>
+          <li>Aucun argument ni variable ajouté. Pas essayé avec un vrai proxy d'entreprise : à vérifier sur Windows.</li>
+        </ul>
+        <p class="rel-links"><a href="https://github.com/artydev/csagent/blob/main/releases/release-0.9.13.md">Note de version complète</a> <a href="https://github.com/artydev/csagent/releases/tag/v0.9.13">Étiquette v0.9.13</a></p>
+      </div>
+    </article>
     <article class="rel" id="v0.9.12">
       <div class="rel-meta">
         <p class="rel-ver"><a href="#v0.9.12">v0.9.12</a></p>

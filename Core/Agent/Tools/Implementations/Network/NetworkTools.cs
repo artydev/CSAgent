@@ -25,7 +25,7 @@ public static partial class ToolDispatcher
             if (timeoutMs < 1) timeoutMs = 1;
             if (timeoutMs > 120_000) timeoutMs = 120_000;
 
-            using var client = new HttpClient { Timeout = TimeSpan.FromMilliseconds(timeoutMs) };
+            using var client = CsAgent.Shared.HttpClients.Create(TimeSpan.FromMilliseconds(timeoutMs));
 
             using var request = new HttpRequestMessage(new HttpMethod(method.ToUpperInvariant()), uri);
 
@@ -92,7 +92,7 @@ public static partial class ToolDispatcher
             var url = "https://api.duckduckgo.com/?q=" + Uri.EscapeDataString(query) +
                       "&format=json&no_html=1&skip_disambig=1";
 
-            using var client = new HttpClient { Timeout = TimeSpan.FromSeconds(20) };
+            using var client = CsAgent.Shared.HttpClients.Create(TimeSpan.FromSeconds(20));
             client.DefaultRequestHeaders.UserAgent.ParseAdd("CsAgent/1.0");
 
             var json = await client.GetStringAsync(url);
@@ -182,7 +182,7 @@ public static partial class ToolDispatcher
             if (maxChars < 1) maxChars = 1;
             if (maxChars > 100_000) maxChars = 100_000;
 
-            using var client = new HttpClient { Timeout = TimeSpan.FromSeconds(30) };
+            using var client = CsAgent.Shared.HttpClients.Create(TimeSpan.FromSeconds(30));
             client.DefaultRequestHeaders.UserAgent.ParseAdd("Mozilla/5.0 (Windows NT 10.0; Win64; x64) CsAgent/1.0");
 
             using var response = await client.GetAsync(uri);

@@ -87,7 +87,7 @@ body { background: var(--bg); color: var(--fg); font-family: var(--font-body); f
 <div class="app">
   <header class="topbar">
     <h1>CsAgent</h1>
-    <p>Guide de l'utilisateur · version 0.9.12</p>
+    <p>Guide de l'utilisateur · version 0.9.13</p>
   </header>
 
   <nav class="side" aria-label="Sommaire">
@@ -402,6 +402,7 @@ csagent --mem projet_b</code></pre>
       <tr><td>« API Key not set »</td><td>Définis <code>ALBERT_API_KEY</code> avant de lancer l'agent.</td></tr>
       <tr><td>« API 401 »</td><td>La clé est invalide ou a expiré.</td></tr>
       <tr><td>« API 429 »</td><td>Limite de débit : voir la section sur les limites. Un quota du jour épuisé bascule sur un autre modèle ou s'arrête. Détails : <a href="gestion-429.html">gestion des erreurs 429</a>.</td></tr>
+      <tr><td>« API 407 » ou « Proxy Authentication Required »</td><td>Un proxy d'entreprise demande une authentification. Sous Windows, CsAgent présente l'identité de ta session au proxy. Sous Linux et macOS, mets l'identifiant dans la variable : <code>HTTPS_PROXY=http://utilisateur:motdepasse@proxy:3128</code>.</td></tr>
       <tr><td>« command timed out (60s) »</td><td>La commande a duré plus de 60 secondes. Découpe la tâche en étapes plus petites.</td></tr>
       <tr><td>« file too large »</td><td>Le fichier dépasse 500 Ko. L'agent doit utiliser <code>grep</code>, <code>head</code> ou <code>find</code>.</td></tr>
       <tr><td>« Path is not allowed »</td><td>Le chemin est hors du dossier courant. Lance l'agent depuis le bon dossier.</td></tr>

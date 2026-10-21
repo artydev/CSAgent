@@ -928,6 +928,9 @@ Votre clé d'API est invalide ou a expiré. Vérifiez vos identifiants.
 ### « API 429: ... »
 Vous avez atteint la limite de débit. CSAgent réessaie désormais automatiquement avec un délai exponentiel (en respectant l'en-tête `Retry-After` du serveur quand il est présent). Si l'erreur persiste après toutes les tentatives, l'API vous limite toujours : attendez un moment et réessayez. Vous pouvez régler ce comportement avec `--max-retries` et `--retry-delay` (voir [Arguments de la ligne de commande](#arguments-de-la-ligne-de-commande)). Quand le quota **journalier** d'un modèle est épuisé, CSAgent ne réessaie pas : il passe à un autre modèle (voir `CSAGENT_FALLBACK_MODEL` dans les [variables d'environnement](#variables-denvironnement)). Détails, délais et exemples : [Gestion des erreurs 429](https://artydev.github.io/csagent/gestion-429.html).
 
+### « API 407: ... » ou « Proxy Authentication Required »
+Un proxy d'entreprise exige une authentification. Sous Windows, CSAgent présente l'identité de votre session Windows au proxy (le proxy du système est utilisé). Sous Linux et macOS, le proxy vient des variables `HTTP_PROXY`, `HTTPS_PROXY` et `NO_PROXY` ; pour un proxy à identifiant et mot de passe, mettez-les dans la variable : `HTTPS_PROXY=http://utilisateur:motdepasse@proxy:3128`. L'authentification intégrée (Kerberos) sous Linux demande un ticket valide (`kinit`) et la bibliothèque `libgssapi`.
+
 ### « command timed out (60s) »
 La commande shell a duré plus de 60 secondes. Essayez de découper la tâche en étapes plus petites.
 

@@ -16,7 +16,7 @@ public sealed class LlmClient : IDisposable
         _model   = model;
         _baseUrl = baseUrl.TrimEnd('/');
         _retry   = (retry ?? RetryPolicy.Default).Validate();
-        _http    = new HttpClient { Timeout = TimeSpan.FromMinutes(5) };
+        _http    = CsAgent.Shared.HttpClients.Create(TimeSpan.FromMinutes(5));
         _http.DefaultRequestHeaders.Authorization =
             new AuthenticationHeaderValue("Bearer", apiKey);
     }

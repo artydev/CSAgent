@@ -15,7 +15,7 @@ public static partial class ToolDispatcher
 
         try
         {
-            using var client = new HttpClient { Timeout = TimeSpan.FromSeconds(15) };
+            using var client = CsAgent.Shared.HttpClients.Create(TimeSpan.FromSeconds(15));
 
             // ?status=true asks the Albert API to include real-time availability
             // information for each model in the response (additional "status" field

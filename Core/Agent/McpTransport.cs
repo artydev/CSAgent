@@ -34,7 +34,7 @@ public sealed class HttpMcpTransport : IMcpTransport
     {
         _endpoint = new Uri(endpoint, UriKind.Absolute);
         _headers = headers ?? new Dictionary<string, string>();
-        _http = new HttpClient { Timeout = TimeSpan.FromSeconds(60) };
+        _http = CsAgent.Shared.HttpClients.Create(TimeSpan.FromSeconds(60));
     }
 
     public string Describe => _endpoint.GetLeftPart(UriPartial.Path);

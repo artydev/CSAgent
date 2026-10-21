@@ -99,7 +99,7 @@ public static class ModelCatalog
     {
         try
         {
-            using var client = new HttpClient { Timeout = FetchTimeout };
+            using var client = CsAgent.Shared.HttpClients.Create(FetchTimeout);
             using var request = new HttpRequestMessage(HttpMethod.Get, endpoint.TrimEnd('/') + "/models");
             // AOT-safe: TryAddWithoutValidation avoids any header-type reflection
             request.Headers.TryAddWithoutValidation("Authorization", $"Bearer {apiKey}");

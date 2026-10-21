@@ -59,7 +59,7 @@ public static partial class ToolDispatcher
             var model = Environment.GetEnvironmentVariable("CSAGENT_TRANSCRIBE_MODEL");
             if (string.IsNullOrWhiteSpace(model)) model = LlmSettings.TranscribeModel;
 
-            using var client = new HttpClient { Timeout = TimeSpan.FromMinutes(10) };
+            using var client = CsAgent.Shared.HttpClients.Create(TimeSpan.FromMinutes(10));
             var texts = new List<string>();
             for (int i = 0; i < parts.Count; i++)
             {
