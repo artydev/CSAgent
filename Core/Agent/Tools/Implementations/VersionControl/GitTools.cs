@@ -64,10 +64,11 @@ public static partial class ToolDispatcher
             return $"Error: git_add - Path '{full}' is not allowed. Only paths in the current working directory are permitted.";
 
         var target = spec?.Trim();
-        if (target is null) target = "-A";
-        else if (target.StartsWith('-'))
+        if (target is null) return await RunGitAsync(full, "add -A");
+        if (target.StartsWith('-'))
             return "Error: git_add - 'spec' is a path, not a git option (it must not start with '-').";
-        return await RunGitAsync(full, "add " + target);
+        // "--" ends the options: an option hidden after the first word is read as a path.
+        return await RunGitAsync(full, "add -- " + target);
     }
     private static async Task<string> GitFetchAsync(string path)
     {
@@ -109,7 +110,9 @@ public static partial class ToolDispatcher
             || System.Text.RegularExpressions.Regex.IsMatch(name, "^[a-f0-9]{7,40}$");
         if (!isRef || name.Contains(".."))
             return $"Error: git_checkout - '{branch}' is not a valid branch name or commit SHA.";
-        return await RunGitAsync(full, "checkout " + name);
+        // The trailing "--" makes git read the name as a branch or a commit, never as a file: without it,
+        // "git checkout notes.md" would silently throw away the changes made to that file.
+        return await RunGitAsync(full, "checkout " + name + " --");
     }
     /// <summary>
     /// Runs a git command in the given working directory and returns its output.

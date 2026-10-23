@@ -199,6 +199,29 @@ static partial class Tests
             return "ok";
         });
 
+        await T("git_checkout never takes a file name for a branch: the file's changes are kept", async () =>
+        {
+            var dir = Tmp();
+            var work = await NewRepo(dir);
+            File.WriteAllText(work + "/README.txt", "my work in progress\n");
+            var r = await Call("git_checkout", "{\"path\":\"work\",\"branch\":\"README.txt\"}", dir);
+            Assert(r.StartsWith("Error"), r);
+            Assert(File.ReadAllText(work + "/README.txt").StartsWith("my work"), "the changes must not be thrown away");
+            return "ok";
+        });
+
+        await T("git_add: an option hidden after the first word is read as a path, not as an option", async () =>
+        {
+            var dir = Tmp();
+            var work = await NewRepo(dir);
+            File.WriteAllText(work + "/a.txt", "a\n");
+            var r = await Call("git_add", "{\"path\":\"work\",\"spec\":\"a.txt --dry-run\"}", dir);
+            Assert(r.StartsWith("Error"), r);                                  // '--dry-run' is not a file
+            var status = await Raw(work, "status --porcelain");
+            Assert(!status.Contains("A  a.txt"), "nothing must have been staged: " + status);
+            return "ok";
+        });
+
         await T("git_checkout can check out a commit by SHA (detached HEAD)", async () =>
         {
             var dir = Tmp();

@@ -87,7 +87,7 @@ body { background: var(--bg); color: var(--fg); font-family: var(--font-body); f
 <div class="app">
   <header class="topbar">
     <h1>CsAgent</h1>
-    <p>Guide de l'utilisateur · version 0.9.13</p>
+    <p>Guide de l'utilisateur · version 0.9.14</p>
   </header>
 
   <nav class="side" aria-label="Sommaire">
@@ -146,6 +146,11 @@ body { background: var(--bg); color: var(--fg); font-family: var(--font-body); f
   <pre><code>csagent --api --yes --host 0.0.0.0 --port 8080 --api-key s3cret
 curl -N -H "Authorization: Bearer s3cret" "http://localhost:8080/api/chat?prompt=create+hello.txt+containing+hi"</code></pre>
   <p>Le serveur parle en HTTP simple : au-delà de ta machine, place-le derrière un proxy TLS. Il garde <strong>une conversation</strong> : envoie une requête à la fois, ou lance une instance par tâche avec son propre <code>--mem</code> et son propre <code>--port</code>.</p>
+  <p>Pour piloter ce serveur depuis un script Python, le dépôt fournit <code>python/csagent_client.py</code> : <strong>bibliothèque standard uniquement</strong>, aucune dépendance. Il lit le flux événement par événement, répond aux confirmations et rend la réponse finale. Le mode d'emploi est dans <code>python/README.md</code>.</p>
+  <pre><code>import sys; sys.path.insert(0, "/chemin/vers/CSAgent/python")
+import csagent_client as cc
+client = cc.CsAgentClient("http://localhost:5050", api_key="...")
+print(client.ask("Liste les fichiers du dossier courant"))</code></pre>
 </section>
 
 <section id="commandes" data-title="Commandes Lean UI">
@@ -218,7 +223,7 @@ csagent --endpoint http://localhost:11434/v1 --model qwen2.5-coder:14b</code></p
   <h2>Travailler en sécurité</h2>
   <p class="lead">Quatre garde-fous limitent les dégâts possibles d'une erreur de l'agent.</p>
   <ul>
-    <li><b>Confirmation des actions destructrices.</b> Ces outils demandent ton accord : <code>write_file</code>, <code>edit_file</code>, <code>move_file</code>, <code>delete_file</code>, <code>unzip</code>, <code>git_commit</code>, <code>write_clipboard</code>, <code>download_file</code>, <code>send_email</code>, <code>create_appointment</code>, <code>save_attachment</code> et <code>group_msg_by_sender</code>. Chaque appel à un outil d'un serveur MCP en demande un aussi.</li>
+    <li><b>Confirmation des actions destructrices.</b> Ces outils demandent ton accord : <code>write_file</code>, <code>edit_file</code>, <code>move_file</code>, <code>delete_file</code>, <code>unzip</code>, <code>git_commit</code>, <code>git_pull</code>, <code>git_push</code>, <code>git_checkout</code>, <code>write_clipboard</code>, <code>download_file</code>, <code>send_email</code>, <code>create_appointment</code>, <code>save_attachment</code> et <code>group_msg_by_sender</code>. Chaque appel à un outil d'un serveur MCP en demande un aussi.</li>
     <li><b>Périmètre.</b> Les opérations sur les fichiers sont limitées au dossier courant et à ses sous-dossiers.</li>
     <li><b>Filtre des commandes shell.</b> Les motifs dangereux sont refusés : <code>sudo</code>, <code>chmod</code>, <code>shutdown</code>, <code>mkfs</code>, <code>/etc/</code> sous Linux et macOS ; <code>format</code>, <code>del /f</code>, <code>reg delete</code>, <code>diskpart</code>, <code>shutdown</code>, <code>\windows\system32\</code> sous Windows. Le filtre ne regarde que les débuts de mot (<code>.NumberFormat</code> d'Excel n'est pas pris pour <code>format</code>) et le message de refus nomme le motif bloqué.</li>
     <li><b>Limites.</b> Une commande est arrêtée après 60 secondes. La lecture d'un fichier de plus de 500 Ko est refusée ; l'agent utilise alors <code>grep</code> ou <code>head</code>.</li>
@@ -233,9 +238,9 @@ csagent --endpoint http://localhost:11434/v1 --model qwen2.5-coder:14b</code></p
   <div class="tw"><table>
     <thead><tr><th>Domaine</th><th>Outils</th></tr></thead>
     <tbody>
-      <tr><td>Fichiers</td><td><code>read_file</code>, <code>read_json</code>, <code>write_file</code>, <code>edit_file</code>, <code>list_dir</code>, <code>tree</code>, <code>search_files</code>, <code>copy_file</code>, <code>move_file</code>, <code>delete_file</code>, <code>zip</code>, <code>unzip</code></td></tr>
+      <tr><td>Fichiers</td><td><code>read_file</code> (avec <code>start_line</code> et <code>end_line</code>, un gros fichier se lit par tranches de 2 000 lignes au plus), <code>read_json</code>, <code>write_file</code>, <code>edit_file</code>, <code>list_dir</code>, <code>tree</code>, <code>search_files</code>, <code>copy_file</code>, <code>move_file</code>, <code>delete_file</code>, <code>zip</code>, <code>unzip</code></td></tr>
       <tr><td>Commandes</td><td><code>sh</code>, <code>run_terminal</code>, <code>close_terminal</code>, <code>parse_output</code></td></tr>
-      <tr><td>Git</td><td><code>git_status</code>, <code>git_diff</code>, <code>git_log</code>, <code>git_branch</code>, <code>git_commit</code></td></tr>
+      <tr><td>Git</td><td><code>git_status</code>, <code>git_diff</code>, <code>git_log</code>, <code>git_branch</code>, <code>git_add</code>, <code>git_fetch</code>, <code>git_commit</code>, <code>git_pull</code> (avance rapide seulement), <code>git_push</code> (jamais en force), <code>git_checkout</code></td></tr>
       <tr><td>Web</td><td><code>web_search</code>, <code>fetch_url</code>, <code>http_request</code>, <code>download_file</code> (enregistre une réponse HTTP directement dans un fichier : bien plus rapide que de la faire recopier par le modèle)</td></tr>
       <tr><td>Courrier</td><td><code>read_msg</code> (fichiers Outlook <code>.msg</code>), <code>save_attachment</code>, <code>group_msg_by_sender</code> (range les <code>.msg</code> par expéditeur, après avoir renommé les fichiers en ASCII), <code>send_email</code></td></tr>
       <tr><td>Agenda</td><td><code>read_calendar</code> (liste les rendez-vous Outlook d'une période), <code>create_appointment</code> (affiche le rendez-vous pour relecture ; <code>save</code> l'enregistre, <code>send</code> invite les participants). Windows et Outlook classique</td></tr>

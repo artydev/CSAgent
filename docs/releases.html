@@ -371,9 +371,9 @@ footer p { margin: 0 0 6px; max-width: 60ch; }
     <h1>Historique des versions</h1>
     <p class="lede">Toutes les versions de CsAgent depuis la 0.6.0 : ce que chacune ajoute ou corrige, avec sa date et le nombre de tests.</p>
     <ul class="rel-stats">
-      <li><b>20</b><span>versions</span></li>
-      <li><b>11</b><span>jours, du 6 au 16 octobre 2026</span></li>
-      <li><b>136 → 288</b><span>tests, de la 0.8.0 à la 0.9.13</span></li>
+      <li><b>21</b><span>versions</span></li>
+      <li><b>18</b><span>jours, du 6 au 23 octobre 2026</span></li>
+      <li><b>136 → 310</b><span>tests, de la 0.8.0 à la 0.9.14</span></li>
     </ul>
   </div>
 </div>
@@ -383,6 +383,7 @@ footer p { margin: 0 0 6px; max-width: 60ch; }
     <h2 id="toc-h" class="sr-only">Sommaire</h2>
     <ul class="rel-toc">
       <li class="grp">Série 0.9</li>
+      <li><a href="#v0.9.14">v0.9.14</a></li>
       <li><a href="#v0.9.13">v0.9.13</a></li>
       <li><a href="#v0.9.12">v0.9.12</a></li>
       <li><a href="#v0.9.11">v0.9.11</a></li>
@@ -414,8 +415,27 @@ footer p { margin: 0 0 6px; max-width: 60ch; }
   <div class="wrap">
     <header>
       <h2 id="s0.9-h">Série 0.9</h2>
-      <p>Routage, économie de quota, MCP, nouveaux outils · Du 10 au 16 octobre 2026</p>
+      <p>Routage, économie de quota, MCP, nouveaux outils · Du 10 au 23 octobre 2026</p>
     </header>
+    <article class="rel" id="v0.9.14">
+      <div class="rel-meta">
+        <p class="rel-ver"><a href="#v0.9.14">v0.9.14</a></p>
+        <span class="rel-kind feat">Nouveauté</span>
+        <p class="rel-date">23 octobre 2026</p>
+        <p class="rel-tests">310 tests</p>
+      </div>
+      <div class="rel-body">
+        <h3>Lire un gros fichier par tranches, cinq outils git, un client Python</h3>
+        <p><strong>csagent-gitready.</strong> Trois apports de Virgile Jarrige : <code>read_file</code> par fenêtres de lignes, les outils git <code>add</code>, <code>fetch</code>, <code>pull</code>, <code>push</code> et <code>checkout</code>, et un client Python pour piloter CsAgent depuis des scripts.</p>
+        <ul>
+          <li><code>read_file</code> accepte <code>start_line</code> et <code>end_line</code> : une fenêtre de 2 000 lignes au plus, lue sans charger le fichier entier. Sans ces paramètres, rien ne change.</li>
+          <li>Cinq outils git : <code>git_add</code>, <code>git_fetch</code>, <code>git_pull</code> (avance rapide seulement), <code>git_push</code> (jamais en force) et <code>git_checkout</code>. Les trois derniers demandent confirmation. 43 outils au total.</li>
+          <li><code>python/csagent_client.py</code> : un client de l'API SSE en <strong>bibliothèque standard seule</strong>, avec son README et 12 tests.</li>
+          <li>Deux corrections à la relecture : <code>git_checkout</code> ne prend plus un nom de fichier pour une branche (il effaçait les modifications du fichier) et <code>git_add</code> lit <code>--</code> avant le nom (une option cachée passait).</li>
+        </ul>
+        <p class="rel-links"><a href="https://github.com/artydev/csagent/blob/main/releases/release-0.9.14.md">Note de version complète</a> <a href="https://github.com/artydev/csagent/releases/tag/v0.9.14">Étiquette v0.9.14</a></p>
+      </div>
+    </article>
     <article class="rel" id="v0.9.13">
       <div class="rel-meta">
         <p class="rel-ver"><a href="#v0.9.13">v0.9.13</a></p>
