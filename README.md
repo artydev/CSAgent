@@ -16,11 +16,11 @@ Il propose trois modes de présentation : une interface terminal (TUI), une inte
   - [Mode Web UI](#mode-web-ui)
   - [Mode Lean UI](#mode-lean-ui)
   - [Mode API sans interface (pour orchestrateurs)](#mode-api-sans-interface-pour-orchestrateurs)
+    - [Client Python](#client-python)
   - [Vision et images jointes](#vision-et-images-jointes)
 - [Modèles LLM](#modèles-llm)
   - [Modèles locaux avec Ollama](#modèles-locaux-avec-ollama)
   - [Régler le routage à la main (`LLMRoutingRules/`)](#régler-le-routage-à-la-main-llmroutingrules)
-- [Fonctionnalités à venir](#fonctionnalités-à-venir)
 - [Variables d'environnement](#variables-denvironnement)
 - [Arguments de la ligne de commande](#arguments-de-la-ligne-de-commande)
 - [Fonctions de sécurité](#fonctions-de-sécurité)
@@ -143,6 +143,21 @@ csagent --api --yes --host 0.0.0.0 --port 8080 --api-key s3cret
 | `--api-key <clé>` | Chaque requête doit présenter cette clé. Peut aussi être définie par la variable d'environnement `CSAGENT_API_KEY` (à préférer : une valeur passée en ligne de commande est visible dans la liste des processus). |
 
 **`--yes` supprime seulement les demandes de confirmation.** Le filtre des commandes shell (`sudo`, `chmod`, `shutdown`, `/etc/`, …) et les restrictions de chemins restent actifs.
+
+#### Client Python
+
+Le dépôt fournit un client Python de ce protocole : `python/csagent_client.py`, **bibliothèque standard uniquement** (aucune dépendance à installer). Il lit le flux SSE événement par événement, répond aux confirmations et récupère la réponse finale.
+
+```python
+import sys
+sys.path.insert(0, "/chemin/vers/CSAgent/python")
+import csagent_client as cc
+
+client = cc.CsAgentClient("http://localhost:5050", api_key="...")
+reponse = client.ask("Liste les fichiers du dossier courant")
+```
+
+La documentation complète, les tests et les exemples de confirmation : [`python/README.md`](python/README.md).
 
 **Points d'accès**
 
@@ -270,14 +285,6 @@ Le routage peut être ajusté sans recompiler. Créez le dossier avec `csagent -
 - `csagent --explain-routing "votre message"` montre quel modèle serait choisi, et pourquoi, sans appeler aucun modèle.
 - Les messages de routage existent en anglais et en français : `--lang fr|en`, puis `CSAGENT_LANG`, puis la langue du système. `--init-routing` écrit les commentaires et le README du dossier dans cette langue.
 - `--no-route` / `CSAGENT_ROUTING=off` désactive aussi les règles de l'utilisateur. Le `README.md` du dossier contient la référence complète.
-
----
-
-## Fonctionnalités à venir
-
-Les fonctionnalités suivantes sont prévues pour de prochaines versions :
-
-- **Scripts Python** — piloter CSAgent depuis des scripts Python : lancer des sessions, envoyer des demandes, et récupérer par programme les réponses et les événements de l'agent (étapes, appels d'outils, résultats), par exemple via un module csagent ou un client de l'interface web (SSE).
 
 ---
 
