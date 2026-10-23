@@ -54,7 +54,7 @@ public static partial class ToolDispatcher
                 if (total < start) continue;
                 if (total > end) break;
                 if (taken == maxWindowLines) { truncated = true; break; }
-                if (taken > 0) sb.AppendLine();
+                if (taken > 0) sb.Append('\n');          // always \n, like the header and the note: the same text on every system
                 sb.Append(line);
                 taken++;
                 last = total;

@@ -50,7 +50,7 @@ static partial class Tests
         await T("a window returns exactly the requested lines, with a range header", async () =>
         {
             var r = await ReadIn("{\"path\":\"f.txt\",\"start_line\":3,\"end_line\":5}", TenLines);
-            Assert(r == $"Lines 3-5:{Environment.NewLine}line 3{Environment.NewLine}line 4{Environment.NewLine}line 5", r);
+            Assert(r == "Lines 3-5:\nline 3\nline 4\nline 5", r);          // \n on every system, Windows included
             return "ok";
         });
 

@@ -81,7 +81,9 @@ static partial class Tests
             var dir = Tmp();
             var work = await NewRepo(dir);
             var other = Tmp();
-            var r = await Call("git_fetch", "{\"path\":\"" + work + "\"}", other);
+            // The path goes through a JSON writer: a Windows path holds backslashes, which a raw string would
+            // turn into invalid escapes (the call then fails with a parse error, not with "not allowed").
+            var r = await Call("git_fetch", "{\"path\":" + System.Text.Json.Nodes.JsonValue.Create(work)!.ToJsonString() + "}", other);
             Assert(r.Contains("not allowed"), r);
             return "ok";
         });
