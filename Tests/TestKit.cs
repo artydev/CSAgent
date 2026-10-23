@@ -101,6 +101,7 @@ static partial class Tests
         await McpStdioGroup();
         await CalendarGroup();
         await ReadFilePaginationGroup();
+        await GitVerbGroup();
         await DownloadGroup();
         await CommandFilterGroup();
         await AgentEndToEnd();

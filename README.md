@@ -472,14 +472,14 @@ Error: file too large (1024 KB). Use sh to grep/head.
 
 ## Outils disponibles
 
-L'agent dispose de **38 outils intégrés**. Vous ne les appelez pas vous-même : l'agent choisit ceux dont il a besoin pour votre demande. Dans les tableaux, `*` marque un paramètre obligatoire et **Confirmation** indique que l'outil demande votre accord avant de s'exécuter (sauf avec `--yes`).
+L'agent dispose de **43 outils intégrés**. Vous ne les appelez pas vous-même : l'agent choisit ceux dont il a besoin pour votre demande. Dans les tableaux, `*` marque un paramètre obligatoire et **Confirmation** indique que l'outil demande votre accord avant de s'exécuter (sauf avec `--yes`).
 
-**Seuls les outils utiles sont décrits au modèle.** La description des 38 outils pèse environ 20 000 caractères et serait renvoyée à chaque étape. Depuis la 0.9.8, les outils sont répartis en groupes :
+**Seuls les outils utiles sont décrits au modèle.** La description des 43 outils pèse environ 28 000 caractères et serait renvoyée à chaque étape. Depuis la 0.9.8, les outils sont répartis en groupes :
 
 | Groupe | Outils | Envoyé |
 |---|---|---|
 | `core` | fichiers (`read_file`, `write_file`, `edit_file`, `copy_file`, `move_file`, `delete_file`, `read_json`, `parse_output`), `list_dir`, `tree`, `search_files`, `sh` | toujours |
-| `git` | `git_status`, `git_diff`, `git_log`, `git_branch`, `git_commit` | si la demande parle de git, de commit, de branche… |
+| `git` | `git_status`, `git_diff`, `git_log`, `git_branch`, `git_commit`, `git_add`, `git_fetch`, `git_pull`, `git_push`, `git_checkout` | si la demande parle de git, de commit, de branche… |
 | `web` | `web_search`, `fetch_url`, `http_request`, `download_file` | si elle parle du web, d'une URL, d'une recherche… |
 | `mail` | `read_msg`, `save_attachment`, `group_msg_by_sender`, `send_email` | e-mail, Outlook, `.msg`, expéditeur… |
 | `calendar` | `read_calendar`, `create_appointment` | agenda, calendrier, rendez-vous, réunion, créneau, meeting… |
@@ -527,6 +527,11 @@ Les mots sont cherchés en français et en anglais dans le dernier message de l'
 | `git_log` | Historique récent | `path`, `count` (20 par défaut) | non |
 | `git_branch` | Branche courante et branches locales | `path` | non |
 | `git_commit` | Indexe tout et crée un commit | `path`, `message`* | **oui** |
+| `git_add` | Indexe un ou plusieurs fichiers pour le prochain commit | `path`, `spec` (chemin ; sans `spec`, indexe tout) | non |
+| `git_fetch` | Récupère les derniers commits du dépôt distant sans toucher au dossier de travail | `path` | non |
+| `git_pull` | Met à jour la branche courante depuis le dépôt distant (avance rapide uniquement : refuse de fusionner un historique divergé) | `path` | **oui** |
+| `git_push` | Pousse la branche courante vers le dépôt distant (jamais en force) | `path` | **oui** |
+| `git_checkout` | Change de branche (ou de commit, par SHA) | `path`, `branch`* | **oui** |
 
 #### Web
 

@@ -104,6 +104,23 @@ public static partial class ToolDispatcher
                     args["path"]?.GetValue<string>() ?? ".",
                     args["message"]!.GetValue<string>()),
 
+                "git_add" => await GitAddAsync(
+                    args["path"]?.GetValue<string>() ?? ".",
+                    args["spec"]?.GetValue<string>()),
+
+                "git_fetch" => await GitFetchAsync(
+                    args["path"]?.GetValue<string>() ?? "."),
+
+                "git_pull" => await GitPullAsync(
+                    args["path"]?.GetValue<string>() ?? "."),
+
+                "git_push" => await GitPushAsync(
+                    args["path"]?.GetValue<string>() ?? "."),
+
+                "git_checkout" => await GitCheckoutAsync(
+                    args["path"]?.GetValue<string>() ?? ".",
+                    args["branch"]!.GetValue<string>()),
+
                 "sh" => await RunShellAsync(
                     args["cmd"]!.GetValue<string>(), isWindows),
 
@@ -226,5 +243,5 @@ public static partial class ToolDispatcher
     /// Returns true if the tool name is considered destructive (requires user confirmation).
     /// </summary>
     public static bool IsDestructive(string name) =>
-        name is "write_file" or "edit_file" or "git_commit" or "move_file" or "delete_file" or "unzip" or "write_clipboard" or "download_file" or "send_email" or "create_appointment" or "save_attachment" or "group_msg_by_sender";
+        name is "write_file" or "edit_file" or "git_commit" or "git_pull" or "git_push" or "git_checkout" or "move_file" or "delete_file" or "unzip" or "write_clipboard" or "download_file" or "send_email" or "create_appointment" or "save_attachment" or "group_msg_by_sender";
 }

@@ -4,7 +4,7 @@ namespace CsAgent.Core.Agent;
 
 /// <summary>
 /// Which tools are described to the model at each step. The definitions of all the tools weigh about
-/// 20,000 characters and are sent again at every step, whether the request needs them or not. The tools are
+/// 28,000 characters and are sent again at every step, whether the request needs them or not. The tools are
 /// split into groups: the <c>core</c> group (files, search, shell) is always sent, the others only when the
 /// request, or what the conversation has already used, calls for them. A tool the model needs anyway can be
 /// switched on with <c>enable_tools</c>; <c>--all-tools</c> sends everything, as before 0.9.8.
@@ -25,7 +25,7 @@ public static class ToolSelector
     /// <summary>The optional groups, with the tools in each. Everything not listed is in <see cref="Core"/>.</summary>
     public static readonly IReadOnlyDictionary<string, string[]> Groups = new Dictionary<string, string[]>
     {
-        ["git"] = new[] { "git_status", "git_diff", "git_log", "git_branch", "git_commit" },
+        ["git"] = new[] { "git_status", "git_diff", "git_log", "git_branch", "git_commit", "git_add", "git_fetch", "git_pull", "git_push", "git_checkout" },
         ["web"] = new[] { "web_search", "fetch_url", "http_request", "download_file" },
         ["terminal"] = new[] { "run_terminal", "close_terminal" },
         ["archive"] = new[] { "zip", "unzip" },

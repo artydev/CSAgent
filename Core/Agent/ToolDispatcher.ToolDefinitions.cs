@@ -290,6 +290,78 @@ public static partial class ToolDispatcher
           {
             "type": "function",
             "function": {
+              "name": "git_add",
+              "description": "Stage files for the next commit. Without 'spec', stages everything (like git add -A).",
+              "parameters": {
+                "type": "object",
+                "properties": {
+                  "path": { "type": "string", "description": "Directory inside the git repo. Defaults to '.'." },
+                  "spec": { "type": "string", "description": "Path or path pattern to stage. Omit to stage everything." }
+                },
+                "required": []
+              }
+            }
+          },
+          {
+            "type": "function",
+            "function": {
+              "name": "git_fetch",
+              "description": "Fetch the latest commits from the remote without changing the working tree. Prunes remote branches that were deleted upstream.",
+              "parameters": {
+                "type": "object",
+                "properties": {
+                  "path": { "type": "string", "description": "Directory inside the git repo. Defaults to '.'." }
+                },
+                "required": []
+              }
+            }
+          },
+          {
+            "type": "function",
+            "function": {
+              "name": "git_pull",
+              "description": "Pull the current branch from its remote. Fast-forward only: if the histories diverged, the command fails instead of creating a merge commit.",
+              "parameters": {
+                "type": "object",
+                "properties": {
+                  "path": { "type": "string", "description": "Directory inside the git repo. Defaults to '.'." }
+                },
+                "required": []
+              }
+            }
+          },
+          {
+            "type": "function",
+            "function": {
+              "name": "git_push",
+              "description": "Push the current branch to its upstream on the remote. Never forces a push. Destructive — requires user confirmation.",
+              "parameters": {
+                "type": "object",
+                "properties": {
+                  "path": { "type": "string", "description": "Directory inside the git repo. Defaults to '.'." }
+                },
+                "required": []
+              }
+            }
+          },
+          {
+            "type": "function",
+            "function": {
+              "name": "git_checkout",
+              "description": "Switch to another branch (or a commit, by SHA). Destructive — requires user confirmation.",
+              "parameters": {
+                "type": "object",
+                "properties": {
+                  "path":   { "type": "string", "description": "Directory inside the git repo. Defaults to '.'." },
+                  "branch": { "type": "string", "description": "Branch to switch to (e.g. 'feature/login'), or a 7-40 character commit SHA." }
+                },
+                "required": ["branch"]
+              }
+            }
+          },
+          {
+            "type": "function",
+            "function": {
               "name": "sh",
               "description": "Execute a shell command. Uses cmd.exe on Windows, /bin/sh elsewhere.",
               "parameters": {

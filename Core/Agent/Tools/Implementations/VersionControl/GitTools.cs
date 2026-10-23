@@ -57,6 +57,60 @@ public static partial class ToolDispatcher
         var commitResult = await RunGitAsync(full, $"commit -m \"{message.Replace("\"", "\\\"")}\"");
         return commitResult;
     }
+    private static async Task<string> GitAddAsync(string path, string? spec)
+    {
+        var full = Path.GetFullPath(path);
+        if (!IsSafePath(full))
+            return $"Error: git_add - Path '{full}' is not allowed. Only paths in the current working directory are permitted.";
+
+        var target = spec?.Trim();
+        if (target is null) target = "-A";
+        else if (target.StartsWith('-'))
+            return "Error: git_add - 'spec' is a path, not a git option (it must not start with '-').";
+        return await RunGitAsync(full, "add " + target);
+    }
+    private static async Task<string> GitFetchAsync(string path)
+    {
+        var full = Path.GetFullPath(path);
+        if (!IsSafePath(full))
+            return $"Error: git_fetch - Path '{full}' is not allowed. Only paths in the current working directory are permitted.";
+
+        return await RunGitAsync(full, "fetch --prune");
+    }
+    private static async Task<string> GitPullAsync(string path)
+    {
+        var full = Path.GetFullPath(path);
+        if (!IsSafePath(full))
+            return $"Error: git_pull - Path '{full}' is not allowed. Only paths in the current working directory are permitted.";
+
+        // Fast-forward only: a diverged history must not be merged silently.
+        return await RunGitAsync(full, "pull --ff-only");
+    }
+    private static async Task<string> GitPushAsync(string path)
+    {
+        var full = Path.GetFullPath(path);
+        if (!IsSafePath(full))
+            return $"Error: git_push - Path '{full}' is not allowed. Only paths in the current working directory are permitted.";
+
+        // Plain push to the upstream branch; force is never an option for an agent.
+        return await RunGitAsync(full, "push");
+    }
+    private static async Task<string> GitCheckoutAsync(string path, string branch)
+    {
+        var full = Path.GetFullPath(path);
+        if (!IsSafePath(full))
+            return $"Error: git_checkout - Path '{full}' is not allowed. Only paths in the current working directory are permitted.";
+
+        if (string.IsNullOrWhiteSpace(branch))
+            return "Error: git_checkout - 'branch' argument is required.";
+
+        var name = branch.Trim();
+        var isRef = System.Text.RegularExpressions.Regex.IsMatch(name, "^[A-Za-z0-9][A-Za-z0-9._/-]*$")
+            || System.Text.RegularExpressions.Regex.IsMatch(name, "^[a-f0-9]{7,40}$");
+        if (!isRef || name.Contains(".."))
+            return $"Error: git_checkout - '{branch}' is not a valid branch name or commit SHA.";
+        return await RunGitAsync(full, "checkout " + name);
+    }
     /// <summary>
     /// Runs a git command in the given working directory and returns its output.
     /// </summary>
