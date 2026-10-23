@@ -20,7 +20,7 @@ public static partial class ToolDispatcher
         }
         catch (Exception ex) { return $"Error: write_file — {ex.Message}"; }
     }
-    private static string ReadFile(string path)
+    private static string ReadFile(string path, int? startLine, int? endLine)
     {
         try
         {
@@ -29,9 +29,47 @@ public static partial class ToolDispatcher
                 return $"Error: read_file - Path '{full}' is not allowed for reading. Only files in the current working directory are permitted.";
 
             if (!File.Exists(full)) return $"Error: not found '{full}'";
-            var len = new FileInfo(full).Length;
-            if (len > 512_000) return $"Error: file too large ({len / 1024} KB). Use sh to grep/head.";
-            return File.ReadAllText(full, Encoding.UTF8);
+
+            if (startLine is null && endLine is null)
+            {
+                var len = new FileInfo(full).Length;
+                if (len > 512_000) return $"Error: file too large ({len / 1024} KB). Use sh to grep/head, or read_file with start_line and end_line.";
+                return File.ReadAllText(full, Encoding.UTF8);
+            }
+
+            // A window of lines, read lazily: the whole file is never loaded in memory.
+            var start = startLine ?? 1;
+            if (start < 1) start = 1;
+            var end = endLine ?? int.MaxValue;
+            if (end < start)
+                return $"Error: read_file - end_line ({end}) must be greater than or equal to start_line ({start}).";
+
+            const int maxWindowLines = 2_000;
+            var sb = new StringBuilder();
+            int total = 0, taken = 0, last = start - 1;
+            bool truncated = false;
+            foreach (var line in File.ReadLines(full, Encoding.UTF8))
+            {
+                total++;
+                if (total < start) continue;
+                if (total > end) break;
+                if (taken == maxWindowLines) { truncated = true; break; }
+                if (taken > 0) sb.AppendLine();
+                sb.Append(line);
+                taken++;
+                last = total;
+            }
+
+            if (taken == 0)
+            {
+                if (total == 0) return "(empty file)";
+                return $"Error: read_file - start_line {start} is past the end of the file ({total} lines).";
+            }
+
+            var result = $"Lines {start}-{last}:\n{sb}";
+            if (truncated)
+                result += "\n... (truncated at 2,000 lines — narrow the range)";
+            return result;
         }
         catch (Exception ex) { return $"Error: read_file — {ex.Message}"; }
     }

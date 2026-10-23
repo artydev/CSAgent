@@ -25,11 +25,13 @@ public static partial class ToolDispatcher
             "type": "function",
             "function": {
               "name": "read_file",
-              "description": "Read a text file and return its content.",
+              "description": "Read a text file and return its content. For large files, read only the part you need with start_line and end_line (1-based line numbers); without them the whole file is returned.",
               "parameters": {
                 "type": "object",
                 "properties": {
-                  "path": { "type": "string", "description": "File path." }
+                  "path":       { "type": "string",  "description": "File path." },
+                  "start_line": { "type": "integer", "description": "First line to return (1-based). Defaults to 1." },
+                  "end_line":   { "type": "integer", "description": "Last line to return (1-based, inclusive). Defaults to the end of the file." }
                 },
                 "required": ["path"]
               }

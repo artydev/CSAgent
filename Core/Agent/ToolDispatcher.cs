@@ -37,7 +37,9 @@ public static partial class ToolDispatcher
                     args["content"]!.GetValue<string>()),
 
                 "read_file" => ReadFile(
-                    args["path"]!.GetValue<string>()),
+                    args["path"]!.GetValue<string>(),
+                    args["start_line"]?.GetValue<int>(),
+                    args["end_line"]?.GetValue<int>()),
 
                 "read_json" => ReadJson(
                     args["path"]!.GetValue<string>(),

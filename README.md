@@ -496,7 +496,7 @@ Les mots sont cherchés en français et en anglais dans le dernier message de l'
 
 | Outil | Rôle | Paramètres | Confirmation |
 |---|---|---|---|
-| `read_file` | Lit un fichier texte | `path`* | non |
+| `read_file` | Lit un fichier texte, ou une portion de celui-ci (fichiers volumineux) | `path`*, `start_line` (1 par défaut), `end_line` (fin du fichier par défaut ; fenêtre limitée à 2 000 lignes) | non |
 | `read_json` | Lit un fichier JSON, ou une partie | `path`*, `query` (chemin pointé, par exemple `a.b[0].c`) | non |
 | `write_file` | Écrit ou écrase un fichier texte | `path`*, `content`* | **oui** |
 | `edit_file` | Remplace des morceaux exacts d'un fichier, tout ou rien | `path`*, `edits`* (liste de `old_string` / `new_string`) | **oui** |

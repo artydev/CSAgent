@@ -100,6 +100,7 @@ static partial class Tests
         await ToolSelectorGroup();
         await McpStdioGroup();
         await CalendarGroup();
+        await ReadFilePaginationGroup();
         await DownloadGroup();
         await CommandFilterGroup();
         await AgentEndToEnd();
