@@ -181,6 +181,7 @@ Five TODOs in four files. I'll group them by file in TODO.md.
           <p>Appuyez sur le micro dans l'interface web ou lean et parlez. L'audio est enregistré par morceaux de 30 secondes pendant que vous parlez&nbsp;: un onglet fermé par erreur vous coûte au plus la dernière demi-minute.</p>
           <p>À l'arrêt, CsAgent transcrit tout l'enregistrement avec Whisper et vous choisissez&nbsp;: utiliser le texte comme instruction, ou le garder dans un fichier joint à votre prochain message. Un sélecteur FR / EN / Auto à côté du bouton indique la langue parlée.</p>
           <p class="muted">La transcription a lieu après l'arrêt, pas en direct. Au-delà de quelques minutes, <code>ffmpeg</code> est nécessaire. L'audio part vers votre point d'accès configuré&nbsp;: choisissez un point d'accès local s'il ne doit pas quitter la machine.</p>
+          <p class="muted">Un orchestrateur peut envoyer son propre enregistrement en mode <code>--api</code>, sans interface&nbsp;: c'est ainsi que CSFlow permet de dicter un texte dans un workflow.</p>
         </div>
         <div aria-hidden="true">
           <div class="chunks"><i style="height:30%"></i><i style="height:62%"></i><i style="height:48%"></i><i style="height:85%"></i><i style="height:40%"></i><i style="height:72%"></i><i style="height:55%"></i><i style="height:92%"></i><i style="height:36%"></i><i style="height:66%"></i><i style="height:44%"></i><i style="height:78%"></i></div>
@@ -284,6 +285,7 @@ curl -N "http://localhost:5050/api/chat?prompt=List+every+TODO+into+TODO.md"</pr
             <li>Pour écouter au-delà de localhost, une clé est obligatoire (<code>--api-key</code> ou <code>CSAGENT_API_KEY</code>), envoyée en <code>Authorization: Bearer</code> ou <code>X-API-Key</code>. Sans clé, un <code>--host</code> non local est refusé au démarrage.</li>
             <li>Un serveur porte une seule conversation. Pour des tâches en parallèle, lancez une instance par tâche, chacune avec son <code>--mem</code> et son <code>--port</code>.</li>
             <li><code>POST /api/chat</code> accepte du <code>multipart/form-data</code> avec une <code>image</code> facultative.</li>
+            <li>La transcription est aussi disponible en HTTP&nbsp;: <code>POST /api/audio/start</code>, <code>POST /api/audio/{id}</code> (les octets de l'audio), puis <code>POST /api/audio/{id}/transcribe</code> (flux SSE <code>progress</code>, <code>done</code> ou <code>error</code>). Même clé d'API, mêmes conditions que la dictée.</li>
           </ul>
         </div>
         <div>
