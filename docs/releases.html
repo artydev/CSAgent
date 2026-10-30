@@ -371,9 +371,9 @@ footer p { margin: 0 0 6px; max-width: 60ch; }
     <h1>Historique des versions</h1>
     <p class="lede">Toutes les versions de CsAgent depuis la 0.6.0 : ce que chacune ajoute ou corrige, avec sa date et le nombre de tests.</p>
     <ul class="rel-stats">
-      <li><b>21</b><span>versions</span></li>
-      <li><b>18</b><span>jours, du 6 au 23 octobre 2026</span></li>
-      <li><b>136 → 310</b><span>tests, de la 0.8.0 à la 0.9.14</span></li>
+      <li><b>22</b><span>versions</span></li>
+      <li><b>25</b><span>jours, du 6 au 30 octobre 2026</span></li>
+      <li><b>136 → 310</b><span>tests, de la 0.8.0 à la 0.9.15</span></li>
     </ul>
   </div>
 </div>
@@ -383,6 +383,7 @@ footer p { margin: 0 0 6px; max-width: 60ch; }
     <h2 id="toc-h" class="sr-only">Sommaire</h2>
     <ul class="rel-toc">
       <li class="grp">Série 0.9</li>
+      <li><a href="#v0.9.15">v0.9.15</a></li>
       <li><a href="#v0.9.14">v0.9.14</a></li>
       <li><a href="#v0.9.13">v0.9.13</a></li>
       <li><a href="#v0.9.12">v0.9.12</a></li>
@@ -415,8 +416,26 @@ footer p { margin: 0 0 6px; max-width: 60ch; }
   <div class="wrap">
     <header>
       <h2 id="s0.9-h">Série 0.9</h2>
-      <p>Routage, économie de quota, MCP, nouveaux outils · Du 10 au 23 octobre 2026</p>
+      <p>Routage, économie de quota, MCP, nouveaux outils · Du 10 au 30 octobre 2026</p>
     </header>
+    <article class="rel" id="v0.9.15">
+      <div class="rel-meta">
+        <p class="rel-ver"><a href="#v0.9.15">v0.9.15</a></p>
+        <span class="rel-kind feat">Nouveauté</span>
+        <p class="rel-date">30 octobre 2026</p>
+        <p class="rel-tests">310 tests</p>
+      </div>
+      <div class="rel-body">
+        <h3>La transcription audio disponible en mode <code>--api</code></h3>
+        <p>Un programme peut maintenant envoyer un enregistrement à CsAgent et recevoir le texte, comme le fait la dictée de la Web UI. C'est ce qu'utilise la saisie vocale de CSFlow.</p>
+        <ul>
+          <li>Trois points d'accès : <code>POST /api/audio/start</code>, <code>POST /api/audio/{id}</code> (les octets, dans l'ordre) et <code>POST /api/audio/{id}/transcribe</code> (flux SSE <code>progress</code>, <code>done</code> ou <code>error</code>).</li>
+          <li>Même clé d'API que les autres routes. Fichiers écrits dans <code>recordings/</code> et <code>transcripts/</code>.</li>
+          <li><code>ffmpeg</code> est nécessaire, sauf pour un <code>.wav</code> ou <code>.mp3</code> de 24 Mo au plus ; 100 Mo au maximum.</li>
+        </ul>
+        <p class="rel-links"><a href="https://github.com/artydev/csagent/blob/main/releases/release-0.9.15.md">Note de version complète</a> <a href="https://github.com/artydev/csagent/releases/tag/v0.9.15">Étiquette v0.9.15</a></p>
+      </div>
+    </article>
     <article class="rel" id="v0.9.14">
       <div class="rel-meta">
         <p class="rel-ver"><a href="#v0.9.14">v0.9.14</a></p>
