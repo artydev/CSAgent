@@ -166,6 +166,9 @@ La documentation complète, les tests et les exemples de confirmation : [`python
 | `GET /api/chat?prompt=…[&task=slug]` | Exécute une demande ; la réponse est un flux Server-Sent Events |
 | `POST /api/chat` | Idem, en `multipart/form-data` (`prompt`, `task` facultatif, `image` facultative) |
 | `POST /api/confirm` | Corps `true` ou `false` : répond à un événement `confirm` en attente (inutile avec `--yes`) |
+| `POST /api/audio/start?type=audio/webm` | Démarre un enregistrement (`.webm`, `.ogg`, `.m4a`, `.wav`, `.mp3`) ; renvoie `{"id", "path"}` |
+| `POST /api/audio/{id}` | Ajoute un morceau d'audio (octets bruts dans le corps, dans l'ordre) |
+| `POST /api/audio/{id}/transcribe?lang=fr` | Transcrit l'enregistrement (Whisper) ; flux SSE : `progress`, puis `done` (`text`, `path`) ou `error`. Mêmes conditions que `transcribe_audio` (ffmpeg pour tout format autre que `.wav` / `.mp3`) |
 
 **Authentification.** Quand une clé est définie, envoyez `Authorization: Bearer <clé>` ou `X-API-Key: <clé>` ; toute autre requête reçoit `401`. Le serveur parle en HTTP simple : dès qu'il est exposé au-delà de la machine locale, placez-le derrière un reverse proxy TLS. **Sans clé, un `--host` non local est refusé au démarrage**, parce que l'agent peut exécuter des commandes et écrire des fichiers.
 

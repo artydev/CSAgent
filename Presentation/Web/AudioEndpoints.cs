@@ -4,7 +4,7 @@ using CsAgent.Services;
 
 namespace CsAgent.Presentation.Web;
 
-/// <summary>The recorder of the web UI (not mapped in --api mode): upload in chunks, then transcribe.</summary>
+/// <summary>The audio recorder endpoints (web UI, lean UI and --api mode): upload in chunks, then transcribe.</summary>
 public static class AudioEndpoints
 {
     public static IEndpointRouteBuilder MapAudioEndpoints(this IEndpointRouteBuilder app)

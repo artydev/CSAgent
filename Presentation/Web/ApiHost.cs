@@ -52,12 +52,16 @@ public static class ApiHost
             distill: args.Distill,
             confirm: !args.AutoApprove);
 
+        // Speech to text for orchestrators (e.g. CSFlow): same upload-in-chunks + transcribe endpoints as the web UI.
+        // They sit behind the API-key middleware above and keep their same-origin check (a request with no Origin header passes).
+        app.MapAudioEndpoints();
+
         var url = $"http://{args.Host}:{args.Port}";
 
         app.Lifetime.ApplicationStarted.Register(() =>
         {
             Console.WriteLine($"\n--- CSAgent API (SSE) listening on {url} ---");
-            Console.WriteLine("--- Endpoints: GET/POST /api/chat, POST /api/confirm ---");
+            Console.WriteLine("--- Endpoints: GET/POST /api/chat, POST /api/confirm, POST /api/audio/... (speech to text) ---");
             Console.WriteLine(args.ApiKey is null
                 ? "--- Authentication: none (localhost only) ---"
                 : "--- Authentication: API key required (Authorization: Bearer <key> or X-API-Key) ---");
