@@ -19,7 +19,7 @@
              regardless of DebugType — StripSymbols is the property that
              actually suppresses that native .pdb output. -->
 		<StripSymbols>true</StripSymbols>
-		<PlatformTarget>x64</PlatformTarget>
+		<PlatformTarget>AnyCPU</PlatformTarget>
 		<Platforms>AnyCPU;x64</Platforms>
 		<!-- This is a Web SDK project but does not use ASP.NET Core's static web
          assets pipeline (UI assets are embedded resources served via manual
