@@ -69,6 +69,30 @@ Without --yes, the API can emit a confirmation event and wait for the caller to 
 
 The README explicitly notes that automatic approval does not disable the shell command filter or path restrictions. Approval policy and safety filtering are separate layers.
 
+## Running a CSFlow workflow
+
+    csagent --mcp-config mcp.json --workflow demo_report
+
+--workflow runs a workflow of [CSFlow](https://github.com/artydev/FlowPortal) from the command line, without a model in between: no tokens are spent and the exit code can be used in a script. The name is a file of the workflows folder of CSFlow (demo_report or demo_report.yaml).
+
+CsAgent starts the MCP server named csflow found in the file given by --mcp-config (FlowPortal.exe --mcp), starts its own API server for the agent steps of the workflow, and calls csflow_run and csflow_status until the workflow ends. Each step is printed once, when it finishes.
+
+| Flag | Meaning |
+|---|---|
+| --workflow <name> | Run the workflow; needs --mcp-config with a server named csflow |
+| --fresh | With --workflow: the agent steps start with an empty memory (only the four memory files are deleted) |
+| --port, --api-key, --yes, --model, --endpoint, --mem | As in API mode; the API server uses port 8080 unless --port is given |
+
+Defaults that --workflow sets: port 8080 (the agent steps of CSFlow look for the agent there), memory csflow_worker, no distillation. A memory named with --mem or as a positional argument is kept.
+
+| Exit code | Meaning |
+|---|---|
+| 0 | The workflow finished |
+| 1 | The workflow failed (the step and the reason go to standard error), or Ctrl+C |
+| 2 | It did not start: no csflow server in --mcp-config, workflow not found or invalid, port already used, or a workflow with a human_approval or user_input step (refused by CSFlow: run it from its interface) |
+
+Do not start a worker on port 8080 at the same time: --workflow starts its own. Behaviour is covered by [WorkflowTests.cs](../../Tests/WorkflowTests.cs), with a fake CSFlow server.
+
 ## Configuration and environment
 
 The tests and README identify these environment variables:
