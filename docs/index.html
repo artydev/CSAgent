@@ -311,6 +311,25 @@ curl -N "http://localhost:5050/api/chat?prompt=List+every+TODO+into+TODO.md"</pr
       </div>
     </div>
 
+    <div class="block" id="workflow">
+      <div class="split">
+        <div>
+          <h3>Lancez un workflow CSFlow</h3>
+          <p><code>--workflow</code> exécute un workflow de <a href="https://github.com/artydev/FlowPortal">CSFlow</a> depuis la ligne de commande, sans passer par le modèle&nbsp;: pas de jeton dépensé, et un code de sortie utilisable dans un script.</p>
+          <div class="pre-wrap"><pre class="pre">csagent --mcp-config mcp.json --workflow demo_report</pre></div>
+          <p class="muted" style="margin-top:12px">Le <code>mcp.json</code> est celui de CSFlow&nbsp;: CsAgent y cherche le serveur MCP nommé <code>csflow</code> (<code>FlowPortal.exe --mcp</code>) et le démarre.</p>
+        </div>
+        <div>
+          <ul class="facts">
+            <li>CsAgent démarre aussi son serveur <code>--api</code> (port 8080) pour les étapes <code>agent</code> du workflow. Ne le lancez pas si un worker occupe déjà ce port.</li>
+            <li>Chaque étape s'affiche quand elle se termine. Code de sortie&nbsp;: <code>0</code> terminé, <code>1</code> échec ou Ctrl+C, <code>2</code> non démarré.</li>
+            <li>Les workflows avec une étape <code>human_approval</code> ou <code>user_input</code> sont refusés par CSFlow&nbsp;: lancez-les depuis son interface.</li>
+            <li>Les étapes <code>agent</code> utilisent la mémoire <code>csflow_worker</code>, sans distillation&nbsp;; <code>--fresh</code> la vide au départ.</li>
+          </ul>
+        </div>
+      </div>
+    </div>
+
     <div class="block" id="routing">
       <div class="split">
         <div>
@@ -509,7 +528,7 @@ dotnet publish -c Release -r <span data-fill="rid">linux-x64</span></pre></div>
     <div class="split wide-right">
       <div class="sec-head" style="margin:0">
         <h2 id="status-h">Où il en est</h2>
-        <p class="lede">Version 0.9.15. Voici ce qui n'existe pas encore, pour que vous ne le découvriez pas à vos dépens.</p>
+        <p class="lede">Version 0.9.16. Voici ce qui n'existe pas encore, pour que vous ne le découvriez pas à vos dépens.</p>
       </div>
       <ul class="limits">
         <li>Les outils Excel et Outlook utilisent l'automatisation COM, donc ils ne fonctionnent que sous Windows.</li>

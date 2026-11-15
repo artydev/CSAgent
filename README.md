@@ -923,7 +923,7 @@ dotnet run --project Tests -c Release
 
 La sortie se termine par une ligne de synthèse (`TOTAL 187 | PASS 187 | FAIL 0 | FINDINGS 0`), le code de sortie du processus est `0` quand tout passe et `1` sinon, et un rapport complet est écrit dans `results.txt` à côté du binaire de test.
 
-Le projet compile directement les sources `Core/`, `Services/` et `Shared/` de l'application (l'application est un projet Web / NativeAOT) avec la sérialisation JSON par réflexion désactivée, ce qui reproduit la contrainte AOT : un `JsonSerializer.Serialize<T>()` égaré fait échouer les tests, comme il ferait échouer le binaire publié.
+Le projet compile directement les sources `Core/`, `Services/`, `Shared/`, `Infrastructure/` et le serveur API de `Presentation/Web/` (`ApiHost`, `WorkflowHost`…) de l'application (l'application est un projet Web / NativeAOT, et le projet de tests utilise donc aussi le SDK Web) avec la sérialisation JSON par réflexion désactivée, ce qui reproduit la contrainte AOT : un `JsonSerializer.Serialize<T>()` égaré fait échouer les tests, comme il ferait échouer le binaire publié.
 
 | Fichier | Couvre |
 |---|---|
