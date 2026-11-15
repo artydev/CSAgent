@@ -41,7 +41,6 @@ The README reports a passing test snapshot, but that is a historical repository 
 | MsgTests.cs, GroupMsgTests.cs | Integrations | Message/mail behaviour |
 | DownloadTests.cs | Tools | Downloads |
 | ScriptModeTests.cs, QuietModeTests.cs | Runtime modes | Script and quiet behaviour |
-| [WorkflowTests.cs](../../Tests/WorkflowTests.cs) | CSFlow workflows | --workflow and --fresh parsing and defaults, steps printed once, exit codes 0, 1 and 2, API server started and stopped, French messages; a fake CSFlow server replaces FlowPortal |
 
 Some files are listed in the root README test inventory; links are omitted where the exact file was not inspected in this documentation pass.
 
