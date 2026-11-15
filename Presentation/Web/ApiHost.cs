@@ -13,11 +13,42 @@ public static class ApiHost
 {
     public static int Run(AgentArguments args)
     {
+        var app = Create(args);
+        if (app is null) return 2;
+
+        var url = Url(args);
+
+        app.Lifetime.ApplicationStarted.Register(() =>
+        {
+            Console.WriteLine($"\n--- CSAgent API (SSE) listening on {url} ---");
+            Console.WriteLine("--- Endpoints: GET/POST /api/chat, POST /api/confirm, POST /api/audio/... (speech to text) ---");
+            Console.WriteLine(args.ApiKey is null
+                ? "--- Authentication: none (localhost only) ---"
+                : "--- Authentication: API key required (Authorization: Bearer <key> or X-API-Key) ---");
+            Console.WriteLine(args.AutoApprove
+                ? "--- Auto-approve: ON (tools run without confirmation; the shell command filter stays active) ---"
+                : "--- Auto-approve: OFF (destructive tools wait for POST /api/confirm) ---");
+            if (McpSettings.Resolve(args.McpUrl).Count > 0)
+                Console.WriteLine($"--- MCP: {McpSettings.Describe(args.McpUrl)} ---");
+            Console.WriteLine($"--- LLM endpoint: {LlmConfig.Endpoint} ---");
+            if (string.IsNullOrEmpty(LlmConfig.ResolveApiKey()))
+                Console.WriteLine("--- WARNING: ALBERT_API_KEY is not set; every request will fail ---");
+        });
+
+        app.Run(url);
+        return 0;
+    }
+
+    public static string Url(AgentArguments args) => $"http://{args.Host}:{args.Port}";
+
+    /// <summary>The API server, built but not started; null (after a message) when the options are not safe.</summary>
+    public static WebApplication? Create(AgentArguments args)
+    {
         var error = ApiSecurity.CheckStartup(args.Host, args.ApiKey);
         if (error is not null)
         {
             Console.Error.WriteLine("Error: " + error);
-            return 2;
+            return null;
         }
 
         var builder = WebApplication.CreateBuilder(Array.Empty<string>());
@@ -56,26 +87,6 @@ public static class ApiHost
         // They sit behind the API-key middleware above and keep their same-origin check (a request with no Origin header passes).
         app.MapAudioEndpoints();
 
-        var url = $"http://{args.Host}:{args.Port}";
-
-        app.Lifetime.ApplicationStarted.Register(() =>
-        {
-            Console.WriteLine($"\n--- CSAgent API (SSE) listening on {url} ---");
-            Console.WriteLine("--- Endpoints: GET/POST /api/chat, POST /api/confirm, POST /api/audio/... (speech to text) ---");
-            Console.WriteLine(args.ApiKey is null
-                ? "--- Authentication: none (localhost only) ---"
-                : "--- Authentication: API key required (Authorization: Bearer <key> or X-API-Key) ---");
-            Console.WriteLine(args.AutoApprove
-                ? "--- Auto-approve: ON (tools run without confirmation; the shell command filter stays active) ---"
-                : "--- Auto-approve: OFF (destructive tools wait for POST /api/confirm) ---");
-            if (McpSettings.Resolve(args.McpUrl).Count > 0)
-                Console.WriteLine($"--- MCP: {McpSettings.Describe(args.McpUrl)} ---");
-            Console.WriteLine($"--- LLM endpoint: {LlmConfig.Endpoint} ---");
-            if (string.IsNullOrEmpty(LlmConfig.ResolveApiKey()))
-                Console.WriteLine("--- WARNING: ALBERT_API_KEY is not set; every request will fail ---");
-        });
-
-        app.Run(url);
-        return 0;
+        return app;
     }
 }

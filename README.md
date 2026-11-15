@@ -11,6 +11,7 @@ Il propose trois modes de présentation : une interface terminal (TUI), une inte
 ## Table des matières
 
 - [Démarrage rapide](#démarrage-rapide)
+  - [Lancer un workflow CSFlow](#lancer-un-workflow-csflow)
 - [Modes de fonctionnement](#modes-de-fonctionnement)
   - [Mode CLI (par défaut)](#mode-cli-par-défaut)
   - [Mode Web UI](#mode-web-ui)
@@ -72,6 +73,39 @@ csagent --prompt "hello my name is John"
 ```
 
 CSAgent exécute cette demande puis quitte. Seule la réponse est écrite sur la sortie standard : elle peut être redirigée vers une autre commande (voir [`--prompt`](#arguments-de-la-ligne-de-commande)).
+
+### Lancer un workflow CSFlow
+
+```bash
+csagent --mcp-config mcp.json --workflow demo_report
+```
+
+Lance un workflow de [CSFlow](https://github.com/artydev/FlowPortal) **sans passer par le modèle** : pas de jeton dépensé, pas d'interprétation, et un code de sortie utilisable dans un script. `--workflow` prend le nom d'un fichier du dossier `workflows/` de CSFlow (`demo_report` ou `demo_report.yaml`).
+
+`--mcp-config` donne le `mcp.json` de CSFlow, celui que `start_csagent.bat` crée à côté de l'exécutable : CSAgent y cherche le serveur MCP nommé **`csflow`** (`FlowPortal.exe --mcp`, ou `python app.py --mcp` depuis les sources) et le démarre. C'est le même serveur que celui des outils `csflow_run` et `csflow_status` de l'agent ; l'exécutable compilé suffit, il n'y a rien à installer de plus. `CSAGENT_MCP_CONFIG` remplace l'option.
+
+Pendant l'exécution, CSAgent :
+1. démarre son serveur `--api` (port 8080) pour les étapes `agent` du workflow, qui l'y trouvent comme d'habitude : plus besoin du worker de `start_csagent.bat` (mais pas les deux à la fois : même port) ;
+2. affiche chaque étape quand elle se termine (`✓ nom (type)  début de la sortie`, `✗` en cas d'échec) ;
+3. à la fin, écrit la sortie de la dernière étape, arrête le serveur et CSFlow.
+
+```
+  ✓ preparer (shell)  3 fichiers lus
+  ✓ analyser (agent)  Le rapport est écrit dans tmp/rapport.md
+Workflow complete.
+```
+
+| Code de sortie | Sens |
+|---|---|
+| `0` | le workflow s'est terminé |
+| `1` | le workflow a échoué (l'étape en cause et la raison vont sur la sortie d'erreur), ou Ctrl+C |
+| `2` | il n'a pas démarré : pas de serveur `csflow` dans `--mcp-config`, workflow introuvable ou invalide, port 8080 déjà pris, ou workflow avec une validation humaine |
+
+- **Les workflows avec une étape `human_approval` ou `user_input` sont refusés** : CSFlow ne les lance pas par MCP (la validation humaine se fait dans son interface). C'est une règle de CSFlow, pas de CSAgent.
+- **Un seul workflow à la fois**, et seuls les fichiers de `workflows/` sont accessibles.
+- **Les options habituelles s'appliquent** : `--model`, `--endpoint`, `--yes` (une étape `agent` qui écrit un fichier attend sinon votre accord), `--port` (si les étapes donnent `csagent_url`), `--api-key` (si elles donnent `csagent_key`).
+- **Mémoire** : les étapes `agent` utilisent la mémoire `csflow_worker`, sans distillation, pour ne pas se mêler à vos conversations ; `--mem` la change. Elle est partagée entre les workflows et se conserve d'un lancement à l'autre : `--fresh` la vide au départ (seuls ses quatre fichiers sont supprimés), à utiliser pour un workflow planifié qui doit repartir de zéro.
+- **Lancez-le depuis le dossier de CSFlow** : CSAgent n'écrit que dans son dossier courant, qui doit être celui de CSFlow pour que ses fichiers y soient retrouvés.
 
 ---
 
@@ -319,6 +353,8 @@ Le routage peut être ajusté sans recompiler. Créez le dossier avec `csagent -
 |---|---|
 | `--ui` | Démarre en mode Web UI (lance un serveur web) |
 | `--prompt "texte"` | Mode terminal : exécute une seule demande, affiche la réponse puis quitte (`csagent --prompt "hello my name is John"`). **Mode script** : seule la réponse finale est écrite sur la sortie standard, sans bannière, étapes, appels d'outils, modèle ni jetons, de sorte qu'elle peut être redirigée vers une autre commande (`csagent --prompt "liste les fichiers ici" --yes | clip`). Avertissements et erreurs vont sur la sortie d'erreur ; code de sortie 1 en cas d'erreur. Si l'entrée est redirigée, un outil qui demande confirmation est refusé (utilisez `--yes`). La conversation est enregistrée comme d'habitude dans le dossier de mémoire ; les outils demandent confirmation, sauf avec `--yes`. Ajoutez `--verbose` pour retrouver l'affichage complet. Un argument seul, sans tiret, reste le nom du dossier de mémoire. Sans texte, affiche l'usage (code de sortie 2) ; code de sortie 1 en cas d'erreur |
+| `--workflow nom` | Lance un workflow de CSFlow sans passer par le modèle, avec `--mcp-config` (serveur MCP nommé `csflow`) : démarre le serveur `--api` (port 8080 par défaut), affiche les étapes, rend le code de sortie 0, 1 ou 2 (voir [Lancer un workflow CSFlow](#lancer-un-workflow-csflow)) |
+| `--fresh` | Avec `--workflow` : les étapes `agent` repartent d'une mémoire vide |
 | `--init-routing` | Crée le dossier `LLMRoutingRules/` avec des fichiers JSON modifiables |
 | `--explain-routing "msg"` | Montre quel modèle serait utilisé pour un message, sans appeler de modèle |
 | `--rules <dossier>` | Utilise ce dossier de règles de routage (ou `CSAGENT_ROUTING_RULES`) |
@@ -375,6 +411,9 @@ csagent --prompt "hello my name is John"
 
 # Une seule demande, avec une mémoire précise et sans confirmation
 csagent my_memory --prompt "list the files here" --yes
+
+# Lancer un workflow CSFlow (depuis le dossier de CSFlow)
+csagent --mcp-config mcp.json --workflow demo_report --yes
 
 # Quel modèle serait choisi ? (aucun appel de modèle)
 csagent --explain-routing "open in Edge browser"
@@ -838,7 +877,8 @@ src/
 │   ├── Tui/TuiHost.cs              # Crée et transmet le gestionnaire de mémoire ; mode --prompt (ScriptObserver : sortie réduite à la réponse)
 │   └── Web/
 │       ├── ApiEndpoints.cs         # Idem, pour la Web / Lean UI
-│       └── ApiHost.cs              # Serveur --api sans interface (contrôle de la clé, pas d'UI)
+│       ├── ApiHost.cs              # Serveur --api sans interface (contrôle de la clé, pas d'UI)
+│       └── WorkflowHost.cs         # --workflow : serveur --api + serveur MCP « csflow » (csflow_run, csflow_status), étapes affichées, code de sortie
 ├── LLMRoutingRules/                # Fichiers JSON de routage modifiables (copiés à la publication)
 └── Tests/                          # Projet de tests (voir Tests)
 ```
@@ -908,6 +948,7 @@ Le projet compile directement les sources `Core/`, `Services/` et `Shared/` de l
 | `DownloadTests.cs` | `download_file` (petit serveur HTTP local) : octets enregistrés tels quels, `json_path` et JSON indenté, résumé sans données, erreurs qui n'écrivent rien, refus avant tout appel réseau, confirmation, appel complet de l'agent (un seul appel, réponse courte au modèle) |
 | `CalendarTests.cs` | Agenda Outlook (sans Outlook) : outils et confirmation, groupe `calendar` et mots déclencheurs, refus hors Windows, dates ISO, contrôles des arguments, PowerShell généré (dates à format fixe, texte échappé, affichage par défaut, `save`, `send`, journée entière), section du prompt système |
 | `McpStdioTests.cs` | MCP en stdio (faux serveur lancé par les tests avec `--mcp-echo`) : démarrage et arrêt du programme, lignes parasites et notifications ignorées, serveur qui se ferme ou n'existe pas, plusieurs serveurs HTTP et stdio, noms `mcp_<serveur>_<outil>`, panne d'un seul serveur, en-têtes d'authentification et `${VAR}`, fichier de configuration, secrets absents des messages |
+| `WorkflowTests.cs` | `--workflow` : analyse de l'option (port 8080, mémoire `csflow_worker`, le nom du workflow jamais pris pour une mémoire), et la commande avec un faux serveur CSFlow (étapes affichées une fois chacune et dans l'ordre, serveur `--api` actif pendant l'exécution puis arrêté, codes 0, 1 et 2, workflow avec validation humaine, invalide, absence du serveur `csflow`), messages français |
 | `ApiModeTests.cs` | `--api`, `--yes`, `--host`, `--api-key` : analyse, politique d'hôte et de clé, authentification, approbation automatique dans la boucle de l'agent |
 | `TestExplorer.cs` | Liste chaque test dans l'Explorateur de tests de Visual Studio |
 | `AgentEndToEndTests.cs` | Exécutions complètes de `CodingAgent` contre le faux LLM |
