@@ -86,6 +86,11 @@ public static class HelpDisplay
         Console.WriteLine("                       warnings and errors go to stderr; exit code 1 on error;");
         Console.WriteLine("                       a tool that needs confirmation is declined when input is");
         Console.WriteLine("                       redirected (use --yes). --verbose shows the full display");
+        Console.WriteLine("    --workflow <file> Run a CSFlow workflow of its workflows folder (needs --mcp-config with");
+        Console.WriteLine("                       the CSFlow server named \"csflow\"): starts the API server (port");
+        Console.WriteLine("                       8080 unless --port) for the agent steps, prints each step as it");
+        Console.WriteLine("                       ends; exit code 0 = done, 1 = failed, 2 = not started");
+        Console.WriteLine("    --fresh           With --workflow: the agent steps start with an empty memory");
         Console.WriteLine("    --lang <en|fr>    Language of the routing messages (default: the system language;");
         Console.WriteLine("                       or CSAGENT_LANG)");
         Console.WriteLine("    --mcp <url>       Connect to an MCP server (Streamable HTTP); its tools are offered");

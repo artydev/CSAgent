@@ -46,7 +46,9 @@ public sealed record AgentArguments(
     IReadOnlyList<string>? McpUrls = null,
     IReadOnlyList<string>? McpStdio = null,
     IReadOnlyList<string>? McpHeaders = null,
-    string? McpConfig = null);
+    string? McpConfig = null,
+    string? Workflow = null,
+    bool Fresh = false);
 
 /// <summary>
 /// Pure argument parsing — no side effects, no console output.
@@ -61,6 +63,8 @@ public static class ArgumentParser
         var showHelp = args.Contains("--help") || args.Contains("-h") || args.Contains("/?");
         var showVersion = args.Contains("--version");
         var showDoc = args.Contains("--doc");
+        // --workflow <file>: runs a CSFlow workflow; "" (flag without a file) lets the program print its usage.
+        var workflow = args.Contains("--workflow") ? GetValue(args, "--workflow") ?? "" : null;
         var memFile = GetMemoryFile(args);
         var modelOverride = GetModelOverride(args);
         var mcpUrls = GetValues(args, "--mcp", "--mcp-url");
@@ -69,12 +73,20 @@ public static class ArgumentParser
         var mcpUrl = mcpUrls.Count > 0 ? mcpUrls[0] : Environment.GetEnvironmentVariable("CSAGENT_MCP_URL");
         var taskSlug = GetValue(args, "--task");
         var port = GetPort(args);
+        // A CSFlow workflow looks for the agent on port 8080 unless a step says otherwise.
+        if (workflow is not null && !args.Contains("--port") && !args.Contains("-p")) port = 8080;
         var maxRetries = GetInt(args, "--max-retries", RetryPolicy.Default.MaxAttempts);
         var retryDelayMs = GetInt(args, "--retry-delay", RetryPolicy.Default.BaseDelayMs);
         var contextChars = GetInt(args, "--context-chars", ContextBudget.DefaultMaxChars);
         var usePropMem = !args.Contains("--no-propmem");
         var propositionFile = GetValue(args, "--prop") ?? "agent_propositions.json";
         var distill = !args.Contains("--no-distill");
+        // The agent steps of a workflow are not a conversation: their own memory file, and no distilling.
+        if (workflow is not null)
+        {
+            distill = false;
+            if (memFile == MemoryPaths.DefaultName) memFile = "csflow_worker";   // unless a memory file was named
+        }
         var isApiMode = args.Contains("--api");
         var autoApprove = args.Contains("--yes") || args.Contains("-y") || args.Contains("--auto-approve");
         var host = GetValue(args, "--host") ?? ApiSecurity.DefaultHost;
@@ -108,7 +120,7 @@ public static class ArgumentParser
             codeModel, chatModel, autoRoute, initRouting, explainRouting, rulesFolder, language, prompt,
             contextChars, !args.Contains("--no-compact"), args.Contains("--verbose"), args.Contains("--all-tools"),
             mcpUrls, GetValues(args, "--mcp-stdio"), GetValues(args, "--mcp-header"),
-            mcpConfig);
+            mcpConfig, workflow, args.Contains("--fresh"));
     }
 
     private static string GetMemoryFile(string[] args)
@@ -123,7 +135,7 @@ public static class ArgumentParser
                           or "--task" or "--prop" or "--host" or "--api-key"
                           or "--endpoint" or "--vision-model" or "--code-model" or "--chat-model"
                           or "--explain-routing" or "--rules" or "--lang" or "--prompt" or "--context-chars"
-                          or "--mcp-url" or "--mcp-stdio" or "--mcp-header" or "--mcp-config")
+                          or "--mcp-url" or "--mcp-stdio" or "--mcp-header" or "--mcp-config" or "--workflow")
             { i++; continue; }
 
             if (args[i] != "--ui" && args[i] != "--leanui"

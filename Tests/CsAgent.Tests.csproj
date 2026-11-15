@@ -1,4 +1,4 @@
-<Project Sdk="Microsoft.NET.Sdk">
+<Project Sdk="Microsoft.NET.Sdk.Web">
 
 	<PropertyGroup>
 		<OutputType>Exe</OutputType>
@@ -29,6 +29,13 @@
 		<Compile Include="../Presentation/Tui/ConsoleObserver.cs" />
 		<Compile Include="../Presentation/Tui/ScriptObserver.cs" />
 		<Compile Include="../Presentation/Tui/ConsoleRenderer.cs" />
+		<!-- The API server, which the workflow command starts (needs ASP.NET Core: hence the Web SDK). -->
+		<Compile Include="../Infrastructure/**/*.cs" />
+		<Compile Include="../Presentation/Web/ApiHost.cs" />
+		<Compile Include="../Presentation/Web/ApiEndpoints.cs" />
+		<Compile Include="../Presentation/Web/AudioEndpoints.cs" />
+		<Compile Include="../Presentation/Web/SseObserver.cs" />
+		<Compile Include="../Presentation/Web/WorkflowHost.cs" />
 		<Compile Include="*.cs" />
 	</ItemGroup>
 

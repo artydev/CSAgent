@@ -46,6 +46,15 @@ public static class Program
             return 2;
         }
 
+        if (parsed.Workflow is not null && string.IsNullOrWhiteSpace(parsed.Workflow))
+        {
+            Console.Error.WriteLine(Loc.T("Usage: csagent --mcp-config mcp.json --workflow <file>   (runs a CSFlow workflow of its workflows folder)"));
+            return 2;
+        }
+
+        if (parsed.Workflow is not null)
+            return WorkflowHost.Run(parsed);
+
         // Headless API mode: no clipboard, no browser, no UI assets.
         if (parsed.IsApiMode)
             return ApiHost.Run(parsed);

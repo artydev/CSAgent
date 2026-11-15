@@ -44,6 +44,22 @@ internal static class French
         ["Usage: csagent --prompt \"<text>\"   (runs one request, prints the answer and exits)"] =
             "Usage : csagent --prompt \"<texte>\"   (exécute une demande, affiche la réponse puis quitte)",
 
+        // ── --workflow ──
+        ["Usage: csagent --mcp-config mcp.json --workflow <file>   (runs a CSFlow workflow of its workflows folder)"] =
+            "Usage : csagent --mcp-config mcp.json --workflow <fichier>   (exécute un workflow du dossier workflows de CSFlow)",
+        ["Error: no MCP server named \"csflow\". Give the mcp.json of CSFlow with --mcp-config (see the README)."] =
+            "Erreur : aucun serveur MCP nommé « csflow ». Indiquez le mcp.json de CSFlow avec --mcp-config (voir le README).",
+        ["Error: cannot start the agent on {0}: {1}"] = "Erreur : impossible de démarrer l'agent sur {0} : {1}",
+        ["--- CSAgent for the agent steps: {0} ---"] = "--- CSAgent pour les étapes « agent » : {0} ---",
+        ["Error: cannot start CSFlow: {0}"] = "Erreur : impossible de démarrer CSFlow : {0}",
+        ["Error: the \"csflow\" MCP server has no csflow_run / csflow_status tool. It must be FlowPortal --mcp."] =
+            "Erreur : le serveur MCP « csflow » n'a pas d'outil csflow_run / csflow_status. Ce doit être FlowPortal --mcp.",
+        ["Error: the workflow was not started: {0}"] = "Erreur : le workflow n'a pas démarré : {0}",
+        ["Stopped."] = "Arrêté.",
+        ["exit code {0}"] = "code de sortie {0}",
+        ["Workflow complete."] = "Workflow terminé.",
+        ["Workflow failed: {0}"] = "Le workflow a échoué : {0}",
+
         // ── --init-routing / --explain-routing ──
         ["  created    {0}"] = "  créé       {0}",
         ["  kept       {0} (already exists)"] = "  conservé   {0} (existe déjà)",

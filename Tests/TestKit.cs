@@ -87,6 +87,7 @@ static partial class Tests
         await RateLimitGroup();
         await QuotaFallbackGroup();
         await HttpClientsGroup();
+        await WorkflowGroup();
         await ContextBudgetGroup();
         await RoutingLocalization();
         await PromptOption();
