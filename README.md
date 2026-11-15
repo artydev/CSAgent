@@ -1,4 +1,4 @@
-# CSAgent — Agent de codage autonome multiplateforme
+# CSAgent — Agent de codage autonome multiplateforme 
 
 🌐 [English](README.md) · **Français**
 
