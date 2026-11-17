@@ -373,7 +373,7 @@ footer p { margin: 0 0 6px; max-width: 60ch; }
     <ul class="rel-stats">
       <li><b>23</b><span>versions</span></li>
       <li><b>41</b><span>jours, du 6 octobre au 15 novembre 2026</span></li>
-      <li><b>136 → 318</b><span>tests, de la 0.8.0 à la 0.9.16</span></li>
+      <li><b>136 → 318</b><span>tests, de la 0.8.0 à la 0.9.17</span></li>
     </ul>
   </div>
 </div>
@@ -383,6 +383,7 @@ footer p { margin: 0 0 6px; max-width: 60ch; }
     <h2 id="toc-h" class="sr-only">Sommaire</h2>
     <ul class="rel-toc">
       <li class="grp">Série 0.9</li>
+      <li><a href="#v0.9.17">v0.9.17</a></li>
       <li><a href="#v0.9.16">v0.9.16</a></li>
       <li><a href="#v0.9.15">v0.9.15</a></li>
       <li><a href="#v0.9.14">v0.9.14</a></li>
@@ -417,8 +418,25 @@ footer p { margin: 0 0 6px; max-width: 60ch; }
   <div class="wrap">
     <header>
       <h2 id="s0.9-h">Série 0.9</h2>
-      <p>Routage, économie de quota, MCP, nouveaux outils, workflows · Du 10 octobre au 15 novembre 2026</p>
+      <p>Routage, économie de quota, MCP, nouveaux outils, workflows · Du 10 octobre au 17 novembre 2026</p>
     </header>
+    <article class="rel" id="v0.9.17">
+      <div class="rel-meta">
+        <p class="rel-ver"><a href="#v0.9.17">v0.9.17</a></p>
+        <span class="rel-kind fix">Correctif</span>
+        <p class="rel-date">17 novembre 2026</p>
+        <p class="rel-tests">318 tests</p>
+      </div>
+      <div class="rel-body">
+        <h3>gpt-oss-120b&nbsp;: fin de l'erreur 400 avec une mémoire existante</h3>
+        <p>L'erreur <code>'NoneType' object is not an iterator</code> bloquait <code>gpt-oss-120b</code> dès qu'une conversation était déjà enregistrée.</p>
+        <ul>
+          <li>L'historique envoyé au modèle est nettoyé&nbsp;: champs <code>null</code> et champs propres au serveur retirés, <code>reasoning_content</code> conservé s'il est renseigné.</li>
+          <li>Les fichiers de mémoire ne sont pas modifiés&nbsp;: il n'est plus nécessaire de vider <code>conversation.json</code>.</li>
+        </ul>
+        <p class="rel-links"><a href="https://github.com/artydev/csagent/blob/main/releases/release-0.9.17.md">Note de version complète</a> <a href="https://github.com/artydev/csagent/releases/tag/v0.9.17">Étiquette v0.9.17</a></p>
+      </div>
+    </article>
     <article class="rel" id="v0.9.16">
       <div class="rel-meta">
         <p class="rel-ver"><a href="#v0.9.16">v0.9.16</a></p>
