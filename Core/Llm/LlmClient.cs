@@ -45,7 +45,7 @@ public sealed class LlmClient : IDisposable
         {
             ["model"]       = _model,
             ["temperature"] = 0.1,
-            ["messages"]    = messages.DeepClone()
+            ["messages"]    = SanitizeMessages(messages)
         };
         if (tools is { Count: > 0 })
         {
@@ -85,6 +85,37 @@ public sealed class LlmClient : IDisposable
         }
 
         throw new HttpRequestException("API retry loop exhausted unexpectedly.");
+    }
+
+    // Keys allowed on a chat message when it is sent back to the server. Anything else
+    // (reasoning, refusal, annotations, audio, ...) is echoed by some
+    // servers (vLLM / gpt-oss behind Albert) but is not valid input, and some servers crash on it.
+    private static readonly HashSet<string> AllowedKeys =
+        new(StringComparer.Ordinal) { "role", "content", "name", "tool_calls", "tool_call_id", "reasoning_content" };
+
+    /// <summary>
+    /// Returns a clean copy of the history: no null-valued fields (gpt-oss/vLLM iterates
+    /// <c>tool_calls</c> and fails with "'NoneType' object is not an iterator" when it is null),
+    /// no server-only extras, and a string <c>content</c> on every message.
+    /// </summary>
+    internal static JsonArray SanitizeMessages(JsonArray messages)
+    {
+        var result = new JsonArray();
+        foreach (var node in messages)
+        {
+            if (node is not JsonObject msg) { result.Add(node?.DeepClone()); continue; }
+
+            var clean = new JsonObject();
+            foreach (var (key, value) in msg)
+            {
+                if (value is null || !AllowedKeys.Contains(key)) continue;
+                if (key == "tool_calls" && value is JsonArray { Count: 0 }) continue;
+                clean[key] = value.DeepClone();
+            }
+            if (clean["content"] is null) clean["content"] = "";
+            result.Add(clean);
+        }
+        return result;
     }
 
     /// <summary>Tokens the API reported for the requests of this client (0 when the server sends no usage).</summary>
