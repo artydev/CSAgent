@@ -15,7 +15,7 @@ La version 0.9.18 corrige l'erreur HTTP 400 `Unexpected role 'tool' after role '
 |---|---|
 | Correction | Un résultat d'outil (`tool`) n'est plus jamais envoyé sans l'appel de l'assistant (`tool_calls`) qui le précède, et inversement |
 | Code | `Shared/JsonHelpers.cs` : nouvelle méthode `RepairToolPairs`, appelée à la fin de `TrimHistory` ; `Core/Llm/LlmClient.cs` : `SanitizeMessages` l'appelle aussi |
-| Tests | 331 tests (+6) : 6 nouveaux dans `ToolPairTests.cs` |
+| Tests | 324 tests (+6) : 6 nouveaux dans `ToolPairTests.cs` |
 
 Aucune option de ligne de commande ni variable d'environnement n'est ajoutée.
 
@@ -50,7 +50,7 @@ Elle est appelée à deux endroits :
 
 ## Tests
 
-331 tests (+6) : 6 nouveaux dans `Tests/ToolPairTests.cs`.
+324 tests (+6) : 6 nouveaux dans `Tests/ToolPairTests.cs`.
 
 - un résultat d'outil juste après un message `user` (l'erreur signalée) est retiré ;
 - une conversation valide, avec plusieurs appels dans un même tour, n'est pas modifiée ;
