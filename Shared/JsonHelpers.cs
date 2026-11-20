@@ -211,5 +211,68 @@ public static class JsonHelpers
             msgs.RemoveAt(i);
             // Don't increment i — after removal the next candidate is at the same index
         }
+
+        // Removing messages one by one can cut an assistant(tool_calls) turn away from its tool results.
+        // Strict servers (vLLM templates: mistral, gemma, ...) reject that with
+        // "Unexpected role 'tool' after role 'user'", so the pairs are repaired.
+        RepairToolPairs(msgs);
+    }
+
+    private static string RoleOf(JsonNode? m) =>
+        m?["role"] is JsonValue v && v.TryGetValue<string>(out var s) ? s : "";
+
+    private static string? ToolCallIdOf(JsonNode? m) =>
+        m?["tool_call_id"] is JsonValue v && v.TryGetValue<string>(out var s) ? s : null;
+
+    private static List<string> CallIdsOf(JsonNode? m)
+    {
+        var ids = new List<string>();
+        if (m?["tool_calls"] is JsonArray calls)
+            foreach (var c in calls)
+                if (c?["id"] is JsonValue v && v.TryGetValue<string>(out var s)) ids.Add(s);
+        return ids;
+    }
+
+    /// <summary>
+    /// Makes the tool-call structure valid for every server: a <c>tool</c> message must directly follow the
+    /// assistant message that made the call (or another <c>tool</c> message of the same call group), and an
+    /// assistant message with <c>tool_calls</c> must be followed by a result for each call.
+    /// Orphan tool results are removed; an assistant turn whose results are missing is removed with the
+    /// results that remain. Returns how many messages were removed. A valid conversation is not changed.
+    /// </summary>
+    public static int RepairToolPairs(JsonArray msgs)
+    {
+        int removed = 0;
+
+        // 1) tool results with no matching assistant tool call just before them
+        for (int i = msgs.Count - 1; i >= 0; i--)
+        {
+            if (RoleOf(msgs[i]) != "tool") continue;
+            int j = i - 1;
+            while (j >= 0 && RoleOf(msgs[j]) == "tool") j--;
+            var id = ToolCallIdOf(msgs[i]);
+            bool valid = j >= 0 && RoleOf(msgs[j]) == "assistant" && id != null && CallIdsOf(msgs[j]).Contains(id);
+            if (!valid) { msgs.RemoveAt(i); removed++; }
+        }
+
+        // 2) assistant tool calls whose results are missing (the turn is dropped as a whole)
+        for (int i = msgs.Count - 1; i >= 0; i--)
+        {
+            if (RoleOf(msgs[i]) != "assistant") continue;
+            var ids = CallIdsOf(msgs[i]);
+            if (ids.Count == 0) continue;
+
+            var answered = new HashSet<string>(StringComparer.Ordinal);
+            int k = i + 1;
+            while (k < msgs.Count && RoleOf(msgs[k]) == "tool")
+            {
+                if (ToolCallIdOf(msgs[k]) is { } id) answered.Add(id);
+                k++;
+            }
+            if (ids.All(answered.Contains)) continue;
+
+            for (int r = k - 1; r >= i; r--) { msgs.RemoveAt(r); removed++; }
+        }
+        return removed;
     }
 }

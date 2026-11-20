@@ -1,6 +1,7 @@
 using System.Net.Http.Headers;
 using System.Text;
 using System.Text.Json.Nodes;
+using CsAgent.Shared;
 
 namespace CsAgent.Core.Llm;
 
@@ -115,6 +116,9 @@ public sealed class LlmClient : IDisposable
             if (clean["content"] is null) clean["content"] = "";
             result.Add(clean);
         }
+        // Never send a tool result without its assistant tool call (or the reverse): strict servers answer
+        // 400 "Unexpected role 'tool' after role 'user'" (history cut by trimming, or written by another model).
+        JsonHelpers.RepairToolPairs(result);
         return result;
     }
 

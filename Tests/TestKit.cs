@@ -70,6 +70,8 @@ static partial class Tests
 
     static async Task RunGroups()
     {
+        await ContextBudgetGroup();
+        await ToolPairGroup();
         await MemoryLayers();
         await SemanticLifecycle();
         await Persistence();
