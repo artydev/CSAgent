@@ -648,7 +648,7 @@ html { scroll-padding-top: 76px; }
       <li><strong>Le modèle ne touche jamais le disque lui-même.</strong> Il demande un outil ; CsAgent vérifie la demande, vous consulte quand c'est important, puis l'exécute.</li>
       <li><strong>Une décision humaine dans le workflow.</strong> Une étape <code>human_approval</code> place la validation entre l'IA et toute action qui engage.</li>
       <li><strong>Libre et sans dépendance cachée.</strong> CsAgent est sous licence MIT, écrit en C# et sans paquet NuGet. FlowPortal publie aussi son code.</li>
-      <li><strong>Des tests.</strong> CsAgent compte 318 tests automatisés à la version 0.9.16, et chaque version a sa note publique.</li>
+      <li><strong>Des tests.</strong> CsAgent compte 331 tests automatisés à la version 0.9.19, et chaque version a sa note publique.</li>
     </ul>
   </div>
 </section>
@@ -1124,7 +1124,7 @@ dotnet publish -c Release -r <span data-fill="rid">linux-x64</span></pre></div>
     <div class="split wide-right">
       <div class="sec-head" style="margin:0">
         <h2 id="p3-status-h">Où il en est</h2>
-        <p class="lede">Version 0.9.17. Voici ce qui n'existe pas encore, pour que vous ne le découvriez pas à vos dépens.</p>
+        <p class="lede">Version 0.9.19. Voici ce qui n'existe pas encore, pour que vous ne le découvriez pas à vos dépens.</p>
       </div>
       <ul class="limits">
         <li>Les outils Excel et Outlook utilisent l'automatisation COM, donc ils ne fonctionnent que sous Windows.</li>
@@ -1311,9 +1311,9 @@ csagent</pre></div>
     <span class="part-no">Partie 5 sur 5</span><h2 class="part-title">Historique des versions</h2>
     <p class="lede">Toutes les versions de CsAgent depuis la 0.6.0 : ce que chacune ajoute ou corrige, avec sa date et le nombre de tests.</p>
     <ul class="rel-stats">
-      <li><b>23</b><span>versions</span></li>
-      <li><b>41</b><span>jours, du 6 octobre au 15 novembre 2026</span></li>
-      <li><b>136 → 318</b><span>tests, de la 0.8.0 à la 0.9.17</span></li>
+      <li><b>26</b><span>versions</span></li>
+      <li><b>46</b><span>jours, du 6 octobre au 20 novembre 2026</span></li>
+      <li><b>136 → 331</b><span>tests, de la 0.8.0 à la 0.9.19</span></li>
     </ul>
   </div>
 </div>
@@ -1323,6 +1323,8 @@ csagent</pre></div>
     <h2 id="p5-toc-h" class="sr-only">Sommaire</h2>
     <ul class="rel-toc">
       <li class="grp">Série 0.9</li>
+      <li><a href="#p5-v0.9.19">v0.9.19</a></li>
+      <li><a href="#p5-v0.9.18">v0.9.18</a></li>
       <li><a href="#p5-v0.9.17">v0.9.17</a></li>
       <li><a href="#p5-v0.9.16">v0.9.16</a></li>
       <li><a href="#p5-v0.9.15">v0.9.15</a></li>
@@ -1358,8 +1360,45 @@ csagent</pre></div>
   <div class="wrap">
     <header>
       <h2 id="p5-s0.9-h">Série 0.9</h2>
-      <p>Routage, économie de quota, MCP, nouveaux outils, workflows · Du 10 octobre au 17 novembre 2026</p>
+      <p>Routage, économie de quota, MCP, nouveaux outils, workflows · Du 10 octobre au 20 novembre 2026</p>
     </header>
+    <article class="rel" id="p5-v0.9.19">
+      <div class="rel-meta">
+        <p class="rel-ver"><a href="#p5-v0.9.19">v0.9.19</a></p>
+        <span class="rel-kind fix">Correctif</span>
+        <p class="rel-date">20 novembre 2026</p>
+        <p class="rel-tests">331 tests</p>
+      </div>
+      <div class="rel-body">
+        <h3>Fin de l'erreur «&nbsp;An error occurred while sending the request&nbsp;»</h3>
+        <p>Cette erreur apparaissait quand la connexion à l'API était coupée avant toute réponse, par exemple avec un modèle qui réfléchit longtemps comme gpt-oss.</p>
+        <ul>
+          <li>Une connexion perdue (réinitialisée, fermée par le serveur ou un proxy) est retentée 2 fois, après 2 s puis 4 s. Ces essais ne comptent pas dans ceux de la limite de débit 429.</li>
+          <li>Si l'échec persiste, le message nomme le serveur, le nombre d'essais, la cause réelle et une piste de vérification.</li>
+          <li>Un délai dépassé (5 minutes) et Ctrl+C ne sont pas retentés&nbsp;; les erreurs HTTP gardent leur comportement.</li>
+          <li>L'Explorateur de tests de Visual Studio fonctionne de nouveau&nbsp;: un groupe de tests lancé deux fois par la 0.9.18 est corrigé.</li>
+        </ul>
+        <p class="rel-links"><a href="https://github.com/artydev/csagent/blob/main/releases/release-0.9.19.md">Note de version complète</a> <a href="https://github.com/artydev/csagent/releases/tag/v0.9.19">Étiquette v0.9.19</a></p>
+      </div>
+    </article>
+    <article class="rel" id="p5-v0.9.18">
+      <div class="rel-meta">
+        <p class="rel-ver"><a href="#p5-v0.9.18">v0.9.18</a></p>
+        <span class="rel-kind fix">Correctif</span>
+        <p class="rel-date">20 novembre 2026</p>
+        <p class="rel-tests">324 tests</p>
+      </div>
+      <div class="rel-body">
+        <h3>Fin de l'erreur 400 «&nbsp;Unexpected role 'tool' after role 'user'&nbsp;»</h3>
+        <p>L'erreur apparaissait avec les serveurs à modèle de conversation strict (Mistral, Gemma…) quand l'historique avait été élagué ou quand on changeait de modèle.</p>
+        <ul>
+          <li>L'élagage de l'historique pouvait supprimer l'appel d'outil de l'assistant et garder son résultat&nbsp;: le serveur recevait un résultat d'outil sans appel.</li>
+          <li>Les résultats d'outils orphelins, et les tours dont un résultat manque, sont retirés avant l'envoi et après l'élagage. Une conversation valide n'est pas modifiée.</li>
+          <li>Les fichiers de mémoire ne sont pas modifiés&nbsp;: il n'est pas nécessaire de vider <code>conversation.json</code>.</li>
+        </ul>
+        <p class="rel-links"><a href="https://github.com/artydev/csagent/blob/main/releases/release-0.9.18.md">Note de version complète</a> <a href="https://github.com/artydev/csagent/releases/tag/v0.9.18">Étiquette v0.9.18</a></p>
+      </div>
+    </article>
     <article class="rel" id="p5-v0.9.17">
       <div class="rel-meta">
         <p class="rel-ver"><a href="#p5-v0.9.17">v0.9.17</a></p>
