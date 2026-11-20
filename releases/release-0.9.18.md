@@ -41,7 +41,7 @@ Les serveurs à modèle de conversation strict (vLLM : Mistral, Gemma et d'autre
 Elle est appelée à deux endroits :
 
 - à la fin de `TrimHistory`, pour que l'historique en mémoire reste valide après l'élagage ;
-- dans `SanitizeMessages` (introduite par la 0.9.17), pour que la copie envoyée au serveur soit valide quel que soit l'état du fichier de mémoire, y compris pour les conversations déjà enregistrées dans cet état.
+- dans `SanitizeMessages` (introduite par la 0.9.18), pour que la copie envoyée au serveur soit valide quel que soit l'état du fichier de mémoire, y compris pour les conversations déjà enregistrées dans cet état.
 
 ## Limites
 
