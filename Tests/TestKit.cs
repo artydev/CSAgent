@@ -72,6 +72,7 @@ static partial class Tests
     {
         await ContextBudgetGroup();
         await ToolPairGroup();
+        await ConnectionRetryGroup();
         await MemoryLayers();
         await SemanticLifecycle();
         await Persistence();

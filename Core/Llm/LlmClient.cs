@@ -35,7 +35,9 @@ public sealed class LlmClient : IDisposable
     /// <summary>
     /// Sends a chat-completions request, retrying transient HTTP 429 (rate limit)
     /// responses with exponential backoff. The server's <c>Retry-After</c> header is
-    /// honored when present. Other non-2xx statuses throw immediately.
+    /// honored when present. Other non-2xx statuses throw immediately. A connection lost before any
+    /// answer (reset, closed by the server) is retried <see cref="RetryPolicy.ConnectionRetries"/> times;
+    /// when it still fails, the message names the host and the real cause.
     /// </summary>
     public async Task<JsonNode> CompleteChatAsync(
         JsonArray messages,
@@ -56,12 +58,37 @@ public sealed class LlmClient : IDisposable
 
         var payload = body.ToJsonString();
 
+        int lost = 0;   // connections lost so far (before any answer); they do not use up the 429 attempts
         for (int attempt = 1; attempt <= _retry.MaxAttempts; attempt++)
         {
-            // StringContent is single-use, so rebuild the request each attempt.
-            var req = new StringContent(payload, Encoding.UTF8, "application/json");
-            var res = await _http.PostAsync($"{_baseUrl}/chat/completions", req, ct);
-            var raw = await res.Content.ReadAsStringAsync(ct);
+            HttpResponseMessage res;
+            string raw;
+            try
+            {
+                // StringContent is single-use, so rebuild the request each attempt.
+                var req = new StringContent(payload, Encoding.UTF8, "application/json");
+                res = await _http.PostAsync($"{_baseUrl}/chat/completions", req, ct);
+                raw = await res.Content.ReadAsStringAsync(ct);
+            }
+            catch (OperationCanceledException ex) when (!ct.IsCancellationRequested)
+            {
+                // Not cancelled by the caller: the HttpClient timeout elapsed. Not retried (it would wait as long again).
+                throw new HttpRequestException(
+                    $"No answer from {Host(_baseUrl)} within {(int)_http.Timeout.TotalMinutes} minutes (timeout). " +
+                    "The request may be too large or the model too slow: start a new conversation or send less text.", ex);
+            }
+            catch (Exception ex) when ((ex is HttpRequestException or IOException) && !ct.IsCancellationRequested)
+            {
+                // The connection failed before a complete answer arrived (reset, closed by the server, DNS, TLS...).
+                if (lost < _retry.ConnectionRetries)
+                {
+                    lost++;
+                    await Task.Delay(_retry.ConnectionDelayMs * (1 << (lost - 1)), ct);
+                    attempt--;       // this try does not count as a rate-limit attempt
+                    continue;
+                }
+                throw new HttpRequestException(DescribeNetworkError(ex, _baseUrl, lost + 1), ex);
+            }
 
             if (res.IsSuccessStatusCode)
             {
@@ -87,6 +114,37 @@ public sealed class LlmClient : IDisposable
 
         throw new HttpRequestException("API retry loop exhausted unexpectedly.");
     }
+
+    /// <summary>
+    /// A readable message for a failed connection: the host, how many tries were made, the whole chain of
+    /// causes (.NET only says "An error occurred while sending the request" on the outer exception) and,
+    /// for the usual causes, what to check.
+    /// </summary>
+    internal static string DescribeNetworkError(Exception ex, string baseUrl, int attempts)
+    {
+        var causes = new List<string>();
+        for (Exception? e = ex; e is not null; e = e.InnerException)
+        {
+            var m = e.Message.Trim();
+            if (e is System.Net.Sockets.SocketException se) m = $"{m} ({se.SocketErrorCode})";
+            if (m.Length > 0 && !causes.Contains(m)) causes.Add(m);
+        }
+        var chain = string.Join(" -> ", causes);
+        var lower = chain.ToLowerInvariant();
+        string hint =
+            lower.Contains("refused")                                   ? "Nothing answers at this address: check the endpoint (--endpoint) and that the server is running."
+          : lower.Contains("name or service not known") || lower.Contains("no such host") || lower.Contains("nodename")
+                                                                         ? "The server name cannot be resolved: check the endpoint spelling, the network and the VPN."
+          : lower.Contains("ssl") || lower.Contains("tls") || lower.Contains("certificate")
+                                                                         ? "The secure connection failed: check the proxy, the certificate and the system clock."
+          : lower.Contains("prematurely") || lower.Contains("reset") || lower.Contains("forcibly") || lower.Contains("closed")
+                                                                         ? "The server or a proxy closed the connection without answering: server overloaded, or request too large or too slow. Try again, or start a new conversation."
+          : "Check the network, the proxy and the endpoint.";
+        return $"Connection to {Host(baseUrl)} failed after {attempts} attempt{(attempts == 1 ? "" : "s")}: {chain}. {hint}";
+    }
+
+    private static string Host(string baseUrl) =>
+        Uri.TryCreate(baseUrl, UriKind.Absolute, out var u) ? u.Authority : baseUrl;
 
     // Keys allowed on a chat message when it is sent back to the server. Anything else
     // (reasoning, refusal, annotations, audio, ...) is echoed by some

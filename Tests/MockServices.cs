@@ -24,6 +24,10 @@ sealed class MockLlm : IDisposable
     public List<JsonNode> Requests { get; } = new();
     public Func<JsonNode, (int status, JsonNode body, int delayMs)> Handler { get; set; } = _ => (500, new JsonObject(), 0);
     readonly CancellationTokenSource _cts = new();
+    /// <summary>The first N connections are closed after the request is read, without any answer (a server that drops).</summary>
+    public int DropFirst { get; set; }
+    int _connections;
+    public int Dropped;
 
     public MockLlm()
     {
@@ -52,6 +56,12 @@ sealed class MockLlm : IDisposable
             {
                 var stream = client.GetStream();
                 var node = JsonNode.Parse(await ReadBodyAsync(stream))!;
+                if (Interlocked.Increment(ref _connections) <= DropFirst)
+                {
+                    Interlocked.Increment(ref Dropped);
+                    client.Client.LingerState = new LingerOption(true, 0);   // closing sends a reset
+                    return;
+                }
 
                 (int status, JsonNode resp, int delay) r;
                 lock (Requests) { Requests.Add(node); r = Handler(node); }
