@@ -32,6 +32,9 @@ public sealed class LlmClient : IDisposable
         set => _model = value;
     }
 
+    /// <summary>Raised when a "context too long" error made the client shorten the history and retry.</summary>
+    public event Action<string>? ContextShrunk;
+
     /// <summary>
     /// Sends a chat-completions request, retrying transient HTTP 429 (rate limit)
     /// responses with exponential backoff. The server's <c>Retry-After</c> header is
@@ -57,6 +60,7 @@ public sealed class LlmClient : IDisposable
         }
 
         var payload = body.ToJsonString();
+        int shrinks = 0;   // context-length recoveries so far (see ContextRecovery)
 
         int lost = 0;   // connections lost so far (before any answer); they do not use up the 429 attempts
         for (int attempt = 1; attempt <= _retry.MaxAttempts; attempt++)
@@ -104,6 +108,19 @@ public sealed class LlmClient : IDisposable
                 var kind = RateLimit.Classify(raw);
                 if (kind == RateLimitKind.Day || attempt == _retry.MaxAttempts)
                     throw new RateLimitException($"API 429: {raw}", kind);
+            }
+            else if ((int)res.StatusCode == 400 && shrinks < ContextRecovery.MaxRecoveries
+                     && ContextRecovery.IsContextOverflow(raw, out var limitTokens, out var actualTokens))
+            {
+                // The prompt is longer than the model window: shrink the history (in place, so the next step starts
+                // small too) and send it again. This try does not count as a rate-limit attempt.
+                shrinks++;
+                int removed = ContextRecovery.Shrink(messages, limitTokens, actualTokens, shrinks);
+                ContextShrunk?.Invoke(Loc.F($"Context too long for the model ({actualTokens:N0} > {limitTokens:N0} tokens): older history shortened ({removed:N0} characters removed), retrying."));
+                body["messages"] = SanitizeMessages(messages);
+                payload = body.ToJsonString();
+                attempt--;
+                continue;
             }
             else
                 throw new HttpRequestException($"API {(int)res.StatusCode}: {raw}");

@@ -17,6 +17,8 @@ public static class ContextBudget
     public const int MinMaxChars = 8_000;
     public const int KeepRecentToolResults = 6;
     public const int OldToolResultChars = 1_500;
+    /// <summary>Images kept in the history: the newest multimodal message. Older images become a text note (base64 is huge and never evicted by TrimHistory).</summary>
+    public const int KeepImages = 1;
 
     public static int MaxChars { get; private set; } = DefaultMaxChars;
     public static bool Compact { get; private set; } = true;

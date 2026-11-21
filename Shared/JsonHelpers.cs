@@ -176,7 +176,7 @@ public static class JsonHelpers
     /// <summary>
     /// Trim conversation history to stay under the character threshold.
     /// Keeps the system message (index 0) and at least 3 messages.
-    /// Multimodal messages (those containing image_url blocks) are never evicted:
+    /// Multimodal messages (those containing image_url blocks) are never evicted here (older images are first replaced by a text note, see ContextRecovery.StubOldImages):
     /// removing them would corrupt the conversation context while the saved file
     /// still references them, causing the API to reject subsequent requests.
     /// </summary>

@@ -1,0 +1,93 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>CSAgent Console</title>
+    <link href="styles.css" rel="stylesheet" />
+
+    <!-- Prism.js Dracula Theme -->
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/themes/prism-dracula.min.css" rel="stylesheet" />
+
+    <!-- Marked.js v12.0.1 -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/marked/12.0.1/marked.min.js"></script>
+
+    <!-- Prism.js Core -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/prism.min.js"></script>
+
+    <!-- Prism Language Components (loaded synchronously so they are instantly available) -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/components/prism-markup.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/components/prism-clike.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/components/prism-javascript.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/components/prism-css.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/components/prism-csharp.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/components/prism-python.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/components/prism-bash.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/components/prism-json.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/components/prism-sql.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/components/prism-typescript.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/components/prism-java.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/components/prism-yaml.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/components/prism-xml-doc.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/components/prism-powershell.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/components/prism-docker.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/components/prism-go.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/components/prism-rust.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/components/prism-nasm.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/components/prism-lua.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/components/prism-php.min.js"></script>
+
+</head>
+<body>
+    <div class="container">
+        <header>
+            <div class="brand">
+                <h2>
+                    <span class="status-dot"></span>
+                    CSAgent
+                    <span class="version">v0.9.20</span>
+                </h2>
+            </div>
+            <div class="status">
+                <span class="status-dot"></span>
+                <span id="step-counter">Ready</span>
+            </div>
+        </header>
+        <div id="log"></div>
+        <div class="input-area">
+            <div id="voiceCard" style="display:none">
+                <div id="voiceStatus"></div>
+                <div id="voiceText" style="display:none"></div>
+                <div id="voiceActions" style="display:none">
+                    <button id="voiceUseBtn" title="Put the text in the prompt box">Use as instruction</button>
+                    <button id="voiceKeepBtn" title="Keep it as a file, to attach to your next prompt">Keep as text</button>
+                    <button id="voiceCloseBtn">Close</button>
+                </div>
+            </div>
+            <div class="input-row">
+                <input id="in"
+                       autocomplete="off"
+                       placeholder="Ask CSAgent anything... (All destructive actions require approval)">
+                <input id="imageInput" type="file" accept="image/png,image/jpeg,image/gif,image/webp" style="display:none" />
+                <span id="attachBtn" title="Attach image for vision analysis">📎</span>
+                <span id="micBtn" title="Record your voice (transcribed with Whisper)">🎙</span>
+                <select id="voiceLang" title="Language you speak (used for the transcription)">
+                    <option value="fr">FR</option>
+                    <option value="en">EN</option>
+                    <option value="">Auto</option>
+                </select>
+                <span id="textChipWrap" style="display:none">
+                    <span id="textChip"></span>
+                    <span id="clearTextBtn" title="Remove the text file">✕</span>
+                </span>
+                <span id="imagePreviewWrap" style="display:none">
+                    <img id="imagePreview" alt="attached" />
+                    <span id="clearImageBtn" title="Remove image">✕</span>
+                </span>
+                <button id="stopBtn" title="Stop generation (Esc)">■ Stop</button>
+            </div>
+        </div>
+    </div>
+    <script type="module" src="app.js"></script>
+</body>
+</html>

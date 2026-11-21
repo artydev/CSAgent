@@ -37,6 +37,7 @@ public sealed class CodingAgent : IDisposable
         _opts = opts;
         _observer = observer;
         _client = new LlmClient(apiKey, endpoint, model, opts.Retry);
+        _client.ContextShrunk += msg => _ = _observer.OnWarning(msg);   // "context too long": history shortened, retrying
         _endpoint = endpoint;
         _tracker = opts.Tracker;
         _memory = memory;                 // ← add this line
@@ -312,6 +313,10 @@ public sealed class CodingAgent : IDisposable
                 if (ContextBudget.Compact)
                     JsonHelpers.CompactToolResults(messages,
                         Math.Max(ContextBudget.KeepRecentToolResults, toolCalls.Count), ContextBudget.OldToolResultChars);
+
+                // Images from earlier turns are only a text note from now on (also in the saved conversation).
+                if (ContextBudget.Compact)
+                    ContextRecovery.StubOldImages(messages, ContextBudget.KeepImages);
 
                 await MemoryStore.SaveAsync(paths.Conversation, messages);
 

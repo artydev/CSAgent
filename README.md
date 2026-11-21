@@ -383,7 +383,7 @@ Le routage peut être ajusté sans recompiler. Créez le dossier avec `csagent -
 | `--max-retries <n>` | Nombre maximal de tentatives pour les erreurs HTTP 429 (limite de débit), première requête comprise (par défaut : `6`). Voir [Gestion des erreurs 429](https://artydev.github.io/csagent/gestion-429.html) |
 | `--retry-delay <ms>` | Délai de base (en ms) avant la première nouvelle tentative (par défaut : `1000`) |
 | `--context-chars <n>` | Taille au-delà de laquelle les plus anciens messages sont retirés de l'historique renvoyé à chaque étape (par défaut : `96000`, minimum `8000`). Plus elle est petite, moins on consomme de jetons d'entrée |
-| `--no-compact` | Garde les anciens résultats d'outils en entier (par défaut, ceux au-delà des 6 derniers sont coupés à 1 500 caractères dans l'historique, et l'agent peut relancer l'outil) |
+| `--no-compact` | Garde les anciens résultats d'outils en entier et les anciennes images (par défaut, les résultats au-delà des 6 derniers sont coupés à 1 500 caractères dans l'historique, et l'agent peut relancer l'outil ; seule la dernière image est gardée) |
 | `--all-tools` | Décrit tous les outils au modèle à chaque étape (par défaut, seuls ceux utiles à la demande sont décrits, voir [Outils disponibles](#outils-disponibles)) |
 | `--no-distill` | Ne résume pas la session à la fin d'une exécution (économise un appel LLM ; voir [Distillation de session](#distillation-de-session-entre-les-sessions)) |
 | `--help`, `-h`, `/?` | Affiche l'aide et quitte |
