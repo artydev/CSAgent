@@ -134,6 +134,9 @@ public sealed class CodingAgent : IDisposable
 
         try
         {
+            // A resumed session may already be over the threshold: compress before the first step.
+            await MaybeCompressAsync(messages, paths);
+
             for (int step = 1; step <= _opts.MaxSteps; step++)
 
 
@@ -340,32 +343,7 @@ public sealed class CodingAgent : IDisposable
 
 
 
-                // Long sessions: past the threshold, the oldest messages become one saved recap
-                // (aichat compress_threshold). TrimHistory below stays the hard safety net.
-                if (ContextBudget.CompressEnabled
-                    && SessionCompressor.ShouldCompress(messages, ContextBudget.CompressChars))
-                {
-                    RemoveMemoryMessages(messages);     // injected blocks are rebuilt at the next step
-                    RemoveSessionContext(messages);
-                    try
-                    {
-                        var beforeCompress = messages.ToList();
-                        if (await SessionCompressor.CompressAsync(
-                                messages, _client, ContextBudget.KeepRecentMessages, _cts.Token))
-                        {
-                            // The summary keeps the gist; the exact messages go to the archive (recall).
-                            // Archived before the save, so a crash in between loses nothing.
-                            ArchiveRemoved(beforeCompress, messages, paths);
-                            await _observer.OnWarning(Loc.T("Session compressed: older messages replaced by a summary."));
-                            await MemoryStore.SaveAsync(paths.Conversation, messages);
-                        }
-                    }
-                    catch (Exception ex) when (ex is not OperationCanceledException)
-                    {
-                        // Never fatal: TrimHistory still bounds the size.
-                        await _observer.OnWarning($"Session compression skipped: {ex.Message}");
-                    }
-                }
+                await MaybeCompressAsync(messages, paths);
 
                 var beforeTrim = messages.ToList();
                 JsonHelpers.TrimHistory(messages, ContextBudget.MaxChars);
@@ -427,6 +405,36 @@ public sealed class CodingAgent : IDisposable
         if (_toolDefinitions is null) return null;
         if (!ToolSelector.Enabled) return _toolDefinitions;
         return ToolSelector.Build(ToolDispatcher.ToolDefinitions, _mcpDefinitions, _toolGroups, _mcpOn, all: false);
+    }
+
+    /// <summary>
+    /// Long sessions: past the threshold, the oldest messages become one saved recap (aichat compress_threshold).
+    /// TrimHistory stays the hard safety net. Never fatal.
+    /// </summary>
+    private async Task MaybeCompressAsync(JsonArray messages, MemoryPaths paths)
+    {
+        if (!ContextBudget.CompressEnabled
+            || !SessionCompressor.ShouldCompress(messages, ContextBudget.CompressChars)) return;
+
+        RemoveMemoryMessages(messages);     // injected blocks are rebuilt at the next step
+        RemoveSessionContext(messages);
+        try
+        {
+            var beforeCompress = messages.ToList();
+            if (await SessionCompressor.CompressAsync(
+                    messages, _client, ContextBudget.KeepRecentMessages, _cts!.Token))
+            {
+                // The summary keeps the gist; the exact messages go to the archive (recall).
+                // Archived before the save, so a crash in between loses nothing.
+                ArchiveRemoved(beforeCompress, messages, paths);
+                await _observer.OnWarning(Loc.T("Session compressed: older messages replaced by a summary."));
+                await MemoryStore.SaveAsync(paths.Conversation, messages);
+            }
+        }
+        catch (Exception ex) when (ex is not OperationCanceledException)
+        {
+            await _observer.OnWarning($"Session compression skipped: {ex.Message}");
+        }
     }
 
     /// <summary>The text of the last user message of the conversation (what the person asked), without the memory blocks.</summary>

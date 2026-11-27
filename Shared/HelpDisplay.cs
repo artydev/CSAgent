@@ -121,6 +121,8 @@ public static class HelpDisplay
         Console.WriteLine("    --compress-threshold <n> Size (characters) above which old messages are replaced by a");
         Console.WriteLine("                       summary (default: two thirds of --context-chars)");
         Console.WriteLine("    --no-compress     Do not summarise old messages; only drop the oldest at --context-chars");
+        Console.WriteLine("    --no-save         Write nothing to the memory folder (a disposable session; an existing");
+        Console.WriteLine("                       one is still read). .save <name> keeps the conversation");
         Console.WriteLine("    --quiet, -q       CLI, --ui, --leanui: show only the assistant's messages, warnings");
         Console.WriteLine("                       and errors (hides steps, tool calls and results; a tool call is");
         Console.WriteLine("                       still shown when it asks for your confirmation). Not used by --api");
@@ -153,6 +155,7 @@ public static class HelpDisplay
         Console.WriteLine("    .session          Folder, messages, size, summarised or not");
         Console.WriteLine("    .list             Sessions in this folder (* = current)");
         Console.WriteLine("    .save [name]      Save now, or copy the session to a new named folder");
+        Console.WriteLine("    .use <name>       Switch to another session (a new name starts a new one)");
         Console.WriteLine("    .compress         Summarise the older messages now");
         Console.WriteLine("    .empty            Clear the current session (system prompt kept)");
         Console.WriteLine("    .delete <name>    Delete another session (asks for confirmation)");

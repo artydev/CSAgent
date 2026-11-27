@@ -39,7 +39,9 @@ The precise prompt format, summarisation policy and persistence timing should be
 
 Since version 0.9.21, a session (the memory folder chosen with --mem or --session) can run for a long time. When the history reaches a threshold (two thirds of --context-chars by default, adjustable with --compress-threshold), the oldest messages are replaced by one LLM-written recap, stored as a `[CONVERSATION SUMMARY]` message in conversation.json. The 12 most recent messages are kept, the cut is always at a user message so tool calls stay paired with their results, and TrimHistory never evicts the recap or the injected `[SESSION CONTEXT]` block first. --no-compress turns this off. If the summary call fails, a warning is shown and the run continues.
 
-In the terminal, session commands are typed at the prompt: .help, .session, .list, .save [name], .compress, .empty and .delete <name>. They are not available in the Web UI, Lean UI or API modes, which still compress automatically.
+In the terminal, session commands are typed at the prompt: .help, .session, .list, .save [name], .use <name>, .compress, .empty and .delete <name>. They are not available in the Web UI, Lean UI or API modes, which still compress automatically.
+
+Since version 0.9.23, .use <name> switches to another session without quitting (the current one is saved first, and the step and lesson memory restart from the new session), --no-save makes a session disposable (nothing is written to the memory folder; .save <name> keeps the conversation), compression also works inside one long tool loop (the cut is then at an assistant message) and a resumed session that is already over the threshold is compressed before its first step.
 
 SessionCompressTests.cs covers the cut point, tool-call pairing, recap protection in TrimHistory, .empty and the option parsing. The call that writes the summary is not covered by tests.
 

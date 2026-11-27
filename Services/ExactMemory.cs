@@ -60,6 +60,7 @@ namespace CsAgent.Services
 
         public async Task SaveAsync(string path)
         {
+            if (!CsAgent.Core.Memory.SessionPersistence.Enabled) return;   // --no-save
             var arr = new JsonArray();
             foreach (var e in Snapshot())
                 arr.Add(new JsonObject

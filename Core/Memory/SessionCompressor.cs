@@ -27,6 +27,8 @@ public static class SessionCompressor
     public const string SummaryIntro = "This is a summary of the chat history as a recap: ";
 
     private const int MaxInputChars = 24_000;
+    /// <summary>Fewer older messages than this (the previous recap included): no model call.</summary>
+    private const int MinOlderMessages = 4;
 
     public static bool IsSummary(JsonNode? m) => TextOf(m?["content"]).StartsWith(Marker, StringComparison.Ordinal);
 
@@ -45,14 +47,18 @@ public static class SessionCompressor
         messages.Count > 4 && SizeChars(messages) >= thresholdChars;
 
     /// <summary>
-    /// Index of the first message to KEEP verbatim: a user message with at most <paramref name="keepRecent"/>
-    /// messages after it, so an assistant(tool_calls) turn is never separated from its tool results.
-    /// -1 when there is nothing worth compressing.
+    /// Index of the first message to KEEP verbatim, so an assistant(tool_calls) turn is never separated from
+    /// its tool results: a user message with at most <paramref name="keepRecent"/> messages after it; when the
+    /// recent messages are one long tool loop (no user message in them), an assistant message instead
+    /// (the tool results that follow it stay with it). -1 when there is nothing worth compressing.
     /// </summary>
     internal static int FindCut(JsonArray messages, int keepRecent)
     {
-        for (int i = Math.Max(2, messages.Count - keepRecent); i < messages.Count; i++)
+        var from = Math.Max(2, messages.Count - keepRecent);
+        for (int i = from; i < messages.Count; i++)
             if (RoleOf(messages[i]) == "user" && !IsSummary(messages[i])) return i;
+        for (int i = from; i < messages.Count; i++)
+            if (RoleOf(messages[i]) == "assistant") return i;
         // Every recent message belongs to one long tool loop: fall back to the closest user message before it.
         for (int i = Math.Min(messages.Count - keepRecent, messages.Count) - 1; i >= 2; i--)
             if (RoleOf(messages[i]) == "user" && !IsSummary(messages[i])) return i;
@@ -64,7 +70,7 @@ public static class SessionCompressor
         JsonArray messages, LlmClient client, int keepRecent, CancellationToken ct)
     {
         var cut = FindCut(messages, keepRecent);
-        if (cut < 2) return false;                       // index 0 = system message
+        if (cut - 1 < MinOlderMessages) return false;    // index 0 = system message; too little to be worth a call
 
         var older = new JsonArray();
         for (int i = 1; i < cut; i++) older.Add(messages[i]!.DeepClone());

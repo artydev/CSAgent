@@ -209,7 +209,7 @@ Five TODOs in four files. I'll group them by file in TODO.md.
             <li><strong>La compression de la conversation</strong>&nbsp;: quand l'historique grossit (les deux tiers de <code>--context-chars</code> par défaut), un résumé de 300&nbsp;mots remplace les anciens messages et reste enregistré avec la conversation. <code>--compress-threshold &lt;n&gt;</code> règle le seuil, <code>--no-compress</code> la désactive.</li>
             <li><strong>L'archive</strong>&nbsp;: les messages résumés ou retirés du contexte ne sont plus perdus. Ils sont ajoutés à <code>archive.jsonl</code>, et l'outil <code>recall</code> y retrouve le texte exact (décisions, erreurs, commandes) par mots-clés, en français et en anglais.</li>
           </ul>
-          <p style="margin-top:1em">Chaque projet a sa propre mémoire, appelée session, avec <code>--session nom</code> (ou <code>--mem nom</code>). C'est un dossier de JSON ordinaire, que vous pouvez lire, modifier ou supprimer. Elle est reprise automatiquement au lancement suivant. À l'invite, <code>.session</code>, <code>.list</code>, <code>.save [nom]</code>, <code>.compress</code>, <code>.empty</code> et <code>.delete nom</code> la gèrent.</p>
+          <p style="margin-top:1em">Chaque projet a sa propre mémoire, appelée session, avec <code>--session nom</code> (ou <code>--mem nom</code>). C'est un dossier de JSON ordinaire, que vous pouvez lire, modifier ou supprimer. Elle est reprise automatiquement au lancement suivant. À l'invite, <code>.session</code>, <code>.list</code>, <code>.save [nom]</code>, <code>.use nom</code>, <code>.compress</code>, <code>.empty</code> et <code>.delete nom</code> la gèrent. Avec <code>--no-save</code>, rien n'est écrit&nbsp;: la session est jetable.</p>
         </div>
         <div>
           <div class="pre-wrap"><pre class="pre"><span class="d">agent_memory/</span>
@@ -533,7 +533,7 @@ dotnet publish -c Release -r <span data-fill="rid">linux-x64</span></pre></div>
     <div class="split wide-right">
       <div class="sec-head" style="margin:0">
         <h2 id="status-h">Où il en est</h2>
-        <p class="lede">Version 0.9.22. Voici ce qui n'existe pas encore, pour que vous ne le découvriez pas à vos dépens.</p>
+        <p class="lede">Version 0.9.23. Voici ce qui n'existe pas encore, pour que vous ne le découvriez pas à vos dépens.</p>
       </div>
       <ul class="limits">
         <li>Les outils Excel et Outlook utilisent l'automatisation COM, donc ils ne fonctionnent que sous Windows.</li>

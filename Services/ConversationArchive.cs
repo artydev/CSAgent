@@ -58,6 +58,8 @@ public static class ConversationArchive
     /// </summary>
     public static int ArchiveRemoved(IReadOnlyList<JsonNode?> before, JsonArray after, string archivePath, DateTime? now = null)
     {
+        if (!CsAgent.Core.Memory.SessionPersistence.Enabled) return 0;   // --no-save: nothing is written
+
         var kept = new HashSet<JsonNode>(ReferenceEqualityComparer.Instance);
         foreach (var m in after)
             if (m is not null) kept.Add(m);

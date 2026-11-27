@@ -1,5 +1,6 @@
 using CsAgent.Core.Agent;
 using CsAgent.Core.Llm;
+using CsAgent.Core.Memory;
 using System.Text;
 using CsAgent.Infrastructure.Clipboard;
 using CsAgent.Presentation.LeanUI;
@@ -11,7 +12,7 @@ namespace CsAgent;
 
 public static class Program
 {
-    public const string Version = "0.9.22";
+    public const string Version = "0.9.23";
 
     [STAThread]
     public static int Main(string[] args)
@@ -26,6 +27,7 @@ public static class Program
         RoutingRules.FolderOverride = parsed.RulesFolder;
         ContextBudget.Configure(parsed.ContextChars, parsed.CompactToolResults);
         ContextBudget.ConfigureCompression(parsed.CompressChars, parsed.Compress);
+        SessionPersistence.Configure(!parsed.NoSave);
         ToolSelector.Configure(parsed.AllTools);
 
         if (parsed.ShowHelp) { HelpDisplay.Show(Version); return 0; }

@@ -50,7 +50,8 @@ public sealed record AgentArguments(
     string? Workflow = null,
     bool Fresh = false,
     int CompressChars = 0,
-    bool Compress = true);
+    bool Compress = true,
+    bool NoSave = false);
 
 /// <summary>
 /// Pure argument parsing — no side effects, no console output.
@@ -83,6 +84,8 @@ public static class ArgumentParser
         var usePropMem = !args.Contains("--no-propmem");
         var propositionFile = GetValue(args, "--prop") ?? "agent_propositions.json";
         var distill = !args.Contains("--no-distill");
+        var noSave = args.Contains("--no-save");
+        if (noSave) distill = false;   // nothing is written, so the end-of-run summary would be lost
         // The agent steps of a workflow are not a conversation: their own memory file, and no distilling.
         if (workflow is not null)
         {
@@ -123,7 +126,7 @@ public static class ArgumentParser
             contextChars, !args.Contains("--no-compact"), args.Contains("--verbose"), args.Contains("--all-tools"),
             mcpUrls, GetValues(args, "--mcp-stdio"), GetValues(args, "--mcp-header"),
             mcpConfig, workflow, args.Contains("--fresh"),
-            GetInt(args, "--compress-threshold", 0), !args.Contains("--no-compress"));
+            GetInt(args, "--compress-threshold", 0), !args.Contains("--no-compress"), noSave);
     }
 
     private static string GetMemoryFile(string[] args)
