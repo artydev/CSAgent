@@ -130,7 +130,22 @@ public static class TuiHost
             if (input is null) break; // end of input (pipe closed): stop instead of looping forever
             if (string.IsNullOrWhiteSpace(input)) continue;
             if (input.Trim().Equals("exit", StringComparison.OrdinalIgnoreCase)) break;
-            if (await SessionCommands.TryHandleAsync(input, messages, args, apiKey)) continue;
+            var cmd = await SessionCommands.TryHandleAsync(input, messages, args, apiKey);
+            if (cmd.SwitchTo is { } target)
+            {
+                // Keep the session we leave (honours --no-save), then load the other one.
+                await MemoryStore.SaveAsync(MemoryPaths.Resolve(args.MemoryFile).Conversation, messages);
+                var loaded = await MemoryStore.LoadAsync(MemoryPaths.Resolve(target).Conversation);
+                var isNew = loaded.Count == 0;
+                if (isNew) loaded.Add(CodingAgent.SystemMessage(OperatingSystem.IsWindows()));
+                messages.Clear();
+                foreach (var m in loaded) messages.Add(m?.DeepClone());
+                args = args with { MemoryFile = target };
+                // New step/lesson memory: the lessons of the session we left must not leak into this one.
+                memory = new HybridMemoryManager(new SemanticMemory(), new ExactMemory());
+                Console.WriteLine(isNew ? $"  New session '{target}'." : $"  Switched to session '{target}' ({messages.Count} messages).");
+            }
+            if (cmd.Handled) continue;
             await TurnAsync(input);
         }
         return 0;

@@ -203,6 +203,7 @@ public class SemanticMemory
 
     public async Task SaveAsync(string path)
     {
+        if (!CsAgent.Core.Memory.SessionPersistence.Enabled) return;   // --no-save
         SemanticEntry[] snapshot;
         lock (_gate) snapshot = _patterns.ToArray();
 

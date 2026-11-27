@@ -9,13 +9,39 @@ namespace CsAgent.Presentation.Tui;
 
 /// <summary>
 /// aichat-like session commands for the interactive prompt:
-/// <c>.session</c> (info), <c>.compress</c>, <c>.empty</c>, <c>.list</c>.
+/// <c>.session</c> (info), <c>.list</c>, <c>.save</c>, <c>.use</c>, <c>.compress</c>, <c>.empty</c>, <c>.delete</c>.
 /// A session is the memory folder chosen with <c>--mem</c> / <c>--session</c>.
 /// </summary>
 public static class SessionCommands
 {
+    /// <summary>
+    /// <paramref name="Handled"/>: the input was a session command (whatever the outcome).
+    /// <paramref name="SwitchTo"/>: the name of the session to load next (".use"); the caller does the switch.
+    /// </summary>
+    public readonly record struct Result(bool Handled, string? SwitchTo = null);
+
+    public static async Task<Result> TryHandleAsync(
+        string input, JsonArray messages, AgentArguments args, string apiKey)
+    {
+        var t = input.Trim();
+        if (t.Equals(".use", StringComparison.OrdinalIgnoreCase)
+            || t.StartsWith(".use ", StringComparison.OrdinalIgnoreCase))
+            return Use(t.Length > 4 ? t[4..].Trim() : "", args);
+        return new Result(await HandleAsync(input, messages, args, apiKey));
+    }
+
+    private static Result Use(string name, AgentArguments args)
+    {
+        if (name.Length == 0) { Console.WriteLine("  Usage: .use <name>   (see .list; a new name starts a new session)"); return new(true); }
+        if (name.IndexOfAny(Path.GetInvalidFileNameChars()) >= 0 || name is "." or ".." || name.Contains(' '))
+        { Console.WriteLine("  Invalid name: use letters, digits, - and _ only."); return new(true); }
+        if (Path.GetFullPath(name) == Path.GetFullPath(MemoryPaths.Resolve(args.MemoryFile).Directory))
+        { Console.WriteLine($"  Already in session '{name}'."); return new(true); }
+        return new(true, name);
+    }
+
     /// <summary>True when the input was a session command (handled, whatever the outcome).</summary>
-    public static async Task<bool> TryHandleAsync(
+    private static async Task<bool> HandleAsync(
         string input, JsonArray messages, AgentArguments args, string apiKey)
     {
         var trimmed = input.Trim();
@@ -27,8 +53,13 @@ public static class SessionCommands
         // ".save" (flush now) or ".save <name>" (copy this session to a new named session).
         if (cmd == ".save" || cmd.StartsWith(".save "))
         {
-            await MemoryStore.SaveAsync(paths.Conversation, messages);
             var name = trimmed.Length > 5 ? trimmed[5..].Trim() : "";
+            if (!SessionPersistence.Enabled && name.Length == 0)
+            {
+                Console.WriteLine("  --no-save is on: nothing is written. Use .save <name> to keep this conversation.");
+                return true;
+            }
+            if (SessionPersistence.Enabled) await MemoryStore.SaveAsync(paths.Conversation, messages);
             if (name.Length == 0)
             {
                 Console.WriteLine($"  Session saved in {paths.Directory}/");
@@ -47,6 +78,13 @@ public static class SessionCommands
             try
             {
                 Directory.CreateDirectory(name);
+                if (!SessionPersistence.Enabled)
+                {
+                    // --no-save: the memory files were never updated, so only the conversation is kept.
+                    await MemoryStore.SaveAsync(Path.Combine(name, MemoryPaths.ConversationFile), messages, force: true);
+                    Console.WriteLine($"  Saved as '{name}' (conversation only, --no-save is on). Resume it with: csagent --session {name}");
+                    return true;
+                }
                 foreach (var f in MemoryPaths.FileNames)
                 {
                     var source = Path.Combine(paths.Directory, f);
@@ -96,6 +134,7 @@ public static class SessionCommands
                 Console.WriteLine("  .save [name]      save now, or copy to a new named session");
                 Console.WriteLine("  .compress         summarise the older messages now");
                 Console.WriteLine("  .empty            clear the current session");
+                Console.WriteLine("  .use <name>       switch to another session (a new name starts a new one)");
                 Console.WriteLine("  .delete <name>    delete another session");
                 return true;
 
@@ -108,6 +147,7 @@ public static class SessionCommands
                 Console.WriteLine($"  Summarised: {(messages.Count > 1 && SessionCompressor.IsSummary(messages[1]) ? "yes" : "no")}");
                 var archive = new FileInfo(paths.Archive);
                 Console.WriteLine($"  Archive   : {(archive.Exists ? $"{archive.Length / 1024.0:N0} KB of older messages (searched by recall)" : "empty")}");
+                Console.WriteLine($"  Saving    : {(SessionPersistence.Enabled ? "on" : "off (--no-save)")}");
                 return true;
 
             case ".compress":

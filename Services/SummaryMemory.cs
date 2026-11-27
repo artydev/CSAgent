@@ -74,6 +74,7 @@ public class SummaryMemory
     }
 
     public Task<bool> SaveAsync(SessionSummary s, string path) =>
+        !CsAgent.Core.Memory.SessionPersistence.Enabled ? Task.FromResult(true) :   // --no-save
         AtomicFile.TryWriteAllTextAsync(path,
             ToJson(s).ToJsonString(new System.Text.Json.JsonSerializerOptions { WriteIndented = true }));
 

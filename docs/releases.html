@@ -374,9 +374,9 @@ footer p { margin: 0 0 6px; max-width: 60ch; }
     <h1>Historique des versions</h1>
     <p class="lede">Toutes les versions de CsAgent depuis la 0.6.0 : ce que chacune ajoute ou corrige, avec sa date et le nombre de tests.</p>
     <ul class="rel-stats">
-      <li><b>29</b><span>versions</span></li>
+      <li><b>30</b><span>versions</span></li>
       <li><b>53</b><span>jours, du 6 octobre au 27 novembre 2026</span></li>
-      <li><b>136 → 363</b><span>tests, de la 0.8.0 à la 0.9.22</span></li>
+      <li><b>136 → 366</b><span>tests, de la 0.8.0 à la 0.9.23</span></li>
     </ul>
   </div>
 </div>
@@ -386,6 +386,7 @@ footer p { margin: 0 0 6px; max-width: 60ch; }
     <h2 id="toc-h" class="sr-only">Sommaire</h2>
     <ul class="rel-toc">
       <li class="grp">Série 0.9</li>
+      <li><a href="#v0.9.23">v0.9.23</a></li>
       <li><a href="#v0.9.22">v0.9.22</a></li>
       <li><a href="#v0.9.21">v0.9.21</a></li>
       <li><a href="#v0.9.20">v0.9.20</a></li>
@@ -428,6 +429,26 @@ footer p { margin: 0 0 6px; max-width: 60ch; }
       <h2 id="s0.9-h">Série 0.9</h2>
       <p>Routage, économie de quota, MCP, nouveaux outils, workflows, sessions longues · Du 10 octobre au 27 novembre 2026</p>
     </header>
+    <article class="rel" id="v0.9.23">
+      <div class="rel-meta">
+        <p class="rel-ver"><a href="#v0.9.23">v0.9.23</a></p>
+        <span class="rel-kind feat">Nouveauté</span>
+        <p class="rel-date">27 novembre 2026</p>
+        <p class="rel-tests">366 tests</p>
+      </div>
+      <div class="rel-body">
+        <h3>Sessions longues&nbsp;: changer de session, session jetable</h3>
+        <p>Cette version complète les sessions longues de la 0.9.21.</p>
+        <ul>
+          <li><code>.use &lt;nom&gt;</code> change de session depuis l'invite, sans quitter&nbsp;; un nom nouveau démarre une session neuve.</li>
+          <li><code>--no-save</code> n'écrit rien dans le dossier de mémoire, archive comprise (session jetable)&nbsp;; <code>.save &lt;nom&gt;</code> garde la conversation.</li>
+          <li>La compression fonctionne aussi au milieu d'une très longue boucle d'outils, et dès la reprise d'une session déjà trop grande.</li>
+          <li>Les dossiers de test et les fichiers <code>.zip</code> ajoutés par erreur dans la 0.9.21 sont retirés du dépôt.</li>
+          <li>Rien à faire pour mettre à jour&nbsp;: <code>--no-save</code> est désactivé par défaut.</li>
+        </ul>
+        <p class="rel-links"><a href="https://github.com/artydev/csagent/blob/main/releases/release-0.9.23.md">Note de version complète</a> <a href="https://github.com/artydev/csagent/releases/tag/v0.9.23">Étiquette v0.9.23</a></p>
+      </div>
+    </article>
     <article class="rel" id="v0.9.22">
       <div class="rel-meta">
         <p class="rel-ver"><a href="#v0.9.22">v0.9.22</a></p>

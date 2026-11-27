@@ -15,8 +15,11 @@ public static class MemoryStore
         return await AtomicFile.ReadJsonArrayAsync(path) ?? [];
     }
 
-    public static async Task SaveAsync(string path, JsonArray messages)
+    public static async Task SaveAsync(string path, JsonArray messages, bool force = false)
     {
+        // --no-save: nothing is written, unless a command (".save <name>") asks for it explicitly.
+        if (!force && !SessionPersistence.Enabled) return;
+
         // Before persisting, strip image_url blocks from every multimodal message.
         // Images are sent to the API once (in-memory) but must never be saved to
         // disk — they would be re-sent on every subsequent prompt, repeating the

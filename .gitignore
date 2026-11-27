@@ -452,3 +452,7 @@ agent_memory*/
 *.patch
 recordings/
 transcripts/
+
+# Local test sessions and packages (not part of the product)
+/test[0-9]*/
+/csagent-sessions-files*.zip

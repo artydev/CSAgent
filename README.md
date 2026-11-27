@@ -390,6 +390,7 @@ Le routage peut être ajusté sans recompiler. Créez le dossier avec `csagent -
 | `--session <nom>` | Synonyme de `--mem <nom>` : nom de la session, c'est-à-dire du dossier de mémoire (voir [Sessions longues](#sessions-longues-et-commandes-de-session)) |
 | `--compress-threshold <n>` | Taille (en caractères) au-delà de laquelle les anciens messages sont remplacés par un résumé (par défaut : les deux tiers de `--context-chars`, soit `64000`) |
 | `--no-compress` | Désactive la compression : seule la suppression des plus anciens messages (`--context-chars`) s'applique |
+| `--no-save` | N'écrit rien dans le dossier de mémoire : session jetable (une session existante est tout de même lue). `.save <nom>` garde la conversation (voir [Sessions longues](#sessions-longues-et-commandes-de-session)) |
 | `--help`, `-h`, `/?` | Affiche l'aide et quitte |
 | `--version` | Affiche la version de CSAgent et quitte |
 | `--doc` | Affiche cette documentation dans une vue de terminal mise en forme et quitte |
@@ -399,7 +400,7 @@ Le routage peut être ajusté sans recompiler. Créez le dossier avec `csagent -
 
 ```bash
 # Web UI avec une mémoire personnalisée (dossier my_project_memory/)
-csagent --ui --mem my_project_memory
+csagent --ui --session my_project_memory
 
 # Mode Lean UI
 csagent --leanui
@@ -808,13 +809,16 @@ Une **session** est un dossier de mémoire, choisi avec `--mem <nom>` ou `--sess
 | `.list` | Sessions du répertoire courant, avec taille et date (`*` = session en cours) |
 | `.save` | Enregistre la session maintenant |
 | `.save <nom>` | Copie la session dans un nouveau dossier `<nom>` (n'écrase jamais) ; reprise avec `--session <nom>` |
+| `.use <nom>` | Passe à une autre session sans quitter ; un nom nouveau démarre une session neuve. La session en cours est enregistrée d'abord |
 | `.compress` | Compresse immédiatement les anciens messages |
 | `.empty` | Vide la session en cours, en gardant le prompt système |
 | `.delete <nom>` | Supprime une autre session après confirmation par `y` (seuls ses fichiers de mémoire et son archive sont supprimés ; la session en cours est refusée) |
 
-Pour changer de session, tapez `exit` puis relancez avec `--session <autre nom>`.
+À chaque `.use`, la mémoire des étapes et des leçons repart de celle de la nouvelle session : rien ne passe d'une session à l'autre.
 
-**Limites.** Un résumé de 300 mots perd des détails. Une seule demande qui enchaîne une très longue boucle d'outils n'offre aucun message de l'utilisateur où couper : seule la suppression des plus anciens messages s'applique alors. Les tailles sont estimées en caractères (environ 4 par jeton). La Web UI, la Lean UI et le mode API compressent aussi automatiquement, mais n'ont pas les commandes à point.
+**Session jetable.** Avec `--no-save`, rien n'est écrit dans le dossier de mémoire (conversation, mémoire des étapes, leçons, résumé de session) ; le résumé de fin d'exécution est aussi désactivé. Une session existante est tout de même lue. `.save <nom>` garde la conversation dans un nouveau dossier (sans les fichiers de mémoire). Le fichier de propositions (`--prop`) et les suivis `--task` ne sont pas concernés : ajoutez `--no-propmem` pour ne rien écrire du tout.
+
+**Limites.** Un résumé de 300 mots perd des détails. Au milieu d'une très longue boucle d'outils, la coupure se fait sur un message de l'assistant : la demande d'origine n'est alors plus gardée mot pour mot, seulement dans le résumé. Une session déjà au-dessus du seuil à la reprise est compressée avant la première étape. Les tailles sont estimées en caractères (environ 4 par jeton). La Web UI, la Lean UI et le mode API compressent aussi automatiquement et respectent `--no-save`, mais n'ont pas les commandes à point.
 
 ### Mémoire hybride (anti-amnésie)
 
@@ -978,7 +982,7 @@ Le projet compile directement les sources `Core/`, `Services/`, `Shared/`, `Infr
 | `ConcurrencyTests.cs` | Un gestionnaire de mémoire partagé par de nombreuses requêtes parallèles |
 | `DistillationTests.cs` | Résumé de session : enregistrement, cas d'échec, nettoyage, injection à chaque étape |
 | `NoDistillTests.cs` | Analyse et comportement de `--no-distill` |
-| `SessionCompressTests.cs` | Compression des longues sessions : point de coupure, appariement des appels d'outils, protection du résumé, analyse de `--compress-threshold`, `--no-compress` et `--session` |
+| `SessionCompressTests.cs` | Compression des longues sessions : point de coupure (y compris dans une longue boucle d'outils), appariement des appels d'outils, protection du résumé, `--no-save`, analyse de `--compress-threshold`, `--no-compress`, `--no-save` et `--session` |
 | `RecallTests.cs` | Archive de la conversation et outil `recall` : ce qui est archivé, classement BM25, filtres, ligne coupée, doublons, compression et `.empty`, mots déclencheurs du groupe `history` |
 | `ScriptModeTests.cs` | `--prompt` : seule la réponse finale sur la sortie standard, erreurs et avertissements sur la sortie d'erreur, confirmation refusée si l'entrée est redirigée, `--verbose` |
 | `QuietModeTests.cs` | `--quiet` : ce que la CLI affiche (et masque), appels en échec, demandes de confirmation ; le même filtre pour les interfaces web (`QuietObserver`) |

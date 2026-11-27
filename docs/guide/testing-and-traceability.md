@@ -36,7 +36,7 @@ The README reports a passing test snapshot, but that is a historical repository 
 | ConcurrencyTests.cs | Memory | Concurrent access |
 | DistillationTests.cs | Memory | Distillation enabled |
 | NoDistillTests.cs | Memory | Distillation disabled |
-| SessionCompressTests.cs | Memory | Compression cut point, tool-call pairing, recap kept by TrimHistory, --compress-threshold / --no-compress / --session parsing |
+| SessionCompressTests.cs | Memory | Compression cut point (also inside a long tool loop), tool-call pairing, recap kept by TrimHistory, --no-save gating, --compress-threshold / --no-compress / --no-save / --session parsing |
 | RecallTests.cs | Memory | Conversation archive and recall tool: what is archived, BM25 ranking, filters, torn lines, duplicates, compression and .empty, history trigger words |
 | TranscribeTests.cs | Audio | Transcription |
 | CalendarTests.cs | Integrations | Calendar behaviour |
