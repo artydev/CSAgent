@@ -29,6 +29,7 @@ Il propose trois modes de présentation : une interface terminal (TUI), une inte
   - [Serveurs MCP](#serveurs-mcp)
 - [Skills](#skills)
 - [Mémoire et persistance de la conversation](#mémoire-et-persistance-de-la-conversation)
+  - [Sessions longues et commandes de session](#sessions-longues-et-commandes-de-session)
   - [Mémoire hybride (anti-amnésie)](#mémoire-hybride-anti-amnésie)
   - [Distillation de session (entre les sessions)](#distillation-de-session-entre-les-sessions)
   - [Fichiers de mémoire](#fichiers-de-mémoire)
@@ -386,6 +387,9 @@ Le routage peut être ajusté sans recompiler. Créez le dossier avec `csagent -
 | `--no-compact` | Garde les anciens résultats d'outils en entier et les anciennes images (par défaut, les résultats au-delà des 6 derniers sont coupés à 1 500 caractères dans l'historique, et l'agent peut relancer l'outil ; seule la dernière image est gardée) |
 | `--all-tools` | Décrit tous les outils au modèle à chaque étape (par défaut, seuls ceux utiles à la demande sont décrits, voir [Outils disponibles](#outils-disponibles)) |
 | `--no-distill` | Ne résume pas la session à la fin d'une exécution (économise un appel LLM ; voir [Distillation de session](#distillation-de-session-entre-les-sessions)) |
+| `--session <nom>` | Synonyme de `--mem <nom>` : nom de la session, c'est-à-dire du dossier de mémoire (voir [Sessions longues](#sessions-longues-et-commandes-de-session)) |
+| `--compress-threshold <n>` | Taille (en caractères) au-delà de laquelle les anciens messages sont remplacés par un résumé (par défaut : les deux tiers de `--context-chars`, soit `64000`) |
+| `--no-compress` | Désactive la compression : seule la suppression des plus anciens messages (`--context-chars`) s'applique |
 | `--help`, `-h`, `/?` | Affiche l'aide et quitte |
 | `--version` | Affiche la version de CSAgent et quitte |
 | `--doc` | Affiche cette documentation dans une vue de terminal mise en forme et quitte |
@@ -785,8 +789,31 @@ CSAgent enregistre l'historique de la conversation, ainsi que les fichiers de so
 
 - La mémoire est chargée automatiquement au démarrage de l'agent
 - Elle est enregistrée après chaque étape
-- Les anciens messages sont élagués quand le contenu total dépasse environ 96 Ko, pour garder un contexte maîtrisable
+- Quand le contenu atteint environ 64 Ko, les anciens messages sont remplacés par un résumé (voir [Sessions longues](#sessions-longues-et-commandes-de-session)) ; au-delà d'environ 96 Ko, les plus anciens sont retirés, pour garder un contexte maîtrisable
 - Vous pouvez choisir une autre mémoire avec `--mem <nom>` ou comme argument positionnel ; le nom est celui du dossier
+
+### Sessions longues et commandes de session
+
+Une **session** est un dossier de mémoire, choisi avec `--mem <nom>` ou `--session <nom>` (par défaut `agent_memory`, dans le répertoire de lancement). Elle est enregistrée après chaque étape et reprise automatiquement au lancement suivant depuis le même répertoire.
+
+**Compression.** Quand l'historique atteint le seuil (par défaut les deux tiers de `--context-chars`, soit 64 000 caractères ; `--compress-threshold <n>` le change), le modèle rédige un résumé de 300 mots au plus des anciens messages. Ce résumé les remplace sous la forme d'un message `[CONVERSATION SUMMARY]`, enregistré dans `conversation.json`. Les 12 derniers messages restent tels quels, et un appel d'outil n'est jamais séparé de ses résultats. Un nouveau résumé reprend l'ancien. Si l'appel échoue, un avertissement s'affiche et l'exécution continue. `--no-compress` désactive la compression.
+
+**Commandes à l'invite** (terminal uniquement) :
+
+| Commande | Effet |
+|---|---|
+| `.help` | Liste les commandes |
+| `.session` | Dossier, nombre de messages, taille, résumé ou non |
+| `.list` | Sessions du répertoire courant, avec taille et date (`*` = session en cours) |
+| `.save` | Enregistre la session maintenant |
+| `.save <nom>` | Copie la session dans un nouveau dossier `<nom>` (n'écrase jamais) ; reprise avec `--session <nom>` |
+| `.compress` | Compresse immédiatement les anciens messages |
+| `.empty` | Vide la session en cours, en gardant le prompt système |
+| `.delete <nom>` | Supprime une autre session après confirmation par `y` (seuls les quatre fichiers de mémoire sont supprimés ; la session en cours est refusée) |
+
+Pour changer de session, tapez `exit` puis relancez avec `--session <autre nom>`.
+
+**Limites.** Un résumé de 300 mots perd des détails. Une seule demande qui enchaîne une très longue boucle d'outils n'offre aucun message de l'utilisateur où couper : seule la suppression des plus anciens messages s'applique alors. Les tailles sont estimées en caractères (environ 4 par jeton). La Web UI, la Lean UI et le mode API compressent aussi automatiquement, mais n'ont pas les commandes à point.
 
 ### Mémoire hybride (anti-amnésie)
 
@@ -934,6 +961,7 @@ Le projet compile directement les sources `Core/`, `Services/`, `Shared/`, `Infr
 | `ConcurrencyTests.cs` | Un gestionnaire de mémoire partagé par de nombreuses requêtes parallèles |
 | `DistillationTests.cs` | Résumé de session : enregistrement, cas d'échec, nettoyage, injection à chaque étape |
 | `NoDistillTests.cs` | Analyse et comportement de `--no-distill` |
+| `SessionCompressTests.cs` | Compression des longues sessions : point de coupure, appariement des appels d'outils, protection du résumé, analyse de `--compress-threshold`, `--no-compress` et `--session` |
 | `ScriptModeTests.cs` | `--prompt` : seule la réponse finale sur la sortie standard, erreurs et avertissements sur la sortie d'erreur, confirmation refusée si l'entrée est redirigée, `--verbose` |
 | `QuietModeTests.cs` | `--quiet` : ce que la CLI affiche (et masque), appels en échec, demandes de confirmation ; le même filtre pour les interfaces web (`QuietObserver`) |
 | `LlmEndpointTests.cs` | `--endpoint`, `--vision-model`, serveurs locaux et clé d'API |

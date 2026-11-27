@@ -117,6 +117,10 @@ public static class HelpDisplay
         Console.WriteLine("                       mail, audio, Excel, clipboard... when the request calls for them)");
         Console.WriteLine("    --no-distill      Do not summarise the session at the end of a run");
         Console.WriteLine("                       (saves one LLM call; an existing summary is still used)");
+        Console.WriteLine("    --session <name>  Same as --mem: the session (memory folder) to use and resume");
+        Console.WriteLine("    --compress-threshold <n> Size (characters) above which old messages are replaced by a");
+        Console.WriteLine("                       summary (default: two thirds of --context-chars)");
+        Console.WriteLine("    --no-compress     Do not summarise old messages; only drop the oldest at --context-chars");
         Console.WriteLine("    --quiet, -q       CLI, --ui, --leanui: show only the assistant's messages, warnings");
         Console.WriteLine("                       and errors (hides steps, tool calls and results; a tool call is");
         Console.WriteLine("                       still shown when it asks for your confirmation). Not used by --api");
@@ -143,6 +147,18 @@ public static class HelpDisplay
         Console.WriteLine();
 
         C("green");
+        Console.WriteLine("  SESSION COMMANDS (at the > User prompt, CLI only)");
+        Console.ResetColor();
+        Console.WriteLine("    .help             List the commands");
+        Console.WriteLine("    .session          Folder, messages, size, summarised or not");
+        Console.WriteLine("    .list             Sessions in this folder (* = current)");
+        Console.WriteLine("    .save [name]      Save now, or copy the session to a new named folder");
+        Console.WriteLine("    .compress         Summarise the older messages now");
+        Console.WriteLine("    .empty            Clear the current session (system prompt kept)");
+        Console.WriteLine("    .delete <name>    Delete another session (asks for confirmation)");
+        Console.WriteLine();
+
+        C("green");
         Console.WriteLine("  EXAMPLES");
         Console.ResetColor();
         Console.WriteLine("    csagent                                       CLI mode");
@@ -153,8 +169,8 @@ public static class HelpDisplay
         Console.WriteLine("    csagent --ui --port 8080                      Web UI on port 8080");
         Console.WriteLine("    csagent --model gpt-4o                        CLI with custom model");
         Console.WriteLine("    csagent --ui --model gpt-4o                   Web UI with custom model");
-        Console.WriteLine("    csagent --mem my_history.json                 CLI with custom memory file");
-        Console.WriteLine("    csagent --ui --mem my_history.json            Web UI with custom memory file");
+        Console.WriteLine("    csagent --session my_history                  CLI with a named session (memory folder)");
+        Console.WriteLine("    csagent --ui --session my_history             Web UI with a named session");
         Console.WriteLine("    csagent --dry-run                             Dry-run mode (no changes)");
         Console.WriteLine("    csagent --max-retries 5 --retry-delay 2000    Tune 429 retry/backoff");
         Console.WriteLine("    csagent --doc                                 Show documentation");

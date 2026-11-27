@@ -374,9 +374,9 @@ footer p { margin: 0 0 6px; max-width: 60ch; }
     <h1>Historique des versions</h1>
     <p class="lede">Toutes les versions de CsAgent depuis la 0.6.0 : ce que chacune ajoute ou corrige, avec sa date et le nombre de tests.</p>
     <ul class="rel-stats">
-      <li><b>27</b><span>versions</span></li>
-      <li><b>47</b><span>jours, du 6 octobre au 21 novembre 2026</span></li>
-      <li><b>136 → 338</b><span>tests, de la 0.8.0 à la 0.9.20</span></li>
+      <li><b>28</b><span>versions</span></li>
+      <li><b>53</b><span>jours, du 6 octobre au 27 novembre 2026</span></li>
+      <li><b>136 → 344</b><span>tests, de la 0.8.0 à la 0.9.21</span></li>
     </ul>
   </div>
 </div>
@@ -386,6 +386,7 @@ footer p { margin: 0 0 6px; max-width: 60ch; }
     <h2 id="toc-h" class="sr-only">Sommaire</h2>
     <ul class="rel-toc">
       <li class="grp">Série 0.9</li>
+      <li><a href="#v0.9.21">v0.9.21</a></li>
       <li><a href="#v0.9.20">v0.9.20</a></li>
       <li><a href="#v0.9.19">v0.9.19</a></li>
       <li><a href="#v0.9.18">v0.9.18</a></li>
@@ -424,8 +425,27 @@ footer p { margin: 0 0 6px; max-width: 60ch; }
   <div class="wrap">
     <header>
       <h2 id="s0.9-h">Série 0.9</h2>
-      <p>Routage, économie de quota, MCP, nouveaux outils, workflows · Du 10 octobre au 21 novembre 2026</p>
+      <p>Routage, économie de quota, MCP, nouveaux outils, workflows, sessions longues · Du 10 octobre au 27 novembre 2026</p>
     </header>
+    <article class="rel" id="v0.9.21">
+      <div class="rel-meta">
+        <p class="rel-ver"><a href="#v0.9.21">v0.9.21</a></p>
+        <span class="rel-kind feat">Nouveauté</span>
+        <p class="rel-date">27 novembre 2026</p>
+        <p class="rel-tests">344 tests</p>
+      </div>
+      <div class="rel-body">
+        <h3>Sessions longues&nbsp;: compression et commandes de session</h3>
+        <p>Quand une conversation grossit, les plus anciens messages sont remplacés par un résumé enregistré avec la conversation, au lieu d'être supprimés. Une session peut ainsi durer des jours.</p>
+        <ul>
+          <li>Au-delà d'un seuil (les deux tiers de <code>--context-chars</code> par défaut), un résumé de 300&nbsp;mots au plus remplace les anciens messages&nbsp;; les 12 derniers restent tels quels.</li>
+          <li>Nouvelles options&nbsp;: <code>--compress-threshold &lt;n&gt;</code>, <code>--no-compress</code> et <code>--session &lt;nom&gt;</code> (synonyme de <code>--mem</code>).</li>
+          <li>Nouvelles commandes à l'invite&nbsp;: <code>.help</code>, <code>.session</code>, <code>.list</code>, <code>.save [nom]</code>, <code>.compress</code>, <code>.empty</code> et <code>.delete &lt;nom&gt;</code>.</li>
+          <li>Rien à faire pour mettre à jour&nbsp;: les dossiers de mémoire existants se chargent comme avant.</li>
+        </ul>
+        <p class="rel-links"><a href="https://github.com/artydev/csagent/blob/main/releases/release-0.9.21.md">Note de version complète</a> <a href="https://github.com/artydev/csagent/releases/tag/v0.9.21">Étiquette v0.9.21</a></p>
+      </div>
+    </article>
     <article class="rel" id="v0.9.20">
       <div class="rel-meta">
         <p class="rel-ver"><a href="#v0.9.20">v0.9.20</a></p>
