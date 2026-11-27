@@ -80,6 +80,7 @@ static partial class Tests
         await NoDistill();
         await ApiMode();
         await MemoryFolder();
+        await RecallGroup();
         await LlmEndpoint();
         CsAgent.Core.Llm.Loc.Set("en"); // the other tests read the English messages
         await ModelRouting();

@@ -681,6 +681,24 @@ public static partial class ToolDispatcher
                 "required": ["subject", "start"]
               }
             }
+          },
+          {
+            "type": "function",
+            "function": {
+              "name": "recall",
+              "description": "Search the earlier messages of this memory that are no longer in your context (the oldest ones are removed when the history gets long). Use it when the user refers to something said or done before, or before redoing work that may already be done. Keyword search (English and French), best match first.",
+              "parameters": {
+                "type": "object",
+                "properties": {
+                  "query": { "type": "string",  "description": "Words to look for, such as 'rapport format decision' or 'npm install timeout'." },
+                  "role":  { "type": "string",  "enum": ["user", "assistant", "tool"], "description": "Only messages of this role." },
+                  "tool":  { "type": "string",  "description": "Only results of (or calls to) this tool, such as 'sh' or 'write_file'." },
+                  "since": { "type": "string",  "description": "Only messages archived on or after this date, such as 2026-11-01." },
+                  "limit": { "type": "integer", "description": "How many results (default 5, maximum 10)." }
+                },
+                "required": ["query"]
+              }
+            }
           }
         ]
         """)!.AsArray();

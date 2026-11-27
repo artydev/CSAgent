@@ -107,6 +107,10 @@ public sealed class CodingAgent : IDisposable
         var requestText = LastUserText(messages);
         var usedTools = UsedToolNames(messages);
         foreach (var g in ToolSelector.Select(requestText, usedTools)) _toolGroups.Add(g);
+        // recall follows the archive: off while nothing has left the context of this memory (it could find
+        // nothing), on when the session was already summarised (the details are only in the archive now).
+        if (!File.Exists(paths.Archive)) _toolGroups.Remove(ToolSelector.HistoryGroup);
+        else if (messages.Any(SessionCompressor.IsSummary)) _toolGroups.Add(ToolSelector.HistoryGroup);
         _mcpOn = _mcpDefinitions is { Count: > 0 }
                  && ToolSelector.McpWanted(_mcpDefinitions, requestText, usedTools.Any(t => _mcp is not null && _mcp.Contains(t)));
 
@@ -167,6 +171,7 @@ public sealed class CodingAgent : IDisposable
                 }
 
                 JsonNode response;
+                var beforeCall = messages.ToList();   // "context too long" shrinks the history inside the call
                 try
                 {
                     response = await _client.CompleteChatAsync(messages, ToolsForStep(), _cts.Token);
@@ -198,6 +203,10 @@ public sealed class CodingAgent : IDisposable
                             : Loc.T("The API still answers 429 (rate limit) after the retries. Wait a little and try again, or send less text per request."));
                     }
                     return;
+                }
+                finally
+                {
+                    ArchiveRemoved(beforeCall, messages, paths);
                 }
 
                 var choice = response["choices"]?[0];
@@ -259,6 +268,11 @@ public sealed class CodingAgent : IDisposable
                     if (_opts.DryRun)
                     {
                         result = "[dry-run] Tool not executed.";
+                    }
+                    else if (funcName == ConversationArchive.ToolName)
+                    {
+                        // Needs this run's memory folder, so it is answered here and not by ToolDispatcher.
+                        result = ConversationArchive.Recall(paths.Archive, argsRaw);
                     }
                     else if (funcName == ToolSelector.MetaToolName)
                     {
@@ -335,9 +349,13 @@ public sealed class CodingAgent : IDisposable
                     RemoveSessionContext(messages);
                     try
                     {
+                        var beforeCompress = messages.ToList();
                         if (await SessionCompressor.CompressAsync(
                                 messages, _client, ContextBudget.KeepRecentMessages, _cts.Token))
                         {
+                            // The summary keeps the gist; the exact messages go to the archive (recall).
+                            // Archived before the save, so a crash in between loses nothing.
+                            ArchiveRemoved(beforeCompress, messages, paths);
                             await _observer.OnWarning(Loc.T("Session compressed: older messages replaced by a summary."));
                             await MemoryStore.SaveAsync(paths.Conversation, messages);
                         }
@@ -349,7 +367,9 @@ public sealed class CodingAgent : IDisposable
                     }
                 }
 
+                var beforeTrim = messages.ToList();
                 JsonHelpers.TrimHistory(messages, ContextBudget.MaxChars);
+                ArchiveRemoved(beforeTrim, messages, paths);
             }
         }
         finally
@@ -736,6 +756,26 @@ public sealed class CodingAgent : IDisposable
         return obj;
     }
 
+
+    // ── Conversation archive ─────────────────────────────────────────────────
+
+    /// <summary>
+    /// The messages the history just lost (summarised, trimmed, or shrunk after "context too long") are
+    /// appended to archive.jsonl, where the recall tool can find them; recall is then offered for the rest
+    /// of the run. A failure is reported and never stops the agent.
+    /// </summary>
+    private void ArchiveRemoved(List<JsonNode?> before, JsonArray messages, MemoryPaths paths)
+    {
+        try
+        {
+            if (ConversationArchive.ArchiveRemoved(before, messages, paths.Archive) > 0)
+                _toolGroups.Add(ToolSelector.HistoryGroup);
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+        {
+            _ = _observer.OnWarning($"Archive not updated ({ex.Message}): recall will not find these messages.");
+        }
+    }
 
     // ── Hybrid-memory helpers ────────────────────────────────────────────────
 
