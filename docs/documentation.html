@@ -648,7 +648,7 @@ html { scroll-padding-top: 76px; }
       <li><strong>Le modèle ne touche jamais le disque lui-même.</strong> Il demande un outil ; CsAgent vérifie la demande, vous consulte quand c'est important, puis l'exécute.</li>
       <li><strong>Une décision humaine dans le workflow.</strong> Une étape <code>human_approval</code> place la validation entre l'IA et toute action qui engage.</li>
       <li><strong>Libre et sans dépendance cachée.</strong> CsAgent est sous licence MIT, écrit en C# et sans paquet NuGet. FlowPortal publie aussi son code.</li>
-      <li><strong>Des tests.</strong> CsAgent compte 338 tests automatisés à la version 0.9.20, et chaque version a sa note publique.</li>
+      <li><strong>Des tests.</strong> CsAgent compte 344 tests automatisés à la version 0.9.21, et chaque version a sa note publique.</li>
     </ul>
   </div>
 </section>
@@ -799,8 +799,9 @@ html { scroll-padding-top: 76px; }
             <li><strong>La mémoire exacte</strong> conserve les 50 dernières étapes telles quelles&nbsp;: réflexions, appels, erreurs, réussites.</li>
             <li><strong>La mémoire sémantique</strong> conserve jusqu'à 200 leçons étiquetées, par exemple une erreur et le remède qui a marché. Elle retient les arguments d'un appel, pas son résultat.</li>
             <li><strong>Le résumé de session</strong>&nbsp;: à la fin d'une exécution, le modèle la condense en quatre courtes listes. La session suivante part de là. <code>--no-distill</code> évite ce dernier appel au modèle.</li>
+            <li><strong>La compression de la conversation</strong>&nbsp;: quand l'historique grossit (les deux tiers de <code>--context-chars</code> par défaut), un résumé de 300&nbsp;mots remplace les anciens messages et reste enregistré avec la conversation. <code>--compress-threshold &lt;n&gt;</code> règle le seuil, <code>--no-compress</code> la désactive.</li>
           </ul>
-          <p style="margin-top:1em">Chaque projet a sa propre mémoire avec <code>--mem nom</code>. C'est un dossier de JSON ordinaire, que vous pouvez lire, modifier ou supprimer.</p>
+          <p style="margin-top:1em">Chaque projet a sa propre mémoire, appelée session, avec <code>--session nom</code> (ou <code>--mem nom</code>). C'est un dossier de JSON ordinaire, que vous pouvez lire, modifier ou supprimer. Elle est reprise automatiquement au lancement suivant. À l'invite, <code>.session</code>, <code>.list</code>, <code>.save [nom]</code>, <code>.compress</code>, <code>.empty</code> et <code>.delete nom</code> la gèrent.</p>
         </div>
         <div>
           <div class="pre-wrap"><pre class="pre"><span class="d">agent_memory/</span>
@@ -1124,7 +1125,7 @@ dotnet publish -c Release -r <span data-fill="rid">linux-x64</span></pre></div>
     <div class="split wide-right">
       <div class="sec-head" style="margin:0">
         <h2 id="p3-status-h">Où il en est</h2>
-        <p class="lede">Version 0.9.20. Voici ce qui n'existe pas encore, pour que vous ne le découvriez pas à vos dépens.</p>
+        <p class="lede">Version 0.9.21. Voici ce qui n'existe pas encore, pour que vous ne le découvriez pas à vos dépens.</p>
       </div>
       <ul class="limits">
         <li>Les outils Excel et Outlook utilisent l'automatisation COM, donc ils ne fonctionnent que sous Windows.</li>
@@ -1311,9 +1312,9 @@ csagent</pre></div>
     <span class="part-no">Partie 5 sur 5</span><h2 class="part-title">Historique des versions</h2>
     <p class="lede">Toutes les versions de CsAgent depuis la 0.6.0 : ce que chacune ajoute ou corrige, avec sa date et le nombre de tests.</p>
     <ul class="rel-stats">
-      <li><b>27</b><span>versions</span></li>
-      <li><b>47</b><span>jours, du 6 octobre au 21 novembre 2026</span></li>
-      <li><b>136 → 338</b><span>tests, de la 0.8.0 à la 0.9.20</span></li>
+      <li><b>28</b><span>versions</span></li>
+      <li><b>53</b><span>jours, du 6 octobre au 27 novembre 2026</span></li>
+      <li><b>136 → 344</b><span>tests, de la 0.8.0 à la 0.9.21</span></li>
     </ul>
   </div>
 </div>
@@ -1323,6 +1324,7 @@ csagent</pre></div>
     <h2 id="p5-toc-h" class="sr-only">Sommaire</h2>
     <ul class="rel-toc">
       <li class="grp">Série 0.9</li>
+      <li><a href="#p5-v0.9.21">v0.9.21</a></li>
       <li><a href="#p5-v0.9.20">v0.9.20</a></li>
       <li><a href="#p5-v0.9.19">v0.9.19</a></li>
       <li><a href="#p5-v0.9.18">v0.9.18</a></li>
@@ -1361,8 +1363,27 @@ csagent</pre></div>
   <div class="wrap">
     <header>
       <h2 id="p5-s0.9-h">Série 0.9</h2>
-      <p>Routage, économie de quota, MCP, nouveaux outils, workflows · Du 10 octobre au 21 novembre 2026</p>
+      <p>Routage, économie de quota, MCP, nouveaux outils, workflows, sessions longues · Du 10 octobre au 27 novembre 2026</p>
     </header>
+    <article class="rel" id="p5-v0.9.21">
+      <div class="rel-meta">
+        <p class="rel-ver"><a href="#p5-v0.9.21">v0.9.21</a></p>
+        <span class="rel-kind feat">Nouveauté</span>
+        <p class="rel-date">27 novembre 2026</p>
+        <p class="rel-tests">344 tests</p>
+      </div>
+      <div class="rel-body">
+        <h3>Sessions longues&nbsp;: compression et commandes de session</h3>
+        <p>Quand une conversation grossit, les plus anciens messages sont remplacés par un résumé enregistré avec la conversation, au lieu d'être supprimés. Une session peut ainsi durer des jours.</p>
+        <ul>
+          <li>Au-delà d'un seuil (les deux tiers de <code>--context-chars</code> par défaut), un résumé de 300&nbsp;mots au plus remplace les anciens messages&nbsp;; les 12 derniers restent tels quels.</li>
+          <li>Nouvelles options&nbsp;: <code>--compress-threshold &lt;n&gt;</code>, <code>--no-compress</code> et <code>--session &lt;nom&gt;</code> (synonyme de <code>--mem</code>).</li>
+          <li>Nouvelles commandes à l'invite&nbsp;: <code>.help</code>, <code>.session</code>, <code>.list</code>, <code>.save [nom]</code>, <code>.compress</code>, <code>.empty</code> et <code>.delete &lt;nom&gt;</code>.</li>
+          <li>Rien à faire pour mettre à jour&nbsp;: les dossiers de mémoire existants se chargent comme avant.</li>
+        </ul>
+        <p class="rel-links"><a href="https://github.com/artydev/csagent/blob/main/releases/release-0.9.21.md">Note de version complète</a> <a href="https://github.com/artydev/csagent/releases/tag/v0.9.21">Étiquette v0.9.21</a></p>
+      </div>
+    </article>
     <article class="rel" id="p5-v0.9.20">
       <div class="rel-meta">
         <p class="rel-ver"><a href="#p5-v0.9.20">v0.9.20</a></p>

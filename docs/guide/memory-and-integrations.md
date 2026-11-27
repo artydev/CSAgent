@@ -35,6 +35,14 @@ The README describes distillation as a way to preserve useful information betwee
 
 The precise prompt format, summarisation policy and persistence timing should be verified against current implementation and tests before being treated as a stable API.
 
+## Long sessions and compression
+
+Since version 0.9.21, a session (the memory folder chosen with --mem or --session) can run for a long time. When the history reaches a threshold (two thirds of --context-chars by default, adjustable with --compress-threshold), the oldest messages are replaced by one LLM-written recap, stored as a `[CONVERSATION SUMMARY]` message in conversation.json. The 12 most recent messages are kept, the cut is always at a user message so tool calls stay paired with their results, and TrimHistory never evicts the recap or the injected `[SESSION CONTEXT]` block first. --no-compress turns this off. If the summary call fails, a warning is shown and the run continues.
+
+In the terminal, session commands are typed at the prompt: .help, .session, .list, .save [name], .compress, .empty and .delete <name>. They are not available in the Web UI, Lean UI or API modes, which still compress automatically.
+
+SessionCompressTests.cs covers the cut point, tool-call pairing, recap protection in TrimHistory, .empty and the option parsing. The call that writes the summary is not covered by tests.
+
 ## MCP servers
 
 The test inventory includes McpTests.cs and McpStdioTests.cs. Tool-selection tests also cover conditional inclusion of MCP tool definitions and the ability to expose an MCP group when the request or prior use indicates relevance.
