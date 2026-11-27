@@ -42,6 +42,9 @@ public static class ContextBudget
         Compact = compact;
     }
 
-    /// <summary>For tests.</summary>
-    internal static void Reset() { Configure(DefaultMaxChars, true); ConfigureCompression(0, true); }
+    /// <summary>
+    /// For tests. Compression is OFF after a reset: it adds a model call, which would consume the scripted answers
+    /// of the mock models. A test that exercises compression turns it on itself (ConfigureCompression).
+    /// </summary>
+    internal static void Reset() { Configure(DefaultMaxChars, true); ConfigureCompression(0, false); }
 }
