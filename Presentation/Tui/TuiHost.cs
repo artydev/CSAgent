@@ -130,6 +130,7 @@ public static class TuiHost
             if (input is null) break; // end of input (pipe closed): stop instead of looping forever
             if (string.IsNullOrWhiteSpace(input)) continue;
             if (input.Trim().Equals("exit", StringComparison.OrdinalIgnoreCase)) break;
+            if (await SessionCommands.TryHandleAsync(input, messages, args, apiKey)) continue;
             await TurnAsync(input);
         }
         return 0;
