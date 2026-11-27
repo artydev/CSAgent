@@ -107,8 +107,10 @@ public sealed class CodingAgent : IDisposable
         var requestText = LastUserText(messages);
         var usedTools = UsedToolNames(messages);
         foreach (var g in ToolSelector.Select(requestText, usedTools)) _toolGroups.Add(g);
-        // Nothing has left the context of this memory yet: recall could find nothing, so its words do not switch it on.
+        // recall follows the archive: off while nothing has left the context of this memory (it could find
+        // nothing), on when the session was already summarised (the details are only in the archive now).
         if (!File.Exists(paths.Archive)) _toolGroups.Remove(ToolSelector.HistoryGroup);
+        else if (messages.Any(SessionCompressor.IsSummary)) _toolGroups.Add(ToolSelector.HistoryGroup);
         _mcpOn = _mcpDefinitions is { Count: > 0 }
                  && ToolSelector.McpWanted(_mcpDefinitions, requestText, usedTools.Any(t => _mcp is not null && _mcp.Contains(t)));
 
@@ -758,14 +760,16 @@ public sealed class CodingAgent : IDisposable
     // ── Conversation archive ─────────────────────────────────────────────────
 
     /// <summary>
-    /// The messages the history just lost (trimmed, or shrunk after "context too long") are appended to
-    /// archive.jsonl, where the recall tool can find them. A failure is reported and never stops the agent.
+    /// The messages the history just lost (summarised, trimmed, or shrunk after "context too long") are
+    /// appended to archive.jsonl, where the recall tool can find them; recall is then offered for the rest
+    /// of the run. A failure is reported and never stops the agent.
     /// </summary>
     private void ArchiveRemoved(List<JsonNode?> before, JsonArray messages, MemoryPaths paths)
     {
         try
         {
-            ConversationArchive.ArchiveRemoved(before, messages, paths.Archive);
+            if (ConversationArchive.ArchiveRemoved(before, messages, paths.Archive) > 0)
+                _toolGroups.Add(ToolSelector.HistoryGroup);
         }
         catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
         {

@@ -43,6 +43,14 @@ In the terminal, session commands are typed at the prompt: .help, .session, .lis
 
 SessionCompressTests.cs covers the cut point, tool-call pairing, recap protection in TrimHistory, .empty and the option parsing. The call that writes the summary is not covered by tests.
 
+## Conversation archive and recall
+
+Since version 0.9.22, the messages that leave the context are not lost. Whether they were replaced by the compression recap, removed by TrimHistory, dropped after a "context too long" answer, or cleared by .compress or .empty, they are appended to `archive.jsonl` in the session folder, one JSON object per line (`ts`, `role`, `tool`, `text`). The system prompt, the injected `[MEMORY]` and `[SESSION CONTEXT]` blocks, the `[CONVERSATION SUMMARY]` recaps and the results of recall itself are never archived.
+
+The `recall` tool searches the archive with BM25 over the same keywords as the hybrid memory (English and French stop words removed, accents and plurals folded), with optional `role`, `tool`, `since` and `limit` filters. It is in the optional `history` tool group: it is offered when the request points back to earlier work, when the session has been summarised, when the agent enables it, or once it has been used, and never while the archive does not exist. There is no index: the file is read line by line at each search. `.save <name>` copies the archive, `.delete` and `--fresh` remove it, and `.session` shows its size.
+
+RecallTests.cs covers what is archived, the ranking, the filters, torn lines, duplicates, compression and .empty, the trigger words, and recall after TrimHistory.
+
 ## MCP servers
 
 The test inventory includes McpTests.cs and McpStdioTests.cs. Tool-selection tests also cover conditional inclusion of MCP tool definitions and the ability to expose an MCP group when the request or prior use indicates relevance.

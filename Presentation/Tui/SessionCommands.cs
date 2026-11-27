@@ -1,6 +1,7 @@
 using CsAgent.Core.Agent;
 using CsAgent.Core.Llm;
 using CsAgent.Core.Memory;
+using CsAgent.Services;
 using CsAgent.Shared;
 using System.Text.Json.Nodes;
 
@@ -46,15 +47,18 @@ public static class SessionCommands
             try
             {
                 Directory.CreateDirectory(name);
-                foreach (var f in new[] { paths.Conversation, paths.Exact, paths.Semantic, paths.Summary })
-                    if (File.Exists(f)) File.Copy(f, Path.Combine(name, Path.GetFileName(f)));
+                foreach (var f in MemoryPaths.FileNames)
+                {
+                    var source = Path.Combine(paths.Directory, f);
+                    if (File.Exists(source)) File.Copy(source, Path.Combine(name, f));
+                }
                 Console.WriteLine($"  Saved as '{name}'. Resume it later with: csagent --session {name}");
             }
             catch (Exception ex) { Console.WriteLine($"  Save failed: {ex.Message}"); }
             return true;
         }
 
-        // ".delete <name>": removes ONLY the four memory files of that session (then the folder if empty).
+        // ".delete <name>": removes ONLY the memory files of that session, archive included (then the folder if empty).
         if (cmd == ".delete" || cmd.StartsWith(".delete "))
         {
             var name = trimmed.Length > 7 ? trimmed[7..].Trim() : "";
@@ -72,7 +76,7 @@ public static class SessionCommands
             { Console.WriteLine("  Cancelled."); return true; }
             try
             {
-                foreach (var f in new[] { MemoryPaths.ConversationFile, MemoryPaths.ExactFile, MemoryPaths.SemanticFile, MemoryPaths.SummaryFile })
+                foreach (var f in MemoryPaths.FileNames)
                 {
                     var path = Path.Combine(name, f);
                     if (File.Exists(path)) File.Delete(path);
@@ -102,6 +106,8 @@ public static class SessionCommands
                 Console.WriteLine($"  Size      : {SessionCompressor.SizeChars(messages):N0} chars (~{SessionCompressor.EstimateTokens(messages):N0} tokens)");
                 Console.WriteLine($"  Compress  : {(ContextBudget.CompressEnabled ? $"at {ContextBudget.CompressChars:N0} chars" : "off")}; hard limit {ContextBudget.MaxChars:N0}");
                 Console.WriteLine($"  Summarised: {(messages.Count > 1 && SessionCompressor.IsSummary(messages[1]) ? "yes" : "no")}");
+                var archive = new FileInfo(paths.Archive);
+                Console.WriteLine($"  Archive   : {(archive.Exists ? $"{archive.Length / 1024.0:N0} KB of older messages (searched by recall)" : "empty")}");
                 return true;
 
             case ".compress":
@@ -110,17 +116,26 @@ public static class SessionCommands
                     using var client = new LlmClient(apiKey, LlmConfig.Endpoint,
                         LlmConfig.ChatModel ?? LlmConfig.CodeModel, new RetryPolicy(args.MaxRetries, args.RetryDelayMs));
                     using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(90));
+                    var before = messages.ToList();
                     var done = await SessionCompressor.CompressAsync(messages, client, ContextBudget.KeepRecentMessages, cts.Token);
-                    if (done) await MemoryStore.SaveAsync(paths.Conversation, messages);
+                    if (done)
+                    {
+                        ArchiveQuietly(before, messages, paths);
+                        await MemoryStore.SaveAsync(paths.Conversation, messages);
+                    }
                     Console.WriteLine(done ? "  Session compressed." : "  Nothing to compress yet.");
                 }
                 catch (Exception ex) { Console.WriteLine($"  Compression failed: {ex.Message}"); }
                 return true;
 
             case ".empty":
+                var emptied = messages.ToList();
                 SessionCompressor.Empty(messages);
+                ArchiveQuietly(emptied, messages, paths);
                 await MemoryStore.SaveAsync(paths.Conversation, messages);
-                Console.WriteLine("  Session emptied (system prompt kept).");
+                Console.WriteLine(File.Exists(paths.Archive)
+                    ? "  Session emptied (system prompt kept). The messages stay searchable by recall; delete archive.jsonl to forget them."
+                    : "  Session emptied (system prompt kept).");
                 return true;
 
             case ".list":
@@ -141,5 +156,13 @@ public static class SessionCommands
             default:
                 return false;   // unknown ".xyz": treated as normal text
         }
+    }
+
+    /// <summary>Messages removed by .compress or .empty go to the archive, like the ones the agent trims.</summary>
+    private static void ArchiveQuietly(List<JsonNode?> before, JsonArray messages, MemoryPaths paths)
+    {
+        try { ConversationArchive.ArchiveRemoved(before, messages, paths.Archive); }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+        { Console.WriteLine($"  Archive not updated: {ex.Message}"); }
     }
 }

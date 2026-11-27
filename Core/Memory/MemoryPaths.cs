@@ -25,6 +25,9 @@ public sealed record MemoryPaths(string Directory, string Conversation, string E
     /// <summary>Messages removed from the history (see ConversationArchive); appended, never rewritten.</summary>
     public string Archive => Path.Combine(Directory, ArchiveFile);
 
+    /// <summary>Every file a session owns: what <c>.save &lt;name&gt;</c> copies, and what <c>.delete</c> and <c>--fresh</c> remove.</summary>
+    public static readonly string[] FileNames = { ConversationFile, ExactFile, SemanticFile, SummaryFile, ArchiveFile };
+
     /// <summary>
     /// Builds the paths for a memory name (<c>--mem</c>): the name is the folder.
     /// A trailing ".json" is dropped, so an old-style <c>--mem my_task.json</c> gives the folder <c>my_task</c>.

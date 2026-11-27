@@ -797,7 +797,7 @@ CSAgent enregistre l'historique de la conversation, ainsi que les fichiers de so
 
 Une **session** est un dossier de mémoire, choisi avec `--mem <nom>` ou `--session <nom>` (par défaut `agent_memory`, dans le répertoire de lancement). Elle est enregistrée après chaque étape et reprise automatiquement au lancement suivant depuis le même répertoire.
 
-**Compression.** Quand l'historique atteint le seuil (par défaut les deux tiers de `--context-chars`, soit 64 000 caractères ; `--compress-threshold <n>` le change), le modèle rédige un résumé de 300 mots au plus des anciens messages. Ce résumé les remplace sous la forme d'un message `[CONVERSATION SUMMARY]`, enregistré dans `conversation.json`. Les 12 derniers messages restent tels quels, et un appel d'outil n'est jamais séparé de ses résultats. Un nouveau résumé reprend l'ancien. Si l'appel échoue, un avertissement s'affiche et l'exécution continue. `--no-compress` désactive la compression.
+**Compression.** Quand l'historique atteint le seuil (par défaut les deux tiers de `--context-chars`, soit 64 000 caractères ; `--compress-threshold <n>` le change), le modèle rédige un résumé de 300 mots au plus des anciens messages. Ce résumé les remplace sous la forme d'un message `[CONVERSATION SUMMARY]`, enregistré dans `conversation.json`. Les 12 derniers messages restent tels quels, et un appel d'outil n'est jamais séparé de ses résultats. Un nouveau résumé reprend l'ancien. Si l'appel échoue, un avertissement s'affiche et l'exécution continue. `--no-compress` désactive la compression. Les messages résumés ne sont pas perdus pour autant : ils vont dans l'archive, où l'outil `recall` retrouve leur texte exact (voir [Archive et outil `recall`](#archive-et-outil-recall-retrouver-les-anciens-messages)).
 
 **Commandes à l'invite** (terminal uniquement) :
 
@@ -810,7 +810,7 @@ Une **session** est un dossier de mémoire, choisi avec `--mem <nom>` ou `--sess
 | `.save <nom>` | Copie la session dans un nouveau dossier `<nom>` (n'écrase jamais) ; reprise avec `--session <nom>` |
 | `.compress` | Compresse immédiatement les anciens messages |
 | `.empty` | Vide la session en cours, en gardant le prompt système |
-| `.delete <nom>` | Supprime une autre session après confirmation par `y` (seuls les quatre fichiers de mémoire sont supprimés ; la session en cours est refusée) |
+| `.delete <nom>` | Supprime une autre session après confirmation par `y` (seuls ses fichiers de mémoire et son archive sont supprimés ; la session en cours est refusée) |
 
 Pour changer de session, tapez `exit` puis relancez avec `--session <autre nom>`.
 
@@ -872,16 +872,17 @@ Règles de conception :
 
 ### Archive et outil `recall` (retrouver les anciens messages)
 
-L'élagage (`TrimHistory()`, et le raccourcissement après une erreur « contexte trop long ») retire les plus anciens messages du contexte. Ils ne sont plus perdus : ils sont ajoutés à la fin de `archive.jsonl`, dans le dossier de mémoire, une ligne JSON par message (`ts`, `role`, `tool`, `text`). `ts` est la date de sortie du contexte.
+Plusieurs mécanismes retirent des messages du contexte : la compression (remplacés par un résumé de 300 mots), l'élagage `TrimHistory()`, le raccourcissement après une erreur « contexte trop long », et les commandes `.compress` et `.empty`. Depuis la 0.9.22, ces messages ne sont plus perdus : ils sont ajoutés à la fin de `archive.jsonl`, dans le dossier de mémoire, une ligne JSON par message (`ts`, `role`, `tool`, `text`). `ts` est la date de sortie du contexte.
 
-L'agent dispose de l'outil **`recall`** pour y chercher : quand vous évoquez quelque chose de déjà dit ou fait, ou avant de refaire un travail peut-être déjà fait. Il est dans le groupe `history` : sa description n'est envoyée au modèle que si votre demande renvoie au passé (« la dernière fois », « on avait dit », « où en étions-nous », « earlier »…), si l'agent l'active avec `enable_tools`, ou s'il a déjà servi dans la conversation, et jamais tant que l'archive n'existe pas.
+L'agent dispose de l'outil **`recall`** pour y chercher : quand vous évoquez quelque chose de déjà dit ou fait, ou avant de refaire un travail peut-être déjà fait. Il est dans le groupe `history` : sa description n'est envoyée au modèle que si votre demande renvoie au passé (« la dernière fois », « on avait dit », « où en étions-nous », « earlier »…), si l'agent l'active avec `enable_tools`, s'il a déjà servi dans la conversation, ou dès que la session a été résumée (les détails ne sont plus que dans l'archive) ; jamais tant que l'archive n'existe pas.
 
 - **Recherche par mots-clés, classée par BM25** : mêmes mots-clés que la mémoire hybride (mots vides anglais et français retirés, accents et pluriels ramenés), les mots rares comptent plus que les mots courants, à égalité le plus récent d'abord.
 - **Filtres** : `role` (`user`, `assistant`, `tool`), `tool` (par exemple `sh`), `since` (par exemple `2026-11-01`), `limit` (5 par défaut, 10 au maximum).
 - **Chaque résultat** donne la date, le rôle, l'outil, le message juste avant (l'appel, pour un résultat d'outil) et 700 caractères du texte.
 - **Des données, pas des instructions** : le résultat le rappelle au modèle, car l'archive contient des contenus de fichiers et des sorties de commandes écrits par des tiers.
-- **Ce qui n'est jamais archivé** : le prompt système, les blocs `[MEMORY]` et `[SESSION CONTEXT]`, les résultats de `recall` lui-même. Un message est coupé à 8 000 caractères.
+- **Ce qui n'est jamais archivé** : le prompt système, les blocs `[MEMORY]` et `[SESSION CONTEXT]`, les résumés `[CONVERSATION SUMMARY]`, les résultats de `recall` lui-même. Un message est coupé à 8 000 caractères.
 - **Sans index ni base de données** : le fichier est lu ligne par ligne à chaque recherche, ce qui prend quelques millisecondes pour l'historique d'une personne. Une ligne coupée par un plantage est ignorée ; un message archivé deux fois n'est trouvé qu'une fois.
+- **Sessions** : `.save <nom>` copie aussi l'archive, `.delete` et `--fresh` la suppriment, `.session` affiche sa taille. `.empty` vide la conversation mais garde ses messages dans l'archive.
 - Supprimez `archive.jsonl` pour tout oublier ; un échec d'écriture est signalé et n'arrête pas l'agent.
 
 ### Fichiers de mémoire
@@ -978,6 +979,7 @@ Le projet compile directement les sources `Core/`, `Services/`, `Shared/`, `Infr
 | `DistillationTests.cs` | Résumé de session : enregistrement, cas d'échec, nettoyage, injection à chaque étape |
 | `NoDistillTests.cs` | Analyse et comportement de `--no-distill` |
 | `SessionCompressTests.cs` | Compression des longues sessions : point de coupure, appariement des appels d'outils, protection du résumé, analyse de `--compress-threshold`, `--no-compress` et `--session` |
+| `RecallTests.cs` | Archive de la conversation et outil `recall` : ce qui est archivé, classement BM25, filtres, ligne coupée, doublons, compression et `.empty`, mots déclencheurs du groupe `history` |
 | `ScriptModeTests.cs` | `--prompt` : seule la réponse finale sur la sortie standard, erreurs et avertissements sur la sortie d'erreur, confirmation refusée si l'entrée est redirigée, `--verbose` |
 | `QuietModeTests.cs` | `--quiet` : ce que la CLI affiche (et masque), appels en échec, demandes de confirmation ; le même filtre pour les interfaces web (`QuietObserver`) |
 | `LlmEndpointTests.cs` | `--endpoint`, `--vision-model`, serveurs locaux et clé d'API |

@@ -253,6 +253,53 @@ static partial class Tests
             await Task.CompletedTask;
         });
 
+        Group("Recall / with compression and sessions");
+
+        await T("a compression archives the messages it replaced, never the recap itself (old or new)", async () =>
+        {
+            var d = Tmp(); var path = Path.Combine(d, MemoryPaths.ArchiveFile);
+            var msgs = new JsonArray
+            {
+                JsonHelpers.Message("system", "sys"),
+                JsonHelpers.Message("user", SessionCompressor.Marker + "\nThis is a summary of the chat history as a recap: older work"),
+                JsonHelpers.Message("user", "Decision: dates as dd/MM/yyyy"),
+                JsonHelpers.Message("assistant", "Noted, dd/MM/yyyy."),
+                JsonHelpers.Message("user", "now the export"),
+            };
+            var before = msgs.ToList();
+            // What SessionCompressor.CompressAsync does with cut = 4: messages 1..3 replaced by a new recap.
+            for (int i = 3; i >= 1; i--) msgs.RemoveAt(i);
+            msgs.Insert(1, JsonHelpers.Message("user", SessionCompressor.Marker + "\nnew recap"));
+
+            int n = ConversationArchive.ArchiveRemoved(before, msgs, path);
+            var texts = Lines(path).Select(l => l["text"]!.GetValue<string>()).ToList();
+            Assert(n == 2, $"n={n}: " + string.Join(" | ", texts));
+            Assert(texts.SequenceEqual(new[] { "Decision: dates as dd/MM/yyyy", "Noted, dd/MM/yyyy." }), string.Join(" | ", texts));
+            Assert(ConversationArchive.Search(path, "dates format dd/mm/yyyy").Count > 0, "the exact wording is recallable");
+            return "ok";
+            await Task.CompletedTask;
+        });
+
+        await T(".empty: every message but the system prompt is archived", async () =>
+        {
+            var d = Tmp(); var path = Path.Combine(d, MemoryPaths.ArchiveFile);
+            var msgs = Conversation(2);
+            var before = msgs.ToList();
+            SessionCompressor.Empty(msgs);
+            Assert(ConversationArchive.ArchiveRemoved(before, msgs, path) == 4 && msgs.Count == 1, "count");
+            return "ok";
+            await Task.CompletedTask;
+        });
+
+        await T("a session's files include the archive (what .save copies, .delete and --fresh remove)", async () =>
+        {
+            Assert(MemoryPaths.FileNames.SequenceEqual(new[]
+                { MemoryPaths.ConversationFile, MemoryPaths.ExactFile, MemoryPaths.SemanticFile, MemoryPaths.SummaryFile, MemoryPaths.ArchiveFile }),
+                string.Join(",", MemoryPaths.FileNames));
+            return "ok";
+            await Task.CompletedTask;
+        });
+
         Group("Recall / with TrimHistory");
 
         await T("everything TrimHistory removes ends up in the archive and can be recalled", async () =>

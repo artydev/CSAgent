@@ -3,15 +3,18 @@ using System.Text;
 using System.Text.Encodings.Web;
 using System.Text.Json;
 using System.Text.Json.Nodes;
+using CsAgent.Core.Memory;
 
 namespace CsAgent.Services;
 
 /// <summary>
 /// Long-term recall of the conversation itself.
 ///
-/// <para>The history sent to the model is kept small: <c>TrimHistory</c> removes the oldest messages, and
-/// <c>ContextRecovery.Shrink</c> removes more when the model answers "context too long". The messages that
-/// leave the context are appended here to <c>archive.jsonl</c> (memory folder), one JSON object per line:</para>
+/// <para>The history sent to the model is kept small: <see cref="SessionCompressor"/> replaces the oldest
+/// messages by a short recap, <c>TrimHistory</c> removes the oldest ones past the hard limit, and
+/// <c>ContextRecovery.Shrink</c> removes more when the model answers "context too long"; the
+/// <c>.compress</c> and <c>.empty</c> commands do the same on request. The messages that leave the
+/// context are appended here to <c>archive.jsonl</c> (memory folder), one JSON object per line:</para>
 /// <code>{"ts":"2026-11-27T10:02:11Z","role":"tool","tool":"sh","text":"..."}</code>
 /// <para><c>ts</c> is when the message left the context, not when it was written.</para>
 ///
@@ -89,6 +92,9 @@ public static class ConversationArchive
             && (text.StartsWith(MemoryMarker, StringComparison.Ordinal)
                 || text.StartsWith(SummaryMemory.ContextMarker, StringComparison.Ordinal)))
             return null;                                                  // rebuilt at every step, not conversation
+        if (text.StartsWith(SessionCompressor.Marker, StringComparison.Ordinal))
+            return null;                                                  // a recap replaced by a newer one: the
+                                                                          // messages it summed up are archived already
 
         if (role == "tool")
         {

@@ -60,7 +60,7 @@ public static class WorkflowHost
     private static void ForgetMemory(string memory)
     {
         var paths = MemoryPaths.Resolve(memory);
-        foreach (var file in new[] { paths.Conversation, paths.Exact, paths.Semantic, paths.Summary, paths.Archive })
+        foreach (var file in MemoryPaths.FileNames.Select(f => Path.Combine(paths.Directory, f)))
             try { File.Delete(file); } catch (IOException) { } catch (UnauthorizedAccessException) { }
     }
 
