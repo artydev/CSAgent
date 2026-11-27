@@ -525,9 +525,9 @@ Error: file too large (1024 KB). Use sh to grep/head.
 
 ## Outils disponibles
 
-L'agent dispose de **43 outils intégrés**. Vous ne les appelez pas vous-même : l'agent choisit ceux dont il a besoin pour votre demande. Dans les tableaux, `*` marque un paramètre obligatoire et **Confirmation** indique que l'outil demande votre accord avant de s'exécuter (sauf avec `--yes`).
+L'agent dispose de **44 outils intégrés**. Vous ne les appelez pas vous-même : l'agent choisit ceux dont il a besoin pour votre demande. Dans les tableaux, `*` marque un paramètre obligatoire et **Confirmation** indique que l'outil demande votre accord avant de s'exécuter (sauf avec `--yes`).
 
-**Seuls les outils utiles sont décrits au modèle.** La description des 43 outils pèse environ 28 000 caractères et serait renvoyée à chaque étape. Depuis la 0.9.8, les outils sont répartis en groupes :
+**Seuls les outils utiles sont décrits au modèle.** La description des 44 outils pèse environ 28 000 caractères et serait renvoyée à chaque étape. Depuis la 0.9.8, les outils sont répartis en groupes :
 
 | Groupe | Outils | Envoyé |
 |---|---|---|
@@ -542,6 +542,7 @@ L'agent dispose de **43 outils intégrés**. Vous ne les appelez pas vous-même 
 | `archive` | `zip`, `unzip` | archive, zip… |
 | `terminal` | `run_terminal`, `close_terminal` | terminal interactif, serveur de dev… |
 | `models` | `switch_model`, `list_models` | modèle, LLM… |
+| `history` | `recall` | « la dernière fois », « on avait dit », « tout à l'heure », « where were we »… et seulement si l'archive existe |
 
 Les mots sont cherchés en français et en anglais dans le dernier message de l'utilisateur. Un groupe déjà utilisé dans la conversation reste actif, et un outil appelé alors que son groupe était éteint le réactive pour la suite. Si un groupe manque, l'agent le rallume avec l'outil `enable_tools` (décrit en une ligne, avec les groupes éteints) et appelle l'outil à l'étape suivante. Les outils d'un serveur MCP sont tous envoyés tant que leurs descriptions tiennent en 4 000 caractères ; au-delà, ils ne le sont que si la demande dit « MCP » ou nomme l'un d'eux, ou si l'agent les active avec `enable_tools`. `--all-tools` rétablit l'envoi de tous les outils.
 
@@ -873,7 +874,7 @@ Règles de conception :
 
 L'élagage (`TrimHistory()`, et le raccourcissement après une erreur « contexte trop long ») retire les plus anciens messages du contexte. Ils ne sont plus perdus : ils sont ajoutés à la fin de `archive.jsonl`, dans le dossier de mémoire, une ligne JSON par message (`ts`, `role`, `tool`, `text`). `ts` est la date de sortie du contexte.
 
-L'agent dispose de l'outil **`recall`** pour y chercher : quand vous évoquez quelque chose de déjà dit ou fait, ou avant de refaire un travail peut-être déjà fait.
+L'agent dispose de l'outil **`recall`** pour y chercher : quand vous évoquez quelque chose de déjà dit ou fait, ou avant de refaire un travail peut-être déjà fait. Il est dans le groupe `history` : sa description n'est envoyée au modèle que si votre demande renvoie au passé (« la dernière fois », « on avait dit », « où en étions-nous », « earlier »…), si l'agent l'active avec `enable_tools`, ou s'il a déjà servi dans la conversation, et jamais tant que l'archive n'existe pas.
 
 - **Recherche par mots-clés, classée par BM25** : mêmes mots-clés que la mémoire hybride (mots vides anglais et français retirés, accents et pluriels ramenés), les mots rares comptent plus que les mots courants, à égalité le plus récent d'abord.
 - **Filtres** : `role` (`user`, `assistant`, `tool`), `tool` (par exemple `sh`), `since` (par exemple `2026-11-01`), `limit` (5 par défaut, 10 au maximum).

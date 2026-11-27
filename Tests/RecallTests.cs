@@ -220,12 +220,35 @@ static partial class Tests
             await Task.CompletedTask;
         });
 
-        await T("recall is a native core tool, always sent to the model", async () =>
+        await T("recall is in the optional 'history' group: not sent for an ordinary request", async () =>
         {
             var def = CsAgent.Core.Agent.ToolDispatcher.ToolDefinitions
                 .FirstOrDefault(t => t?["function"]?["name"]?.GetValue<string>() == ConversationArchive.ToolName);
             Assert(def is not null, "definition missing");
-            Assert(CsAgent.Core.Agent.ToolSelector.GroupFor(ConversationArchive.ToolName) == CsAgent.Core.Agent.ToolSelector.Core, "not core");
+            Assert(CsAgent.Core.Agent.ToolSelector.GroupFor(ConversationArchive.ToolName) == CsAgent.Core.Agent.ToolSelector.HistoryGroup, "not in history");
+            bool On(string text, params string[] used) =>
+                CsAgent.Core.Agent.ToolSelector.Select(text, used).Contains(CsAgent.Core.Agent.ToolSelector.HistoryGroup);
+            Assert(!On("fix the null reference in Program.cs and run the build"), "ordinary request");
+            Assert(!On("lis le fichier config.json"), "'fichier' must not match ' hier'");
+            Assert(!On("le dossier existe déjà, écris dedans"), "'déjà' alone is too common");
+            return "ok";
+            await Task.CompletedTask;
+        });
+
+        await T("words pointing back to earlier work switch 'history' on, in English and in French; so does an earlier recall", async () =>
+        {
+            bool On(string text, params string[] used) =>
+                CsAgent.Core.Agent.ToolSelector.Select(text, used).Contains(CsAgent.Core.Agent.ToolSelector.HistoryGroup);
+            foreach (var text in new[]
+            {
+                "use the format we decided earlier", "do it like last time", "where were we?",
+                "comme on avait dit la dernière fois", "reprends le travail d'hier", "tu m'as dit quoi à propos du rapport ?",
+                "où en étions-nous ?", "je l'ai déjà fait"
+            })
+                Assert(On(text), "not switched on: " + text);
+            Assert(On("and now?", ConversationArchive.ToolName), "used before");
+            Assert(CsAgent.Core.Agent.ToolSelector.MetaTool(new HashSet<string>(), false)["function"]!["description"]!
+                       .GetValue<string>().Contains("history (recall)"), "enable_tools lists it");
             return "ok";
             await Task.CompletedTask;
         });

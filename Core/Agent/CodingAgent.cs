@@ -107,6 +107,8 @@ public sealed class CodingAgent : IDisposable
         var requestText = LastUserText(messages);
         var usedTools = UsedToolNames(messages);
         foreach (var g in ToolSelector.Select(requestText, usedTools)) _toolGroups.Add(g);
+        // Nothing has left the context of this memory yet: recall could find nothing, so its words do not switch it on.
+        if (!File.Exists(paths.Archive)) _toolGroups.Remove(ToolSelector.HistoryGroup);
         _mcpOn = _mcpDefinitions is { Count: > 0 }
                  && ToolSelector.McpWanted(_mcpDefinitions, requestText, usedTools.Any(t => _mcp is not null && _mcp.Contains(t)));
 

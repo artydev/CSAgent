@@ -14,6 +14,7 @@ public static class ToolSelector
 {
     public const string Core = "core";
     public const string MetaToolName = "enable_tools";
+    public const string HistoryGroup = "history";
 
     /// <summary>MCP tools are all sent when their definitions take up to this many characters.</summary>
     public const int McpAlwaysChars = 4_000;
@@ -35,6 +36,7 @@ public static class ToolSelector
         ["audio"] = new[] { "transcribe_audio" },
         ["clipboard"] = new[] { "read_clipboard", "write_clipboard" },
         ["office"] = new[] { "excel_command", "close_excel" },
+        [HistoryGroup] = new[] { "recall" },
     };
 
     /// <summary>Words (lower case) that switch a group on when they appear in the request.</summary>
@@ -50,6 +52,15 @@ public static class ToolSelector
         ("audio", new[] { "audio", "transcri", "recording", "enregistrement", "mp3", "wav", "m4a", ".ogg", "flac", "whisper", "speech", "voice", "voix", "réunion", "reunion", "dictée", "dictee", "podcast", "vidéo", "video", "mp4", "webm", "entretien", "interview" }),
         ("clipboard", new[] { "clipboard", "presse-papier", "presse papier", "j'ai copié", "j'ai copie", "viens de copier", "just copied", "i copied", "what i copied", "paste", "colle ", "copié", "copied" }),
         ("office", new[] { "excel", "xlsx", ".xls", "spreadsheet", "tableur", "classeur", "workbook", "feuille de calcul", "pivot" }),
+        // Words that point back to earlier work. Kept specific: "before", "déjà" or "hier" alone are in too many
+        // requests ("fichier" contains "hier"), and each false positive costs the recall definition at every step.
+        (HistoryGroup, new[] { "earlier", "last time", "previously", "as before", "like before", "remember", "we decided", "we agreed",
+                            "you said", "i said", "i told you", "already done", "already did", "yesterday", "last week", "the other day",
+                            "where were we", "recall", "history",
+                            "tout à l'heure", "tout a l'heure", "dernière fois", "derniere fois", "précédemment", "precedemment",
+                            "auparavant", "on avait", "comme avant", "souviens", "rappelle-toi", "rappelle toi", "je t'ai dit",
+                            "tu as dit", "tu m'as dit", "déjà fait", "deja fait", "déjà dit", "deja dit", " hier", "d'hier", "semaine dernière",
+                            "semaine derniere", "où en étions", "ou en etions", "on en était", "on en etait", "reprends", "historique" }),
     };
 
     static readonly Dictionary<string, string> GroupOf = BuildGroupOf();
