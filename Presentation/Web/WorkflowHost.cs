@@ -56,11 +56,11 @@ public static class WorkflowHost
         }
     }
 
-    /// <summary>--fresh: the agent steps start with an empty memory. Only the four memory files are deleted, never the folder.</summary>
+    /// <summary>--fresh: the agent steps start with an empty memory. Only the memory files (and the archive) are deleted, never the folder.</summary>
     private static void ForgetMemory(string memory)
     {
         var paths = MemoryPaths.Resolve(memory);
-        foreach (var file in new[] { paths.Conversation, paths.Exact, paths.Semantic, paths.Summary })
+        foreach (var file in new[] { paths.Conversation, paths.Exact, paths.Semantic, paths.Summary, paths.Archive })
             try { File.Delete(file); } catch (IOException) { } catch (UnauthorizedAccessException) { }
     }
 

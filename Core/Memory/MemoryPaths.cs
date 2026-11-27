@@ -7,7 +7,8 @@ namespace CsAgent.Core.Memory;
 /// ├── conversation.json   full conversation history (sent to the LLM)
 /// ├── exact.json          ExactMemory: the last 50 steps
 /// ├── semantic.json       SemanticMemory: error / solution patterns
-/// └── summary.json        distilled session summary
+/// ├── summary.json        distilled session summary
+/// └── archive.jsonl       messages that left the context, searched by the recall tool
 /// </code>
 /// </summary>
 public sealed record MemoryPaths(string Directory, string Conversation, string Exact, string Semantic, string Summary)
@@ -19,6 +20,10 @@ public sealed record MemoryPaths(string Directory, string Conversation, string E
     public const string ExactFile = "exact.json";
     public const string SemanticFile = "semantic.json";
     public const string SummaryFile = "summary.json";
+    public const string ArchiveFile = "archive.jsonl";
+
+    /// <summary>Messages removed from the history (see ConversationArchive); appended, never rewritten.</summary>
+    public string Archive => Path.Combine(Directory, ArchiveFile);
 
     /// <summary>
     /// Builds the paths for a memory name (<c>--mem</c>): the name is the folder.

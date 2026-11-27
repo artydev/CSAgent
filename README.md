@@ -105,7 +105,7 @@ Workflow complete.
 - **Les workflows avec une étape `human_approval` ou `user_input` sont refusés** : CSFlow ne les lance pas par MCP (la validation humaine se fait dans son interface). C'est une règle de CSFlow, pas de CSAgent.
 - **Un seul workflow à la fois**, et seuls les fichiers de `workflows/` sont accessibles.
 - **Les options habituelles s'appliquent** : `--model`, `--endpoint`, `--yes` (une étape `agent` qui écrit un fichier attend sinon votre accord), `--port` (si les étapes donnent `csagent_url`), `--api-key` (si elles donnent `csagent_key`).
-- **Mémoire** : les étapes `agent` utilisent la mémoire `csflow_worker`, sans distillation, pour ne pas se mêler à vos conversations ; `--mem` la change. Elle est partagée entre les workflows et se conserve d'un lancement à l'autre : `--fresh` la vide au départ (seuls ses quatre fichiers sont supprimés), à utiliser pour un workflow planifié qui doit repartir de zéro.
+- **Mémoire** : les étapes `agent` utilisent la mémoire `csflow_worker`, sans distillation, pour ne pas se mêler à vos conversations ; `--mem` la change. Elle est partagée entre les workflows et se conserve d'un lancement à l'autre : `--fresh` la vide au départ (seuls ses fichiers de mémoire et son archive sont supprimés), à utiliser pour un workflow planifié qui doit repartir de zéro.
 - **Lancez-le depuis le dossier de CSFlow** : CSAgent n'écrit que dans son dossier courant, qui doit être celui de CSFlow pour que ses fichiers y soient retrouvés.
 
 ---
@@ -869,6 +869,20 @@ Règles de conception :
 
 **Coût et désactivation.** Chaque exécution se termine par un appel LLM supplémentaire. Utilisez `--no-distill` pour l'éviter : les deux couches de mémoire sont toujours enregistrées, et un résumé existant est toujours lu et utilisé, mais il n'est ni créé ni modifié. Supprimez `summary.json` dans le dossier de mémoire pour oublier complètement le résumé.
 
+### Archive et outil `recall` (retrouver les anciens messages)
+
+L'élagage (`TrimHistory()`, et le raccourcissement après une erreur « contexte trop long ») retire les plus anciens messages du contexte. Ils ne sont plus perdus : ils sont ajoutés à la fin de `archive.jsonl`, dans le dossier de mémoire, une ligne JSON par message (`ts`, `role`, `tool`, `text`). `ts` est la date de sortie du contexte.
+
+L'agent dispose de l'outil **`recall`** pour y chercher : quand vous évoquez quelque chose de déjà dit ou fait, ou avant de refaire un travail peut-être déjà fait.
+
+- **Recherche par mots-clés, classée par BM25** : mêmes mots-clés que la mémoire hybride (mots vides anglais et français retirés, accents et pluriels ramenés), les mots rares comptent plus que les mots courants, à égalité le plus récent d'abord.
+- **Filtres** : `role` (`user`, `assistant`, `tool`), `tool` (par exemple `sh`), `since` (par exemple `2026-11-01`), `limit` (5 par défaut, 10 au maximum).
+- **Chaque résultat** donne la date, le rôle, l'outil, le message juste avant (l'appel, pour un résultat d'outil) et 700 caractères du texte.
+- **Des données, pas des instructions** : le résultat le rappelle au modèle, car l'archive contient des contenus de fichiers et des sorties de commandes écrits par des tiers.
+- **Ce qui n'est jamais archivé** : le prompt système, les blocs `[MEMORY]` et `[SESSION CONTEXT]`, les résultats de `recall` lui-même. Un message est coupé à 8 000 caractères.
+- **Sans index ni base de données** : le fichier est lu ligne par ligne à chaque recherche, ce qui prend quelques millisecondes pour l'historique d'une personne. Une ligne coupée par un plantage est ignorée ; un message archivé deux fois n'est trouvé qu'une fois.
+- Supprimez `archive.jsonl` pour tout oublier ; un échec d'écriture est signalé et n'arrête pas l'agent.
+
 ### Fichiers de mémoire
 
 Chaque mémoire est un **dossier**, nommé d'après `--mem` (par défaut `agent_memory`). Un `.json` final est retiré : `--mem my_task.json` et `--mem my_task` utilisent donc tous deux le dossier `my_task/`. Le dossier est créé au premier enregistrement.
@@ -878,7 +892,8 @@ agent_memory/
 ├── conversation.json   Historique complet de la conversation (envoyé au LLM)
 ├── exact.json          ExactMemory (50 dernières étapes)
 ├── semantic.json       SemanticMemory (schémas erreur / solution)
-└── summary.json        Résumé de session distillé (décisions, contraintes, en attente, approches échouées)
+├── summary.json        Résumé de session distillé (décisions, contraintes, en attente, approches échouées)
+└── archive.jsonl       Messages sortis du contexte, une ligne JSON par message (outil recall)
 ```
 
 Un fichier qui n'a pas pu être lu est conservé à côté des autres sous le nom `<nom>.bad` (par exemple `semantic.json.bad` ; sans danger à supprimer).
