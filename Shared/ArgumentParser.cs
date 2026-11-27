@@ -48,7 +48,9 @@ public sealed record AgentArguments(
     IReadOnlyList<string>? McpHeaders = null,
     string? McpConfig = null,
     string? Workflow = null,
-    bool Fresh = false);
+    bool Fresh = false,
+    int CompressChars = 0,
+    bool Compress = true);
 
 /// <summary>
 /// Pure argument parsing — no side effects, no console output.
@@ -120,13 +122,14 @@ public static class ArgumentParser
             codeModel, chatModel, autoRoute, initRouting, explainRouting, rulesFolder, language, prompt,
             contextChars, !args.Contains("--no-compact"), args.Contains("--verbose"), args.Contains("--all-tools"),
             mcpUrls, GetValues(args, "--mcp-stdio"), GetValues(args, "--mcp-header"),
-            mcpConfig, workflow, args.Contains("--fresh"));
+            mcpConfig, workflow, args.Contains("--fresh"),
+            GetInt(args, "--compress-threshold", 0), !args.Contains("--no-compress"));
     }
 
     private static string GetMemoryFile(string[] args)
     {
         for (int i = 0; i < args.Length; i++)
-            if (args[i] == "--mem" && i + 1 < args.Length) return args[i + 1];
+            if (args[i] is "--mem" or "--session" && i + 1 < args.Length) return args[i + 1];
 
         for (int i = 0; i < args.Length; i++)
         {
@@ -135,7 +138,8 @@ public static class ArgumentParser
                           or "--task" or "--prop" or "--host" or "--api-key"
                           or "--endpoint" or "--vision-model" or "--code-model" or "--chat-model"
                           or "--explain-routing" or "--rules" or "--lang" or "--prompt" or "--context-chars"
-                          or "--mcp-url" or "--mcp-stdio" or "--mcp-header" or "--mcp-config" or "--workflow")
+                          or "--mcp-url" or "--mcp-stdio" or "--mcp-header" or "--mcp-config" or "--workflow"
+                          or "--compress-threshold")
             { i++; continue; }
 
             if (args[i] != "--ui" && args[i] != "--leanui"

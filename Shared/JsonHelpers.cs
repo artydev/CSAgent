@@ -199,6 +199,9 @@ public static class JsonHelpers
 
         int total = msgs.Sum(Len);
         int i = 1; // never touch index 0 (system message)
+        // Leading pinned messages (the injected [SESSION CONTEXT] block and the compression recap of
+        // CsAgent.Core.Memory.SessionCompressor) are never evicted, whatever their order.
+        while (i < msgs.Count && IsPinned(msgs[i])) i++;
         while (total > thresholdChars && msgs.Count > 3)
         {
             // Advance past any multimodal messages — they must not be removed
@@ -216,6 +219,13 @@ public static class JsonHelpers
         // Strict servers (vLLM templates: mistral, gemma, ...) reject that with
         // "Unexpected role 'tool' after role 'user'", so the pairs are repaired.
         RepairToolPairs(msgs);
+    }
+
+    private static bool IsPinned(JsonNode? m)
+    {
+        var t = m?["content"] is JsonValue v && v.TryGetValue<string>(out var s) ? s : "";
+        return t.StartsWith(CsAgent.Core.Memory.SessionCompressor.Marker, StringComparison.Ordinal)
+            || t.StartsWith("[SESSION CONTEXT]", StringComparison.Ordinal);
     }
 
     private static string RoleOf(JsonNode? m) =>

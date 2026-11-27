@@ -25,6 +25,7 @@ public static class Program
         LlmConfig.Configure(parsed.Endpoint, parsed.VisionModel, parsed.CodeModel, parsed.ChatModel, parsed.AutoRoute);
         RoutingRules.FolderOverride = parsed.RulesFolder;
         ContextBudget.Configure(parsed.ContextChars, parsed.CompactToolResults);
+        ContextBudget.ConfigureCompression(parsed.CompressChars, parsed.Compress);
         ToolSelector.Configure(parsed.AllTools);
 
         if (parsed.ShowHelp) { HelpDisplay.Show(Version); return 0; }

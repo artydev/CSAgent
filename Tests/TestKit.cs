@@ -91,6 +91,7 @@ static partial class Tests
         await HttpClientsGroup();
         await WorkflowGroup();
         await ContextBudgetGroup();
+        await SessionCompressGroup();
         await ContextRecoveryGroup();
         await RoutingLocalization();
         await PromptOption();

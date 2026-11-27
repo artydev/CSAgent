@@ -326,6 +326,29 @@ public sealed class CodingAgent : IDisposable
 
 
 
+                // Long sessions: past the threshold, the oldest messages become one saved recap
+                // (aichat compress_threshold). TrimHistory below stays the hard safety net.
+                if (ContextBudget.CompressEnabled
+                    && SessionCompressor.ShouldCompress(messages, ContextBudget.CompressChars))
+                {
+                    RemoveMemoryMessages(messages);     // injected blocks are rebuilt at the next step
+                    RemoveSessionContext(messages);
+                    try
+                    {
+                        if (await SessionCompressor.CompressAsync(
+                                messages, _client, ContextBudget.KeepRecentMessages, _cts.Token))
+                        {
+                            await _observer.OnWarning(Loc.T("Session compressed: older messages replaced by a summary."));
+                            await MemoryStore.SaveAsync(paths.Conversation, messages);
+                        }
+                    }
+                    catch (Exception ex) when (ex is not OperationCanceledException)
+                    {
+                        // Never fatal: TrimHistory still bounds the size.
+                        await _observer.OnWarning($"Session compression skipped: {ex.Message}");
+                    }
+                }
+
                 JsonHelpers.TrimHistory(messages, ContextBudget.MaxChars);
             }
         }
